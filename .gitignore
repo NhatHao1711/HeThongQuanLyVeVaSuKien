@@ -1,0 +1,59 @@
+# === Java / Maven ===
+target/
+*.class
+*.jar
+*.war
+*.log
+*.iml
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === Node / Frontend ===
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# === Logs & Temp Files ===
+*.log
+*.txt
+!README.md
+!ARCHITECTURE.md
+!DEPLOYMENT.md
+!IMPLEMENTATION_GUIDE.md
+!FRONTEND_GUIDE.md
+!QUICK_START.md
+!TROUBLESHOOTING.md
+!DATA_MANAGEMENT_GUIDE.md
+!PROJECT_COMPLETION_SUMMARY.md
+!PRODUCTION_READY_CHECKLIST.md
+!PHASE_2_SUMMARY.md
+!REDESIGN_SUMMARY.md
+compile.log
+compile_err.log
+compile_err2.log
+build_error.log
+run.log
+run2.log
+error.log
+err.txt
+error.txt
+error_log.txt
+compile_check.txt
+frontend_build.txt
+run_log.txt
+hash.txt
+backend_log.txt
+backend_startup.log
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Docker ===
+docker-data/

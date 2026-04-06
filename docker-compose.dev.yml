@@ -1,0 +1,30 @@
+# Docker Compose cho phát triển (Development)
+# Chỉ chạy Redis + RabbitMQ, backend/frontend chạy trực tiếp trên máy
+# Sử dụng: docker-compose -f docker-compose.dev.yml up -d
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ticketbox-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ticketbox-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  rabbitmq_data:

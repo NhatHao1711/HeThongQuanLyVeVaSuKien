@@ -1,0 +1,9 @@
+target/
+.idea/
+.vscode/
+*.log
+*.txt
+*.iml
+.git/
+frontend/
+docker-data/

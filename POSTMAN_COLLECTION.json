@@ -1,0 +1,335 @@
+{
+  "info": {
+    "name": "Event Ticket System - API Collection",
+    "description": "Complete API collection for Event Ticket Management System",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ticketbox.vn\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Universities",
+      "item": [
+        {
+          "name": "Get All Universities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8080/api/universities",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "universities"]
+            }
+          }
+        },
+        {
+          "name": "Create University",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Trường Đại Học Mới\",\n  \"domain\": \"new-university.edu.vn\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/universities/admin/create",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "universities", "admin", "create"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Event Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8080/api/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Workshop & Seminar\",\n  \"description\": \"Educational workshops and seminars\",\n  \"icon\": \"📚\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/categories/admin/create",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "categories", "admin", "create"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8080/api/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Get Event by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8080/api/events/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Event (Draft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My New Event\",\n  \"description\": \"This is a test event\",\n  \"location\": \"Grand Hotel, HCMC\",\n  \"startTime\": \"2024-07-20T09:00:00\",\n  \"endTime\": \"2024-07-20T17:00:00\",\n  \"categoryId\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/events/admin/create",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "admin", "create"]
+            }
+          }
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My Updated Event\",\n  \"description\": \"Updated description\",\n  \"location\": \"Luxury Hotel, HCMC\",\n  \"startTime\": \"2024-07-20T09:00:00\",\n  \"endTime\": \"2024-07-20T18:00:00\",\n  \"categoryId\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/events/admin/11",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "admin", "11"]
+            }
+          }
+        },
+        {
+          "name": "Publish Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/events/admin/11/publish",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "admin", "11", "publish"]
+            }
+          }
+        },
+        {
+          "name": "Close Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/events/admin/11/close",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "admin", "11", "close"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ticket Types",
+      "item": [
+        {
+          "name": "Get Ticket Types for Event",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8080/api/events/1/ticket-types",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "1", "ticket-types"]
+            }
+          }
+        },
+        {
+          "name": "Add Ticket Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Ticket\",\n  \"price\": 500000,\n  \"totalQuantity\": 50\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/events/admin/11/add-ticket-type",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "events", "admin", "11", "add-ticket-type"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Booking",
+      "item": [
+        {
+          "name": "Book Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": 1,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/bookings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "bookings"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT token from login response"
+    }
+  ]
+}

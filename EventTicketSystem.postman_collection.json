@@ -1,0 +1,384 @@
+{
+  "info": {
+    "name": "Event Ticket System API",
+    "description": "Collection for testing Event Ticket System APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Nguyễn Văn A\",\n  \"email\": \"a@student.edu.vn\",\n  \"password\": \"SecurePass123\",\n  \"interestsTags\": \"music,sports\",\n  \"universityId\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"a@student.edu.vn\",\n  \"password\": \"SecurePass123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Get Event by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/events/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "events", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"TechFest 2024\",\n  \"description\": \"Lễ hội công nghệ hàng năm\",\n  \"location\": \"Tầng 10, Tòa nhà A\",\n  \"startTime\": \"2024-04-15T09:00:00\",\n  \"endTime\": \"2024-04-15T17:00:00\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Add Ticket Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VIP\",\n  \"price\": 250000,\n  \"totalQuantity\": 100\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/events/1/ticket-types",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "events", "1", "ticket-types"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Booking & Payment",
+      "item": [
+        {
+          "name": "Book Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": 1,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/bookings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/payments/create-url",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "payments", "create-url"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Get My Tickets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/tickets",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Get Ticket Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/tickets/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "tickets", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check-in",
+      "item": [
+        {
+          "name": "Scan QR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"<encrypted-qr-token-from-user-ticket>\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/checkin/scan",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "checkin", "scan"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Social - Event Buddy",
+      "item": [
+        {
+          "name": "Send Buddy Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": 1,\n  \"receiverId\": 2\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/buddies/request",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "buddies", "request"]
+            }
+          }
+        },
+        {
+          "name": "Respond to Buddy Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/buddies/1/respond?accept=true",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "buddies", "1", "respond"],
+              "query": [
+                {
+                  "key": "accept",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Buddies for Event",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/buddies/event/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "buddies", "event", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Buddy Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/buddies/event/1/suggestions",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": ["8080"],
+              "path": ["api", "buddies", "event", "1", "suggestions"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
