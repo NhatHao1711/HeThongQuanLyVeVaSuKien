@@ -205,20 +205,22 @@ git commit -m "Mô tả ngắn gọn thay đổi của bạn"
 git push
 ```
 
+> 💡 **MẸO:** Có thể gộp 3 lệnh thành 1 dòng trong PowerShell (dùng dấu `;`):
+> ```
+> git add .; git commit -m "Mo ta thay doi"; git push
+> ```
+> ⚠️ **KHÔNG dùng `&&`** trong PowerShell, sẽ bị lỗi!
+
 **Ví dụ thực tế:**
 
 Bạn vừa sửa trang đăng nhập:
 ```
-git add .
-git commit -m "Fix loi trang dang nhap"
-git push
+git add .; git commit -m "Fix loi trang dang nhap"; git push
 ```
 
 Bạn vừa thêm trang mới:
 ```
-git add .
-git commit -m "Them trang quan ly su kien"
-git push
+git add .; git commit -m "Them trang quan ly su kien"; git push
 ```
 
 > 💡 **MẸO:** Viết mô tả ngắn gọn, rõ ràng để cả nhóm biết bạn đã sửa gì.
@@ -274,7 +276,7 @@ git push
 │  🚀 CHẠY DỰ ÁN (3 Terminal):                               │
 │     T1: docker-compose -f docker-compose.dev.yml up -d      │
 │     T2: .\mvnw.cmd spring-boot:run                          │
-│     T3: cd frontend && npm run dev                          │
+│     T3: cd frontend; npm run dev                            │
 │                                                             │
 │  🛑 TẮT DỰ ÁN:                                              │
 │     T3: Ctrl + C                                            │
@@ -282,9 +284,8 @@ git push
 │     T1: docker-compose -f docker-compose.dev.yml stop       │
 │                                                             │
 │  📥 Lấy code mới:     git pull                              │
-│  📤 Đẩy code lên:     git add .                             │
-│                        git commit -m "mô tả"                │
-│                        git push                             │
+│  📤 Đẩy code lên:                                           │
+│     git add .; git commit -m "mô tả"; git push             │
 │                                                             │
 │  🌐 Website:          http://localhost:3000                  │
 │  👑 Admin:            admin@ticketbox.vn / admin123         │
