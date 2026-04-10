@@ -1,9 +1,13 @@
 target/
 .idea/
 .vscode/
+.git/
+.agents/
 *.log
 *.txt
 *.iml
-.git/
+*.md
+uploads/
 frontend/
 docker-data/
+POSTMAN_COLLECTION.json

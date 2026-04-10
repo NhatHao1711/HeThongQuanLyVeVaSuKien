@@ -51,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
             populator.addScript(new ClassPathResource("db/data.sql"));
             populator.setSeparator(";");
             populator.setCommentPrefixes("--");
+            populator.setSqlScriptEncoding("UTF-8");
             populator.execute(dataSource);
 
             log.info("✅ Nạp dữ liệu mẫu thành công!");

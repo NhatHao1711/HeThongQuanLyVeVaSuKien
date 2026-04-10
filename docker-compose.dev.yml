@@ -1,8 +1,26 @@
 # Docker Compose cho phát triển (Development)
-# Chỉ chạy Redis + RabbitMQ, backend/frontend chạy trực tiếp trên máy
+# Backend/Frontend chạy trực tiếp trên máy, Docker chỉ chạy infrastructure
 # Sử dụng: docker-compose -f docker-compose.dev.yml up -d
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: ticketbox-mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --character-set-client-handshake=FALSE
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: event_ticket_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: ticketbox-redis
@@ -26,5 +44,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  mysql_data:
   redis_data:
   rabbitmq_data:

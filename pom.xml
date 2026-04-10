@@ -15,7 +15,7 @@
     <artifactId>event-ticket-system</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>Event Ticket System</name>
-    <description>Há»‡ thá»‘ng quáº£n lÃ½ sá»± kiá»‡n vÃ  bÃ¡n vÃ© online cho sinh viÃªn</description>
+    <description>TRIVENT - Event Management and Ticket Booking System for University Students</description>
 
     <properties>
         <java.version>17</java.version>
