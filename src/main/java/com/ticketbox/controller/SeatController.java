@@ -32,7 +32,7 @@ public class SeatController {
     }
 
     @PostMapping("/lock")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> lockSeats(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody LockSeatRequest request) {
@@ -45,7 +45,7 @@ public class SeatController {
     }
 
     @PostMapping("/unlock")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> unlockSeats(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody LockSeatRequest request) {
