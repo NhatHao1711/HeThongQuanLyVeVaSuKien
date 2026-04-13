@@ -1,0 +1,460 @@
+/* Admin Dashboard Styles */
+.adminContainer {
+  padding-top: 80px;
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.adminHeader {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+  margin-bottom: 24px;
+  position: sticky;
+  top: 80px;
+  z-index: 50;
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.breadcrumb a {
+  color: var(--primary-light);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.breadcrumb a:hover {
+  color: var(--accent);
+}
+
+.mainContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+
+/* ========== TABS ========== */
+.tabsNav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.tabBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.tabBtn.active {
+  background: var(--primary-glow);
+  color: var(--primary-light);
+  border-color: var(--primary);
+}
+
+/* ========== STATS GRID ========== */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all 0.2s;
+}
+
+.statCard:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.statContent {
+  flex: 1;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.statIcon {
+  font-size: 2rem;
+  opacity: 0.3;
+}
+
+/* ========== FORMS ========== */
+.formCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.formTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.formGroup.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btnOutline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.btnOutline:hover {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+  color: var(--text-primary);
+}
+
+.btnDanger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.btnDanger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.btnSm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+/* ========== TABLES ========== */
+.tableContainer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableHead {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.tableHeadCell {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s;
+}
+
+.tableRow:hover {
+  background: var(--bg-secondary);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableCell {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.tableCellAction {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ========== BADGES & STATUS ========== */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badgeActive {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badgeDraft {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary-light);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.badgeClosed {
+  background: rgba(107, 114, 128, 0.15);
+  color: #d1d5db;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ========== MESSAGES ========== */
+.messageBox {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.messageSuccess {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.messageError {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.messageWarning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+/* ========== EMPTY STATE ========== */
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.emptyIcon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.emptyText {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* ========== LOADING ========== */
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+}
+
+/* ========== EXPANDABLE SECTION ========== */
+.expandableSection {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.expandBtn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.expandBtn:hover {
+  color: var(--primary-light);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .formGroup.grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCellAction {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 0 16px 32px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCell {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .tableHeadCell {
+    padding: 10px 12px;
+    font-size: 0.75rem;
+  }
+
+  .formActions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}

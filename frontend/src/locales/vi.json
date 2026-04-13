@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "events": "Sự kiện",
+    "my_tickets": "Vé của tôi",
+    "orders": "Đơn hàng",
+    "buddies": "Tìm bạn đồng hành",
+    "calendar": "Lịch sự kiện",
+    "admin": "Quản trị",
+    "favorites": "Yêu thích",
+    "logout": "Đăng xuất",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "notifications": "Thông báo",
+    "read_all": "Đọc tất cả",
+    "no_notifications": "Không có thông báo"
+  },
+  "home": {
+    "hero_badge": "Khám phá sự kiện tuyệt vời",
+    "hero_title": "Nền tảng Quản lý",
+    "hero_title_highlight": "Sự Kiện Sinh Viên",
+    "hero_subtitle": "Khám phá, đăng ký và tham gia các sự kiện thú vị dành riêng cho sinh viên.",
+    "explore_btn": "Khám phá sự kiện",
+    "create_btn": "Tạo sự kiện ngay",
+    "stat_events": "Sự kiện",
+    "stat_users": "Sinh viên",
+    "stat_tickets": "Vé đã đặt",
+    "upcoming_events": "Sự Kiện Sắp Tới",
+    "upcoming_desc": "Đừng bỏ lỡ các sự kiện nổi bật nhất trong tháng này."
+  },
+  "common": {
+    "buy_ticket": "Đặt vé ngay",
+    "free": "Miễn phí",
+    "sold_out": "Hết vé",
+    "live": "Đang diễn ra",
+    "upcoming": "Sắp diễn ra",
+    "ended": "Đã kết thúc",
+    "theme_toggle": "Giao diện Sáng/Tối",
+    "language_toggle": "Ngôn ngữ"
+  }
+}

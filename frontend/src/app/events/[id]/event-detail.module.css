@@ -1,0 +1,292 @@
+.container {
+  padding-top: 64px;
+  min-height: 100vh;
+}
+
+.spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  color: #a0aec0;
+}
+
+.notFound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  font-size: 1.1rem;
+  color: #4a5568;
+}
+
+/* ===== HERO BANNER ===== */
+.heroBanner {
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+}
+
+.heroBg {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+.imagePlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  opacity: 0.3;
+}
+
+.backBtn {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: background 0.2s;
+  text-decoration: none;
+}
+.backBtn:hover { background: rgba(255,255,255,0.25); }
+
+/* ===== CONTENT ===== */
+.content {
+  max-width: 1200px;
+  margin: -60px auto 0;
+  padding: 0 2rem 3rem;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.mainSection { min-width: 0; }
+
+/* ===== EVENT HEADER ===== */
+.eventHeader {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  line-height: 1.3;
+  margin-bottom: 0.6rem;
+}
+
+.metadata { display: flex; flex-wrap: wrap; gap: 1rem; }
+.metaItem { font-size: 0.88rem; color: #4a5568; }
+
+.wishlistBtn {
+  padding: 8px 16px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  white-space: nowrap;
+}
+.wishlistBtn:hover { border-color: #ef4444; color: #ef4444; }
+
+/* ===== STATS ===== */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.statItem {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.2rem;
+  text-align: center;
+}
+.statLabel { display: block; font-size: 0.75rem; color: #a0aec0; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; }
+.statValue { display: block; font-size: 0.9rem; font-weight: 700; color: #1a1a2e; }
+
+/* ===== SECTION ===== */
+.section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.section h2 { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem; }
+.description { font-size: 0.9rem; color: #4a5568; line-height: 1.7; white-space: pre-line; }
+
+.details { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.detailItem strong { display: block; font-size: 0.8rem; color: #a0aec0; font-weight: 600; margin-bottom: 0.2rem; }
+.detailItem p { font-size: 0.9rem; color: #1a1a2e; }
+
+/* ===== SIDEBAR / BOOKING ===== */
+.sidebar {
+  position: sticky;
+  top: 80px;
+  height: fit-content;
+}
+
+.bookingCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.bookingTitle { font-size: 1.1rem; font-weight: 800; color: #1a1a2e; margin-bottom: 1rem; }
+.noTickets { color: #a0aec0; font-size: 0.88rem; text-align: center; padding: 2rem 0; }
+
+.ticketList { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.2rem; }
+
+.ticketOption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+.ticketOption.selected { border-color: #00B46E; background: rgba(0,180,110,0.05); }
+
+.ticketInfo { flex: 1; }
+.ticketName { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.2rem; }
+.ticketPrice { font-size: 0.88rem; font-weight: 700; color: #00B46E; }
+
+.quantityControl { display: flex; align-items: center; gap: 8px; }
+.qtyBtn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.qtyBtn:hover { border-color: #00B46E; color: #00B46E; }
+.qtyDisplay { font-weight: 700; font-size: 0.9rem; min-width: 24px; text-align: center; }
+
+.summary { padding: 1rem 0; border-top: 1px solid #e2e8f0; }
+.summaryRow { display: flex; justify-content: space-between; align-items: center; }
+.summaryRow span { font-size: 0.9rem; color: #4a5568; }
+.totalPrice { font-size: 1.2rem; font-weight: 800; color: #00B46E; }
+
+.bookBtn {
+  width: 100%;
+  padding: 14px;
+  background: #00B46E;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  text-align: center;
+  display: block;
+  text-decoration: none;
+}
+.bookBtn:hover { background: #009458; }
+
+.backBtnSmall {
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: #4a5568;
+  cursor: pointer;
+  margin-top: 0.6rem;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.backBtnSmall:hover { border-color: #00B46E; color: #00B46E; }
+
+/* ===== PAYMENT ===== */
+.paymentMethods { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+.paymentOption {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px;
+  cursor: pointer; transition: border-color 0.2s;
+  font-size: 0.88rem;
+}
+.paymentOption:hover { border-color: #00B46E; }
+.paymentOption input { accent-color: #00B46E; }
+
+/* ===== SUCCESS ===== */
+.successMessage { text-align: center; padding: 2rem 0; }
+.successIcon {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: #00B46E;
+  color: #fff;
+  font-size: 1.8rem;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1rem;
+}
+.successMessage h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+.successMessage p { font-size: 0.88rem; color: #4a5568; margin-bottom: 1.5rem; }
+
+/* ===== SHARE ===== */
+.shareSection {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.2rem;
+  text-align: center;
+}
+.shareLabel { font-size: 0.82rem; color: #a0aec0; font-weight: 600; margin-bottom: 0.8rem; }
+.shareButtons { display: flex; gap: 0.6rem; justify-content: center; }
+.shareBtn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.shareBtn:hover { border-color: #00B46E; color: #00B46E; }
+
+@media (max-width: 900px) {
+  .content { grid-template-columns: 1fr; padding: 0 1rem 2rem; }
+  .heroBanner { height: 200px; }
+  .stats { grid-template-columns: 1fr; }
+  .details { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+}

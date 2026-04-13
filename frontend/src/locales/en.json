@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "home": "Home",
+    "events": "Events",
+    "my_tickets": "My Tickets",
+    "orders": "Orders",
+    "buddies": "Find Buddies",
+    "calendar": "Calendar",
+    "admin": "Admin",
+    "favorites": "Favorites",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register",
+    "notifications": "Notifications",
+    "read_all": "Mark all read",
+    "no_notifications": "No notifications"
+  },
+  "home": {
+    "hero_badge": "Discover amazing events",
+    "hero_title": "Student Event",
+    "hero_title_highlight": "Management Platform",
+    "hero_subtitle": "Discover, register, and join exciting events tailored exclusively for students.",
+    "explore_btn": "Explore Events",
+    "create_btn": "Create Event Now",
+    "stat_events": "Events",
+    "stat_users": "Students",
+    "stat_tickets": "Tickets Booked",
+    "upcoming_events": "Upcoming Events",
+    "upcoming_desc": "Don't miss out on the most highly anticipated events this month."
+  },
+  "common": {
+    "buy_ticket": "Get Tickets",
+    "free": "Free",
+    "sold_out": "Sold out",
+    "live": "Live Now",
+    "upcoming": "Upcoming",
+    "ended": "Ended",
+    "theme_toggle": "Toggle Theme",
+    "language_toggle": "Language"
+  }
+}

@@ -1,0 +1,223 @@
+.container {
+  padding-top: 80px;
+  min-height: 100vh;
+}
+
+.layout {
+  display: flex;
+  gap: 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ===== SIDEBAR FILTERS ===== */
+.filters {
+  width: 260px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+  height: fit-content;
+}
+
+.filterSection {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.filterTitle {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1a1a2e;
+  margin-bottom: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.searchInput:focus { border-color: #00B46E; }
+
+.filterItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.88rem;
+  color: #4a5568;
+  cursor: pointer;
+}
+.filterItem input[type="radio"] { accent-color: #00B46E; }
+.filterItem label { cursor: pointer; }
+
+.priceRange {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.priceRange span { color: #a0aec0; }
+
+.priceInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  outline: none;
+}
+.priceInput:focus { border-color: #00B46E; }
+
+.sortSelect {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  outline: none;
+  background: #fff;
+  cursor: pointer;
+}
+.sortSelect:focus { border-color: #00B46E; }
+
+.clearFilters {
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clearFilters:hover { border-color: #00B46E; color: #00B46E; }
+
+/* ===== MAIN CONTENT ===== */
+.contentArea { flex: 1; min-width: 0; }
+
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; }
+
+.results { margin-bottom: 1.2rem; }
+.resultInfo { display: flex; align-items: center; gap: 8px; }
+.resultCount { font-size: 0.88rem; color: #4a5568; font-weight: 500; }
+.resultFilters { font-size: 0.82rem; color: #a0aec0; }
+
+/* ===== EVENT GRID ===== */
+.eventsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.eventCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.eventCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  border-color: rgba(0,180,110,0.3);
+}
+
+.eventImage {
+  height: 180px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #f3e5f5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  position: relative;
+}
+
+.eventBadges {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(0,180,110,0.9);
+  color: #fff;
+}
+.free { background: rgba(59,130,246,0.9); }
+
+.eventContent { padding: 1.2rem; }
+
+.eventCategory { font-size: 0.75rem; color: #00B46E; font-weight: 600; text-transform: uppercase; margin-bottom: 0.3rem; }
+.eventTitle { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.3rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.eventDescription { font-size: 0.82rem; color: #4a5568; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.8rem; }
+
+.eventMeta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 1rem; }
+.eventMetaItem { font-size: 0.8rem; color: #a0aec0; }
+
+.eventFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.8rem;
+  border-top: 1px solid #e2e8f0;
+}
+.eventPrice { font-size: 1rem; font-weight: 800; color: #00B46E; }
+.eventBtn {
+  padding: 6px 14px;
+  background: #00B46E;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.eventBtn:hover { background: #009458; }
+
+/* ===== STATES ===== */
+.loadingContainer { text-align: center; padding: 4rem 0; }
+.loadingContainer .spinner { margin: 0 auto 1rem; }
+.loadingText { color: #a0aec0; font-size: 0.88rem; }
+
+.emptyState { text-align: center; padding: 4rem 2rem; }
+.emptyIcon { font-size: 3rem; margin-bottom: 1rem; }
+.emptyTitle { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.4rem; }
+.emptyText { color: #a0aec0; font-size: 0.88rem; margin-bottom: 1.5rem; }
+.emptyBtn {
+  padding: 10px 24px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 0.88rem;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; padding: 1rem; }
+  .filters { width: 100%; position: static; }
+  .eventsGrid { grid-template-columns: 1fr; }
+}
