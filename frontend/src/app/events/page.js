@@ -192,31 +192,11 @@ function EventsContent() {
     <>
       <Navbar />
       <div className={styles.container}>
-        {/* Tab Bar */}
-        <div style={{
-          display: 'flex', gap: '0.5rem', padding: '1rem 0', borderBottom: '2px solid #e2e8f0',
-          marginBottom: '1rem', flexWrap: 'wrap'
-        }}>
-          {[
-            { key: 'all', label: 'Tất cả' },
-            { key: 'upcoming', label: 'Sắp diễn ra' },
-            { key: 'hot', label: 'HOT' },
-            { key: 'free', label: 'Miễn phí' },
-          ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              padding: '0.5rem 1.25rem', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s',
-              background: activeTab === tab.key ? 'var(--primary)' : '#f1f5f9',
-              color: activeTab === tab.key ? '#fff' : '#64748b'
-            }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
 
         <div className={styles.layout}>
           {/* Sidebar Filters */}
           <aside className={styles.filters}>
+            {/* Search */}
             <div className={styles.filterSection}>
               <div className={styles.filterTitle}>Tìm kiếm</div>
               <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
@@ -229,6 +209,33 @@ function EventsContent() {
                   style={{ marginBottom: 0, fontSize: '0.9rem' }}
                 />
               </form>
+            </div>
+
+            {/* Tab Filter */}
+            <div className={styles.filterSection}>
+              <div className={styles.filterTitle}>Phân loại</div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'
+              }}>
+                {[
+                  { key: 'all', label: 'Tất cả' },
+                  { key: 'upcoming', label: 'Sắp diễn ra' },
+                  { key: 'hot', label: 'HOT' },
+                  { key: 'free', label: 'Miễn phí' },
+                ].map(tab => (
+                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                    padding: '0.55rem 0.5rem', borderRadius: 10, cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                    background: activeTab === tab.key ? 'var(--primary)' : '#f8fafc',
+                    color: activeTab === tab.key ? '#fff' : '#475569',
+                    border: activeTab === tab.key ? '1.5px solid var(--primary)' : '1.5px solid #e2e8f0',
+                    boxShadow: activeTab === tab.key ? '0 2px 8px rgba(0,180,110,0.25)' : 'none',
+                  }}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className={styles.filterSection}>

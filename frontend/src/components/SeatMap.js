@@ -70,7 +70,9 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
         newSelected = [...selectedSeats, seat.id];
       }
       setSelectedSeats(newSelected);
-      onSeatsSelected(newSelected);
+      // Pass both IDs and seat info (names) to parent
+      const selectedSeatObjects = seats.filter(s => newSelected.includes(s.id));
+      onSeatsSelected(newSelected, selectedSeatObjects);
       
     } catch (error) {
       console.error("Error toggling seat:", error);

@@ -16,8 +16,9 @@ export default function EventDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState({});
   const [selectedSeatIds, setSelectedSeatIds] = useState({}); // Tracks seat IDs per ticket type { ticketTypeId: [1, 2, 3] }
-  const [activeTicketTypeId, setActiveTicketTypeId] = useState(null); // Which ticket type is showing the seat map
-  const [bookingStep, setBookingStep] = useState('select');
+  const [selectedSeatObjects, setSelectedSeatObjects] = useState({}); // Tracks seat objects with names { ticketTypeId: [{id, name, status}] }
+  const [activeTicketTypeId, setActiveTicketTypeId] = useState(null); // Which ticket type tab is active
+  const [bookingStep, setBookingStep] = useState('select'); // 'select' | 'confirm' | 'payment' | 'success'
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState('');
   const [isFavorited, setIsFavorited] = useState(false);
@@ -32,6 +33,7 @@ export default function EventDetailPage({ params }) {
   const [reviewMsg, setReviewMsg] = useState('');
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, active: false });
   const [relatedEvents, setRelatedEvents] = useState([]);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     loadEvent();
@@ -76,6 +78,10 @@ export default function EventDetailPage({ params }) {
       if (res.success) {
         setEvent(res.data);
         setTicketTypes(res.data.ticketTypes || []);
+        // Set first ticket type as active by default
+        if (res.data.ticketTypes?.length > 0) {
+          setActiveTicketTypeId(res.data.ticketTypes[0].id);
+        }
       } else {
         setError('Không tìm thấy sự kiện');
       }
@@ -146,28 +152,17 @@ export default function EventDetailPage({ params }) {
     </div>
   );
 
-  const handleTicketQuantityChange = (ticketTypeId, quantity) => {
-    if (quantity <= 0) {
-      const newSelected = { ...selectedTickets };
-      delete newSelected[ticketTypeId];
-      setSelectedTickets(newSelected);
-      
-      const newSeats = { ...selectedSeatIds };
-      delete newSeats[ticketTypeId];
-      setSelectedSeatIds(newSeats);
-    } else {
-      setSelectedTickets(prev => ({
-        ...prev,
-        [ticketTypeId]: quantity
-      }));
-    }
-  };
-
-  const handleSeatsSelected = (ticketTypeId, seatIds) => {
-    // When seats are selected from SeatMap, update both seat IDs and quantity
+  const handleSeatsSelected = (ticketTypeId, seatIds, seatObjects) => {
+    // When seats are selected from SeatMap, update seat IDs, seat objects, and quantity
     setSelectedSeatIds(prev => ({
       ...prev,
       [ticketTypeId]: seatIds
+    }));
+    
+    // Store seat objects with names for display in confirmation
+    setSelectedSeatObjects(prev => ({
+      ...prev,
+      [ticketTypeId]: seatObjects || []
     }));
     
     // Update quantity based on selected seats count
@@ -190,6 +185,24 @@ export default function EventDetailPage({ params }) {
     }, 0);
   };
 
+  const getTotalSeatsCount = () => {
+    return Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
+  };
+
+  const getAllSelectedSeatNames = () => {
+    const allNames = [];
+    Object.entries(selectedSeatIds).forEach(([typeId, seatIds]) => {
+      if (seatIds && seatIds.length > 0) {
+        const ticketType = ticketTypes.find(t => t.id == typeId);
+        const typeName = ticketType?.name || 'Vé';
+        // We'll collect them; the SeatMap component stores IDs, not names,
+        // but we'll show the count per type
+        allNames.push(`${typeName} (${seatIds.length} ghế)`);
+      }
+    });
+    return allNames;
+  };
+
   const handleBooking = async () => {
     if (Object.keys(selectedTickets).length === 0) {
       setError('Vui lòng chọn ít nhất một vé');
@@ -204,6 +217,8 @@ export default function EventDetailPage({ params }) {
     try {
       // Backend expects single { ticketTypeId, quantity } per request
       const entries = Object.entries(selectedTickets);
+      let allOrderIds = [];
+      let grandTotal = 0;
       let lastResponse = null;
       
       for (const [typeId, qty] of entries) {
@@ -222,6 +237,8 @@ export default function EventDetailPage({ params }) {
         });
         if (res.success) {
           lastResponse = res.data;
+          allOrderIds.push(res.data.orderId);
+          grandTotal += parseFloat(res.data.totalAmount) || 0;
         } else {
           setError(res.message || 'Đặt vé thất bại');
           return;
@@ -229,7 +246,13 @@ export default function EventDetailPage({ params }) {
       }
       
       if (lastResponse) {
-        setBooking(lastResponse);
+        // Override totalAmount with the accumulated grand total
+        setBooking({
+          ...lastResponse,
+          totalAmount: grandTotal,
+          allOrderIds: allOrderIds,
+          orderId: allOrderIds.join(', ')
+        });
         setBookingStep('payment');
       }
     } catch {
@@ -270,6 +293,18 @@ export default function EventDetailPage({ params }) {
       currency: 'VND',
       minimumFractionDigits: 0
     }).format(price);
+  };
+
+  const openBookingModal = () => {
+    setShowBookingModal(true);
+    setBookingStep('select');
+    setError('');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    document.body.style.overflow = '';
   };
 
   if (loading) {
@@ -421,224 +456,40 @@ export default function EventDetailPage({ params }) {
                 </div>
               </div>
             </div>
+
+
           </div>
 
-          {/* Sidebar - Booking */}
+          {/* Sidebar - Simplified: Only Book Now + Countdown + Share */}
           <aside className={styles.sidebar}>
+            {/* Book Now Card */}
             <div className={styles.bookingCard}>
-              {bookingStep === 'select' && (
-                <>
-                  <h2 className={styles.bookingTitle}>🎫 Chọn vé</h2>
-                  
-                  {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '10px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', marginBottom: '12px' }}>{error}</div>}
-
-                  {ticketTypes.length === 0 ? (
-                    <p className={styles.noTickets}>Hiện không có vé nào</p>
-                  ) : (
-                    <>
-                      <div className={styles.ticketList}>
-                        {ticketTypes.map(ticket => (
-                          <div key={ticket.id}>
-                            <div 
-                              className={`${styles.ticketOption} ${selectedTickets[ticket.id] ? styles.selected : ''}`}
-                            >
-                              <div className={styles.ticketInfo}>
-                                <p className={styles.ticketName}>{ticket.name || 'Vé'}</p>
-                                <p className={styles.ticketPrice}>
-                                  {formatPrice(ticket.price)}
-                                </p>
-                              </div>
-                              <div className={styles.quantityControl} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <button 
-                                  onClick={() => setActiveTicketTypeId(activeTicketTypeId === ticket.id ? null : ticket.id)}
-                                  style={{ padding: '6px 12px', background: activeTicketTypeId === ticket.id ? '#007bff' : '#f0f0f0', color: activeTicketTypeId === ticket.id ? '#fff' : '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-                                >
-                                  {activeTicketTypeId === ticket.id ? 'Đóng sơ đồ' : 'Chọn ghế'}
-                                </button>
-                                <div style={{ display: 'flex', alignItems: 'center', background: '#f8f9fa', borderRadius: '6px', border: '1px solid #e9ecef' }}>
-                                  <button
-                                    onClick={() => handleTicketQuantityChange(ticket.id, (selectedTickets[ticket.id] || 0) - 1)}
-                                    className={styles.qtyBtn}
-                                    style={{ border: 'none', background: 'transparent' }}
-                                    disabled={selectedSeatIds[ticket.id]?.length > 0} // disable if using seats
-                                  >
-                                    −
-                                  </button>
-                                  <span className={styles.qtyDisplay} style={{ minWidth: '30px', textAlign: 'center' }}>
-                                    {selectedTickets[ticket.id] || 0}
-                                  </span>
-                                  <button
-                                    onClick={() => handleTicketQuantityChange(ticket.id, (selectedTickets[ticket.id] || 0) + 1)}
-                                    className={styles.qtyBtn}
-                                    style={{ border: 'none', background: 'transparent' }}
-                                    disabled={selectedSeatIds[ticket.id]?.length > 0} // disable if using seats
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Render SeatMap if active */}
-                            {activeTicketTypeId === ticket.id && (
-                              <SeatMap 
-                                ticketTypeId={ticket.id} 
-                                onSeatsSelected={(seats) => handleSeatsSelected(ticket.id, seats)} 
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Voucher Input */}
-                      <div style={{ margin: '12px 0', padding: '12px', background: '#f8fafc', borderRadius: 10, border: '1px dashed #e2e8f0' }}>
-                        <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#4a5568', marginBottom: 8 }}>🏷️ Mã giảm giá</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <input
-                            type="text"
-                            placeholder="Nhập mã voucher..."
-                            value={voucherCode}
-                            onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
-                            style={{ flex: 1, padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'monospace' }}
-                          />
-                          <button
-                            onClick={async () => {
-                              if (!voucherCode.trim()) return;
-                              setVoucherLoading(true);
-                              try {
-                                const res = await apiRequest('/vouchers/apply', {
-                                  method: 'POST',
-                                  body: JSON.stringify({ code: voucherCode.trim(), amount: calculateTotal() }),
-                                });
-                                if (res.success) {
-                                  setVoucherResult({ success: true, ...res.data });
-                                } else {
-                                  setVoucherResult({ success: false, message: res.message });
-                                }
-                              } catch { setVoucherResult({ success: false, message: 'Lỗi kết nối' }); }
-                              finally { setVoucherLoading(false); }
-                            }}
-                            disabled={voucherLoading || !voucherCode.trim()}
-                            style={{ padding: '8px 14px', background: '#00B46E', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: voucherLoading ? 0.6 : 1 }}
-                          >
-                            {voucherLoading ? '...' : 'Áp dụng'}
-                          </button>
-                        </div>
-                        {voucherResult && (
-                          <div style={{ marginTop: 8, fontSize: '0.82rem', padding: '6px 10px', borderRadius: 6, background: voucherResult.success ? '#f0fdf4' : '#fef2f2', color: voucherResult.success ? '#16a34a' : '#dc2626' }}>
-                            {voucherResult.success
-                              ? `✅ ${voucherResult.description} (-${formatPrice(voucherResult.discount)})`
-                              : `❌ ${voucherResult.message}`}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className={styles.summary}>
-                        <div className={styles.summaryRow}>
-                          <span>Tổng tiền:</span>
-                          <span className={styles.totalPrice}>
-                            {formatPrice(calculateTotal())}
-                          </span>
-                        </div>
-                        {voucherResult?.success && (
-                          <>
-                            <div className={styles.summaryRow} style={{ color: '#16a34a' }}>
-                              <span>Giảm giá:</span>
-                              <span style={{ fontWeight: 700 }}>-{formatPrice(voucherResult.discount)}</span>
-                            </div>
-                            <div className={styles.summaryRow} style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8, marginTop: 4 }}>
-                              <span style={{ fontWeight: 700 }}>Thanh toán:</span>
-                              <span className={styles.totalPrice} style={{ color: '#00B46E' }}>
-                                {formatPrice(voucherResult.finalAmount)}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      <button 
-                        className={styles.bookBtn}
-                        onClick={handleBooking}
-                      >
-                        Tiếp tục thanh toán
-                      </button>
-                    </>
-                  )}
-                </>
+              <h2 className={styles.bookingTitle}>🎫 Đặt vé</h2>
+              <p style={{ fontSize: '0.88rem', color: '#4a5568', marginBottom: '1rem', lineHeight: 1.6 }}>
+                Chọn loại vé và vị trí ghế ngồi yêu thích của bạn.
+              </p>
+              {ticketTypes.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#6b7280', marginBottom: '0.3rem' }}>
+                    <span>Giá từ</span>
+                    <span>đến</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
+                      {formatPrice(Math.min(...ticketTypes.map(t => t.price)))}
+                    </span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
+                      {formatPrice(Math.max(...ticketTypes.map(t => t.price)))}
+                    </span>
+                  </div>
+                </div>
               )}
-
-              {bookingStep === 'payment' && (
-                <>
-                  <h2 className={styles.bookingTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>{icons.creditCard(22)} Chuyển khoản ngân hàng</h2>
-                  
-                  {/* Bank Info */}
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: '#6b7280' }}>Ngân hàng:</span>
-                        <span style={{ fontWeight: 700, color: '#1a1a2e' }}>Vietcombank</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: '#6b7280' }}>Số tài khoản:</span>
-                        <span style={{ fontWeight: 700, color: '#1a1a2e', fontFamily: 'monospace', letterSpacing: 1 }}>1030490936</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: '#6b7280' }}>Chủ TK:</span>
-                        <span style={{ fontWeight: 700, color: '#1a1a2e' }}>TRUONG HUY NHAT HAO</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                        <span style={{ color: '#6b7280' }}>Nội dung CK:</span>
-                        <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {booking?.orderId || ''}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* QR Code */}
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '8px' }}>Quét mã QR để chuyển khoản nhanh:</p>
-                    <img 
-                      src={getBankQRUrl(booking?.totalAmount || calculateTotal())} 
-                      alt="QR Chuyển khoản" 
-                      style={{ width: '100%', maxWidth: 260, borderRadius: 12, border: '1px solid #e2e8f0' }}
-                    />
-                  </div>
-
-                  <div className={styles.summary} style={{ marginBottom: '16px' }}>
-                    <div className={styles.summaryRow}>
-                      <span>Tổng thanh toán:</span>
-                      <span className={styles.totalPrice}>
-                        {formatPrice(booking?.totalAmount || calculateTotal())}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button 
-                    className={styles.bookBtn}
-                    onClick={handleConfirmPayment}
-                  >
-                    {icons.check(16, '#fff')} Tôi đã chuyển khoản
-                  </button>
-                  <button 
-                    className={styles.backBtnSmall}
-                    onClick={() => setBookingStep('select')}
-                  >
-                    ← Quay lại
-                  </button>
-                </>
-              )}
-
-              {bookingStep === 'success' && (
-                <>
-                  <div className={styles.successMessage}>
-                    <div className={styles.successIcon}>✓</div>
-                    <h3>Đặt vé thành công!</h3>
-                    <p>Vé của bạn đã được gửi đến email. Hãy kiểm tra để nhận thông tin chi tiết.</p>
-                  </div>
-                  <Link href="/my-tickets" className={styles.bookBtn}>
-                    Xem vé của tôi
-                  </Link>
-                </>
-              )}
+              <button 
+                className={styles.bookNowBtn}
+                onClick={openBookingModal}
+              >
+                🎟️ Đặt vé ngay
+              </button>
             </div>
 
             {/* Countdown Timer */}
@@ -668,6 +519,306 @@ export default function EventDetailPage({ params }) {
           </aside>
         </div>
       </div>
+
+      {/* ==================== BOOKING MODAL ==================== */}
+      {showBookingModal && (
+        <div className={styles.bookingModalOverlay} onClick={(e) => { if (e.target === e.currentTarget) closeBookingModal(); }}>
+          <div className={styles.bookingModal}>
+            {/* Modal Header */}
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 className={styles.modalTitle}>🎫 Đặt vé - {event.title}</h2>
+                <p className={styles.modalSubtitle}>
+                  {icons.mapPin(14, '#94a3b8')} {event.location} • {icons.calendar(14, '#94a3b8')} {formatDate(event.startTime)}
+                </p>
+              </div>
+              <button className={styles.modalCloseBtn} onClick={closeBookingModal}>✕</button>
+            </div>
+
+            {bookingStep === 'select' && (
+              <>
+                {/* Ticket Type Tabs */}
+                <div className={styles.ticketTypeTabs}>
+                  {ticketTypes.map(ticket => (
+                    <button
+                      key={ticket.id}
+                      className={`${styles.ticketTypeTab} ${activeTicketTypeId === ticket.id ? styles.ticketTypeTabActive : ''}`}
+                      onClick={() => setActiveTicketTypeId(ticket.id)}
+                    >
+                      <span className={styles.tabTicketName}>{ticket.name || 'Vé'}</span>
+                      <span className={styles.tabTicketPrice}>{formatPrice(ticket.price)}</span>
+                      {(selectedTickets[ticket.id] || 0) > 0 && (
+                        <span className={styles.tabBadge}>{selectedTickets[ticket.id]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {error && (
+                  <div className={styles.modalError}>{error}</div>
+                )}
+
+                {/* Seat Map Area */}
+                <div className={styles.seatMapArea}>
+                  {activeTicketTypeId && (
+                    <SeatMap
+                      key={activeTicketTypeId}
+                      ticketTypeId={activeTicketTypeId}
+                      onSeatsSelected={(seats, seatObjects) => handleSeatsSelected(activeTicketTypeId, seats, seatObjects)}
+                    />
+                  )}
+                </div>
+
+                {/* Bottom Summary Bar */}
+                <div className={styles.modalBottomBar}>
+                  <div className={styles.bottomBarInfo}>
+                    <div className={styles.bottomBarRow}>
+                      <div className={styles.bottomBarStat}>
+                        <span className={styles.bottomBarLabel}>Tổng ghế đã chọn</span>
+                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} ghế</span>
+                      </div>
+                      <div className={styles.bottomBarStat}>
+                        <span className={styles.bottomBarLabel}>Vị trí đã chọn</span>
+                        <span className={styles.bottomBarValue}>
+                          {getAllSelectedSeatNames().length > 0
+                            ? getAllSelectedSeatNames().join(', ')
+                            : 'Chưa chọn ghế'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.bottomBarPayment}>
+                    <div className={styles.totalSection}>
+                      <span className={styles.totalLabel}>Tổng tiền</span>
+                      <span className={styles.totalAmount}>{formatPrice(calculateTotal())}</span>
+                    </div>
+                    <button
+                      className={styles.paymentBtn}
+                      onClick={() => { setError(''); setBookingStep('confirm'); }}
+                      disabled={getTotalSeatsCount() === 0}
+                    >
+                      Tiếp tục →
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {bookingStep === 'confirm' && (
+              <div className={styles.paymentContent}>
+                <h2 className={styles.bookingTitle}>📋 Xác nhận đơn hàng</h2>
+
+                {/* Event Info Summary */}
+                <div className={styles.confirmEventInfo}>
+                  <div className={styles.confirmEventRow}>
+                    <span className={styles.confirmEventLabel}>🎪 Sự kiện</span>
+                    <span className={styles.confirmEventValue}>{event.title}</span>
+                  </div>
+                  <div className={styles.confirmEventRow}>
+                    <span className={styles.confirmEventLabel}>📍 Địa điểm</span>
+                    <span className={styles.confirmEventValue}>{event.location || 'Chưa xác định'}</span>
+                  </div>
+                  <div className={styles.confirmEventRow}>
+                    <span className={styles.confirmEventLabel}>📅 Thời gian</span>
+                    <span className={styles.confirmEventValue}>{formatDate(event.startTime)} - {formatTime(event.startTime)}</span>
+                  </div>
+                </div>
+
+                {/* Ticket Details */}
+                <div className={styles.confirmOrderSummary}>
+                  <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>🎫 Chi tiết vé đã chọn</p>
+                  {Object.entries(selectedTickets).map(([typeId, qty]) => {
+                    const ticket = ticketTypes.find(t => t.id == typeId);
+                    const seatObjs = selectedSeatObjects[typeId] || [];
+                    const seatNames = seatObjs.map(s => s.name).sort();
+                    return (
+                      <div key={typeId} className={styles.confirmOrderItem}>
+                        <div style={{ flex: 1 }}>
+                          <p className={styles.confirmItemName}>{ticket?.name || 'Vé'}</p>
+                          <p className={styles.confirmItemMeta}>Số lượng: {qty} ghế × {formatPrice(ticket?.price || 0)}</p>
+                          {seatNames.length > 0 && (
+                            <div className={styles.confirmSeatTags}>
+                              <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '0.4rem' }}>Ghế:</span>
+                              {seatNames.map(name => (
+                                <span key={name} className={styles.seatTag}>{name}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className={styles.confirmItemTotal}>{formatPrice((ticket?.price || 0) * qty)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Voucher Section */}
+                <div className={styles.confirmVoucherSection}>
+                  <p className={styles.confirmVoucherLabel}>🏷️ Mã giảm giá</p>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="Nhập mã voucher..."
+                      value={voucherCode}
+                      onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
+                      className={styles.voucherInput}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!voucherCode.trim()) return;
+                        setVoucherLoading(true);
+                        try {
+                          const res = await apiRequest('/vouchers/apply', {
+                            method: 'POST',
+                            body: JSON.stringify({ code: voucherCode.trim(), amount: calculateTotal() }),
+                          });
+                          if (res.success) {
+                            setVoucherResult({ success: true, ...res.data });
+                          } else {
+                            setVoucherResult({ success: false, message: res.message });
+                          }
+                        } catch { setVoucherResult({ success: false, message: 'Lỗi kết nối' }); }
+                        finally { setVoucherLoading(false); }
+                      }}
+                      disabled={voucherLoading || !voucherCode.trim()}
+                      className={styles.voucherApplyBtn}
+                    >
+                      {voucherLoading ? '...' : 'Áp dụng'}
+                    </button>
+                  </div>
+                  {voucherResult && (
+                    <div className={`${styles.voucherMsg} ${voucherResult.success ? styles.voucherSuccess : styles.voucherFail}`} style={{ marginTop: 8 }}>
+                      {voucherResult.success
+                        ? `✅ ${voucherResult.description} (-${formatPrice(voucherResult.discount)})`
+                        : `❌ ${voucherResult.message}`}
+                    </div>
+                  )}
+                </div>
+
+                {/* Price Summary */}
+                <div className={styles.confirmPriceSummary}>
+                  {Object.entries(selectedTickets).map(([typeId, qty]) => {
+                    const ticket = ticketTypes.find(t => t.id == typeId);
+                    return (
+                      <div key={typeId} className={styles.confirmPriceRow}>
+                        <span>{ticket?.name} × {qty}</span>
+                        <span>{formatPrice((ticket?.price || 0) * qty)}</span>
+                      </div>
+                    );
+                  })}
+                  <div className={styles.confirmPriceRow} style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '0.6rem', marginTop: '0.3rem' }}>
+                    <span>Tạm tính:</span>
+                    <span style={{ fontWeight: 600 }}>{formatPrice(calculateTotal())}</span>
+                  </div>
+                  {voucherResult?.success && (
+                    <div className={styles.confirmPriceRow} style={{ color: '#16a34a' }}>
+                      <span>Giảm giá:</span>
+                      <span style={{ fontWeight: 600 }}>-{formatPrice(voucherResult.discount)}</span>
+                    </div>
+                  )}
+                  <div className={styles.confirmPriceTotal}>
+                    <span>Tổng thanh toán:</span>
+                    <span className={styles.totalAmount}>
+                      {voucherResult?.success ? formatPrice(voucherResult.finalAmount) : formatPrice(calculateTotal())}
+                    </span>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className={styles.modalError} style={{ margin: '0 0 1rem' }}>{error}</div>
+                )}
+
+                <button
+                  className={styles.bookBtn}
+                  onClick={handleBooking}
+                >
+                  Xác nhận & Thanh toán
+                </button>
+                <button
+                  className={styles.backBtnSmall}
+                  onClick={() => setBookingStep('select')}
+                >
+                  ← Quay lại chọn ghế
+                </button>
+              </div>
+            )}
+
+            {bookingStep === 'payment' && (
+              <div className={styles.paymentContent}>
+                <h2 className={styles.bookingTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>{icons.creditCard(22)} Chuyển khoản ngân hàng</h2>
+                
+                {/* Bank Info */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: '#6b7280' }}>Ngân hàng:</span>
+                      <span style={{ fontWeight: 700, color: '#1a1a2e' }}>Vietcombank</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: '#6b7280' }}>Số tài khoản:</span>
+                      <span style={{ fontWeight: 700, color: '#1a1a2e', fontFamily: 'monospace', letterSpacing: 1 }}>1030490936</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: '#6b7280' }}>Chủ TK:</span>
+                      <span style={{ fontWeight: 700, color: '#1a1a2e' }}>TRUONG HUY NHAT HAO</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                      <span style={{ color: '#6b7280' }}>Nội dung CK:</span>
+                      <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {booking?.orderId || ''}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '8px' }}>Quét mã QR để chuyển khoản nhanh:</p>
+                  <img 
+                    src={getBankQRUrl(booking?.totalAmount || calculateTotal())} 
+                    alt="QR Chuyển khoản" 
+                    style={{ width: '100%', maxWidth: 260, borderRadius: 12, border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+
+                <div className={styles.summary} style={{ marginBottom: '16px' }}>
+                  <div className={styles.summaryRow}>
+                    <span>Tổng thanh toán:</span>
+                    <span className={styles.totalPrice}>
+                      {formatPrice(booking?.totalAmount || calculateTotal())}
+                    </span>
+                  </div>
+                </div>
+
+                <button 
+                  className={styles.bookBtn}
+                  onClick={handleConfirmPayment}
+                >
+                  {icons.check(16, '#fff')} Tôi đã chuyển khoản
+                </button>
+                <button 
+                  className={styles.backBtnSmall}
+                  onClick={() => setBookingStep('confirm')}
+                >
+                  ← Quay lại
+                </button>
+              </div>
+            )}
+
+            {bookingStep === 'success' && (
+              <div className={styles.paymentContent}>
+                <div className={styles.successMessage}>
+                  <div className={styles.successIcon}>✓</div>
+                  <h3>Đặt vé thành công!</h3>
+                  <p>Vé của bạn đã được gửi đến email. Hãy kiểm tra để nhận thông tin chi tiết.</p>
+                </div>
+                <Link href="/my-tickets" className={styles.bookBtn} onClick={closeBookingModal}>
+                  Xem vé của tôi
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ⭐ Reviews Section */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>

@@ -116,37 +116,42 @@ export default function Home() {
 
           {/* Hero Search Bar */}
           <form onSubmit={handleSearch} style={{
-            display: 'flex', gap: '0.5rem', maxWidth: 700, margin: '1.5rem auto 0',
+            display: 'flex', alignItems: 'stretch', gap: '0.5rem', width: '100%', maxWidth: 800, margin: '1.5rem auto 0',
             background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
-            borderRadius: 16, padding: '0.5rem', border: '1px solid rgba(255,255,255,0.2)'
+            borderRadius: 16, padding: '0.5rem', border: '1px solid rgba(255,255,255,0.2)',
+            boxSizing: 'border-box'
           }}>
             <input
-              type="text" placeholder="Tìm sự kiện/Search events..." value={searchKeyword}
+              type="text" placeholder="Tìm sự kiện..." value={searchKeyword}
               onChange={e => setSearchKeyword(e.target.value)}
               style={{
-                flex: 2, padding: '0.75rem 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none'
+                flex: 2, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
+                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
+                height: 44, boxSizing: 'border-box'
               }}
             />
             <input
-              type="text" placeholder="Địa điểm/Location" value={searchLocation}
+              type="text" placeholder="Địa điểm" value={searchLocation}
               onChange={e => setSearchLocation(e.target.value)}
               style={{
-                flex: 1, padding: '0.75rem 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none'
+                flex: 1, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
+                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
+                height: 44, boxSizing: 'border-box'
               }}
             />
             <input
               type="date" value={searchDate}
               onChange={e => setSearchDate(e.target.value)}
               style={{
-                flex: 1, padding: '0.75rem 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none'
+                flex: 1, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
+                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
+                height: 44, boxSizing: 'border-box'
               }}
             />
             <button type="submit" className="btn btn-primary" style={{
-              borderRadius: 12, padding: '0.75rem 1.5rem', whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: '0.4rem'
+              borderRadius: 12, padding: '0 1.5rem', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: 44, boxSizing: 'border-box', flexShrink: 0
             }}>
               {icons.search(16, '#fff')} Search
             </button>

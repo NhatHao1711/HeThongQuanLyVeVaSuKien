@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { isLoggedIn, getUser, removeToken, apiRequest } from '@/lib/api';
 import { icons } from './Icons';
@@ -11,9 +12,21 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [theme, setTheme] = useState('light');
   const notifRef = useRef(null);
+  const userMenuRef = useRef(null);
   const { lang, changeLang, t } = useTranslation();
+  const pathname = usePathname();
+
+  const navLinkStyle = (href) => {
+    const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+    return active ? {
+      color: 'var(--primary)', fontWeight: 700,
+      borderBottom: '2px solid var(--primary)',
+      paddingBottom: '2px'
+    } : {};
+  };
 
   useEffect(() => {
     setLoggedIn(isLoggedIn());
@@ -31,6 +44,7 @@ export default function Navbar() {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setShowUserMenu(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -97,15 +111,12 @@ export default function Navbar() {
       </Link>
 
       <div className="navbar-links">
-        <Link href="/">{t('nav.home')}</Link>
-        <Link href="/events">{t('nav.events')}</Link>
-        {loggedIn && <Link href="/my-tickets">{t('nav.my_tickets')}</Link>}
-        {loggedIn && <Link href="/my-orders">{t('nav.orders')}</Link>}
-        {loggedIn && <Link href="/buddies">{t('nav.buddies')}</Link>}
-        <Link href="/calendar">{t('nav.calendar')}</Link>
-        {loggedIn && user?.role === 'ROLE_ADMIN' && (
-          <Link href="/admin" style={{ color: '#00B46E', fontWeight: 600 }}>{t('nav.admin')}</Link>
-        )}
+        <Link href="/" style={navLinkStyle('/')}>{t('nav.home')}</Link>
+        <Link href="/events" style={navLinkStyle('/events')}>{t('nav.events')}</Link>
+        {loggedIn && <Link href="/my-tickets" style={navLinkStyle('/my-tickets')}>{t('nav.my_tickets')}</Link>}
+        {loggedIn && <Link href="/my-orders" style={navLinkStyle('/my-orders')}>{t('nav.orders')}</Link>}
+        {loggedIn && <Link href="/buddies" style={navLinkStyle('/buddies')}>{t('nav.buddies')}</Link>}
+        <Link href="/calendar" style={navLinkStyle('/calendar')}>{t('nav.calendar')}</Link>
       </div>
 
       <div className="navbar-auth">
@@ -182,10 +193,46 @@ export default function Navbar() {
             <Link href="/favorites" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>
               {t('nav.favorites')}
             </Link>
-            <Link href="/profile" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-              {icons.user(16, 'currentColor')}
-              {user?.fullName || 'User'}
-            </Link>
+            <div ref={userMenuRef} style={{ position: 'relative' }}>
+              <button onClick={() => setShowUserMenu(!showUserMenu)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)',
+                fontSize: '0.85rem', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                padding: '0.3rem 0'
+              }}>
+                {icons.user(16, 'currentColor')}
+                {user?.fullName || 'User'}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+
+              {showUserMenu && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, minWidth: 180,
+                  background: 'var(--bg-card)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  border: '1px solid var(--border)', zIndex: 1000, overflow: 'hidden', marginTop: 6
+                }}>
+                  {user?.role === 'ROLE_ADMIN' && (
+                    <Link href="/admin" onClick={() => setShowUserMenu(false)} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.7rem 1rem', textDecoration: 'none',
+                      color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem',
+                      borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
+                    }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
+                       onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                      {icons.crown(15, 'var(--primary)')} Quản trị
+                    </Link>
+                  )}
+                  <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.7rem 1rem', textDecoration: 'none',
+                    color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem',
+                    transition: 'background 0.15s'
+                  }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
+                     onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                    {icons.user(15, 'var(--text-secondary)')} Hồ sơ cá nhân
+                  </Link>
+                </div>
+              )}
+            </div>
             <button className="btn btn-outline btn-sm" onClick={handleLogout}>
               {t('nav.logout')}
             </button>
