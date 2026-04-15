@@ -731,7 +731,11 @@ export default function EventDetailPage({ params }) {
 
                 <button
                   className={styles.bookBtn}
-                  onClick={handleBooking}
+                  onClick={async () => {
+                    // Tạo booking trên server khi user xác nhận
+                    await handleBooking();
+                    // handleBooking tự set bookingStep sang 'payment' nếu thành công
+                  }}
                 >
                   Xác nhận & Thanh toán
                 </button>
@@ -795,12 +799,19 @@ export default function EventDetailPage({ params }) {
                 >
                   {icons.check(16, '#fff')} Tôi đã chuyển khoản
                 </button>
-                <button 
-                  className={styles.backBtnSmall}
-                  onClick={() => setBookingStep('confirm')}
-                >
-                  ← Quay lại
-                </button>
+                <div style={{
+                  marginTop: '0.75rem',
+                  padding: '0.65rem 1rem',
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: 10,
+                  fontSize: '0.8rem',
+                  color: '#92400e',
+                  lineHeight: 1.5,
+                  textAlign: 'center'
+                }}>
+                  ⚠️ Đơn hàng <strong>#{booking?.orderId}</strong> đã được tạo và đang chờ xác nhận thanh toán. Vui lòng hoàn tất chuyển khoản trước khi đóng cửa sổ này.
+                </div>
               </div>
             )}
 
