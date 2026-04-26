@@ -89,6 +89,12 @@ public class CheckinService {
                     "QR Token không khớp với người sở hữu vé");
         }
 
+        // 4.5. Validate Payment Status
+        if (ticket.getOrder().getPaymentStatus() != com.ticketbox.enums.PaymentStatus.PAID) {
+            throw new BadRequestException(
+                    "Vé chưa được thanh toán, không thể check-in!");
+        }
+
         // 5. Check duplicate scan (BLOCK trùng lặp)
         if (ticket.getCheckinStatus() == CheckinStatus.USED) {
             throw new BadRequestException(

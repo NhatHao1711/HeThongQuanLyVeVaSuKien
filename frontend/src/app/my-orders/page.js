@@ -26,9 +26,9 @@ export default function MyOrdersPage() {
   const formatPrice = (p) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(p || 0);
 
   const statusConfig = {
-    PENDING: { label: 'Chờ thanh toán', color: '#f59e0b', bg: '#fef3c7', icon: '⏳' },
-    PAID: { label: 'Đã thanh toán', color: '#10b981', bg: '#d1fae5', icon: '✅' },
-    FAILED: { label: 'Đã hủy', color: '#ef4444', bg: '#fee2e2', icon: '❌' },
+    PENDING: { label: 'Chờ thanh toán', color: '#f59e0b', bg: '#fef3c7' },
+    PAID: { label: 'Đã thanh toán', color: '#10b981', bg: '#d1fae5' },
+    FAILED: { label: 'Đã hủy', color: '#ef4444', bg: '#fee2e2' },
   };
 
   const getStatus = (s) => statusConfig[s] || statusConfig.PENDING;
@@ -48,7 +48,7 @@ export default function MyOrdersPage() {
             </div>
 
             <div className="section-header">
-              <h2>📦 Đơn hàng của tôi</h2>
+              <h2>Đơn hàng của tôi</h2>
               <p>Theo dõi trạng thái đơn hàng và lịch sử mua vé</p>
             </div>
 
@@ -58,7 +58,7 @@ export default function MyOrdersPage() {
               </div>
             ) : orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📦</div>
+                <div style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#cbd5e1' }}>Không có dữ liệu</div>
                 <p>Bạn chưa có đơn hàng nào. <Link href="/events" style={{ color: 'var(--primary)' }}>Khám phá sự kiện ngay!</Link></p>
               </div>
             ) : (
@@ -87,7 +87,7 @@ export default function MyOrdersPage() {
                             background: status.bg, color: status.color, padding: '3px 12px',
                             borderRadius: 20, fontSize: '0.78rem', fontWeight: 700
                           }}>
-                            {status.icon} {status.label}
+                            {status.label}
                           </span>
                         </div>
                         <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>

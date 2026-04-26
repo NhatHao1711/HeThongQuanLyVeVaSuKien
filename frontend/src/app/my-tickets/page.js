@@ -63,7 +63,7 @@ export default function MyTicketsPage() {
       </style></head><body>
       <div class="ticket">
         <div class="ticket-header">
-          <h1>🎫 TRIVENT</h1>
+          <h1>TRIVENT</h1>
           <p>Vé điện tử</p>
         </div>
         <div class="ticket-body">
@@ -73,7 +73,7 @@ export default function MyTicketsPage() {
           <div class="ticket-row"><span class="ticket-label">Ngày mua</span><span class="ticket-value">${formatDate(ticket.createdAt)}</span></div>
           <div class="ticket-row"><span class="ticket-label">Trạng thái</span><span class="ticket-value">${ticket.checkinStatus === 'UNUSED' ? 'Chưa sử dụng ✅' : 'Đã sử dụng'}</span></div>
         </div>
-        ${ticket.qrCode ? `<div class="ticket-qr"><img src="data:image/png;base64,${ticket.qrCode}" alt="QR Code" /></div>` : ''}
+        ${ticket.qrCode ? `<div class="ticket-qr"><img src="data:image/png;base64,${ticket.qrCode}" alt="QR Code" /></div>` : '<div style="text-align:center; padding: 30px 20px; color: #ef4444; font-weight: bold; border: 2px dashed #ef4444; margin: 20px; border-radius: 8px;">VÉ CHƯA ĐƯỢC THANH TOÁN<br/><span style="font-size: 12px; color: #6b7280; font-weight: normal;">(Mã QR sẽ hiển thị sau khi thanh toán thành công)</span></div>'}
         ${ticket.qrToken ? `<div class="ticket-code">${ticket.qrToken}</div>` : ''}
         <div class="ticket-footer">© 2026 TRIVENT — Hệ thống quản lý sự kiện cho sinh viên</div>
       </div>
@@ -119,7 +119,10 @@ export default function MyTicketsPage() {
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         />
                       ) : (
-                        '🎫'
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#fee2e2', borderRadius: 12, border: '2px dashed #ef4444' }}>
+                          <span style={{ fontSize: '2.5rem', marginBottom: '8px', color: '#ef4444', fontWeight: 'bold' }}>!</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', textAlign: 'center', padding: '0 10px' }}>Chưa<br/>thanh toán</span>
+                        </div>
                       )}
                     </div>
                     {t.qrToken && (
@@ -132,13 +135,13 @@ export default function MyTicketsPage() {
                             onClick={() => { navigator.clipboard.writeText(t.qrToken); alert('Đã sao chép mã vé!'); }}
                             style={{ fontSize: '0.75rem', padding: '4px 12px', border: '1px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
                           >
-                            📋 Sao chép mã vé
+                            Sao chép mã vé
                           </button>
                           <button
                             onClick={() => printTicketPdf(t)}
                             style={{ fontSize: '0.75rem', padding: '4px 12px', border: '1px solid #3b82f6', background: '#eff6ff', color: '#3b82f6', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
                           >
-                            📄 Tải PDF
+                            Tải PDF
                           </button>
                         </div>
                       </div>
@@ -158,7 +161,7 @@ export default function MyTicketsPage() {
 
                 {tickets.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎫</div>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#cbd5e1' }}>Không có vé</div>
                     <p>Bạn chưa có vé nào. <Link href="/events" style={{ color: 'var(--primary)' }}>Khám phá sự kiện ngay!</Link></p>
                   </div>
                 )}

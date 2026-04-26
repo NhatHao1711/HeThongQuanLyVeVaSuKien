@@ -1,7 +1,6 @@
 package com.ticketbox.controller;
 
 import com.ticketbox.dto.response.ApiResponse;
-import com.ticketbox.entity.Event;
 import com.ticketbox.entity.Order;
 import com.ticketbox.entity.TicketType;
 import com.ticketbox.entity.User;

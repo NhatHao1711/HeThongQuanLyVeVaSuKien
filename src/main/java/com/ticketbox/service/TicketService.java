@@ -42,8 +42,14 @@ public class TicketService {
 
     private TicketResponse toResponse(UserTicket ticket) {
         byte[] qrCode = null;
-        if (ticket.getQrToken() != null) {
-            qrCode = qrCodeService.generateQRCode(ticket.getQrToken());
+        String qrToken = null;
+
+        // Chỉ hiển thị QR code nếu đã thanh toán
+        if (ticket.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID) {
+            qrToken = ticket.getQrToken();
+            if (qrToken != null) {
+                qrCode = qrCodeService.generateQRCode(qrToken);
+            }
         }
 
         return TicketResponse.builder()
@@ -54,7 +60,7 @@ public class TicketService {
                 .checkinStatus(ticket.getCheckinStatus().toString())
                 .checkinTime(ticket.getCheckinTime())
                 .qrCode(qrCode)
-                .qrToken(ticket.getQrToken())
+                .qrToken(qrToken)
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }
