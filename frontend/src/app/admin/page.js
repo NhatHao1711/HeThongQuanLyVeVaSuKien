@@ -19,6 +19,9 @@ export default function AdminDashboard() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showAddTicket, setShowAddTicket] = useState(null);
   const [editingTicket, setEditingTicket] = useState(null);
+  const [seatManagerTicket, setSeatManagerTicket] = useState(null);
+  const [seatConfig, setSeatConfig] = useState({ rows: 10, cols: 10 });
+  const [seatLoading, setSeatLoading] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [expandedEvent, setExpandedEvent] = useState(null);
 
@@ -295,6 +298,35 @@ export default function AdminDashboard() {
     await apiRequest(`/admin/users/${id}/role?role=${newRole}`, { method: 'PUT' }); await loadAll(); showMsg('success', 'Đã đổi role');
   };
   const toggleVerify = async (id) => { await apiRequest(`/admin/users/${id}/verify`, { method: 'PUT' }); await loadAll(); };
+
+  // ===== SEAT MANAGER =====
+  const openSeatManager = async (tt) => {
+    setSeatLoading(true);
+    try {
+      const res = await apiRequest(`/admin/ticket-types/${tt.id}/seats/count`);
+      if (res.success) {
+        setSeatManagerTicket({ id: tt.id, name: tt.name, seatCount: res.data.seatCount });
+        setSeatConfig({ rows: 10, cols: 10 });
+      }
+    } catch (e) { showMsg('error', 'Lỗi tải thông tin ghế'); }
+    finally { setSeatLoading(false); }
+  };
+
+  const generateSeats = async () => {
+    setSeatLoading(true);
+    try {
+      const res = await apiRequest(`/admin/ticket-types/${seatManagerTicket.id}/seats/generate`, {
+        method: 'POST',
+        body: JSON.stringify({ rows: Number(seatConfig.rows), cols: Number(seatConfig.cols) })
+      });
+      if (res.success) {
+        showMsg('success', res.message);
+        setSeatManagerTicket(prev => ({ ...prev, seatCount: res.data.seatsCreated }));
+      } else { showMsg('error', res.message); }
+    } catch (e) { showMsg('error', 'Lỗi tạo ghế'); }
+    finally { setSeatLoading(false); }
+  };
+
   const deleteUser = (id) => {
     setConfirmDialog({
       show: true,
@@ -555,6 +587,7 @@ export default function AdminDashboard() {
                                 <span style={{ fontSize: '0.82rem', color: '#a0aec0' }}>Còn {tt.availableQuantity}/{tt.totalQuantity}</span>
                               </div>
                               <div style={s.btnGroup}>
+                                <button style={s.btn('#f0fdf4', '#00B46E')} onClick={() => openSeatManager(tt)}>Sơ đồ ghế</button>
                                 <button style={s.btn('#f5f7fa', '#4a5568')} onClick={() => startEditTicket(tt)}>Sửa</button>
                                 <button style={s.btn('#fee2e2', '#ef4444')} onClick={() => deleteTicketType(tt.id)}>Xóa</button>
                               </div>
@@ -855,6 +888,82 @@ export default function AdminDashboard() {
         </main>
 
       </div>
+
+      {/* ===== SEAT MANAGER MODAL ===== */}
+      {seatManagerTicket && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998
+        }} onClick={(e) => { if (e.target === e.currentTarget) setSeatManagerTicket(null); }}>
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: '2rem', maxWidth: 500, width: '92%',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a1a2e', marginBottom: 4 }}>Sơ đồ ghế ngồi</h3>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>Loại vé: <strong>{seatManagerTicket.name}</strong></p>
+              </div>
+              <button onClick={() => setSeatManagerTicket(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#a0aec0', lineHeight: 1 }}>x</button>
+            </div>
+
+            <div style={{ background: seatManagerTicket.seatCount > 0 ? '#f0fdf4' : '#fef9c3', border: `1px solid ${seatManagerTicket.seatCount > 0 ? '#bbf7d0' : '#fde68a'}`, borderRadius: 12, padding: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: '2rem' }}>{seatManagerTicket.seatCount > 0 ? '✅' : '⚠️'}</span>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a2e' }}>
+                  {seatManagerTicket.seatCount > 0 ? `Đang có ${seatManagerTicket.seatCount} ghế` : 'Chưa có sơ đồ ghế nào'}
+                </p>
+                <p style={{ fontSize: '0.82rem', color: '#6b7280' }}>
+                  {seatManagerTicket.seatCount > 0 ? 'Tạo mới sẽ xóa toàn bộ ghế cũ và không thể hoàn tác.' : 'Thiết lập sơ đồ ghế để người dùng có thể chọn vị trí.'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#374151', marginBottom: '1rem' }}>Cấu hình sơ đồ</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={s.label}>Số hàng (A, B, C...)</label>
+                  <input type="number" min="1" max="26"
+                    style={{ ...s.input, textAlign: 'center', fontWeight: 700, fontSize: '1.1rem' }}
+                    value={seatConfig.rows}
+                    onChange={e => setSeatConfig(prev => ({ ...prev, rows: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={s.label}>Số cột (01, 02...)</label>
+                  <input type="number" min="1" max="50"
+                    style={{ ...s.input, textAlign: 'center', fontWeight: 700, fontSize: '1.1rem' }}
+                    value={seatConfig.cols}
+                    onChange={e => setSeatConfig(prev => ({ ...prev, cols: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#e0f2fe', borderRadius: 8, fontSize: '0.85rem', color: '#0369a1', textAlign: 'center', fontWeight: 600 }}>
+                Tổng: {Number(seatConfig.rows) * Number(seatConfig.cols)} ghế
+                &nbsp;&bull;&nbsp;
+                Hàng {String.fromCharCode(65)} → {String.fromCharCode(65 + Number(seatConfig.rows) - 1)}
+                &nbsp;&bull;&nbsp;Cột 01 → {String(seatConfig.cols).padStart(2, '0')}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={generateSeats}
+                disabled={seatLoading}
+                style={{ ...s.btn('#00B46E', '#fff'), flex: 1, padding: '0.8rem', fontSize: '0.92rem', fontWeight: 700, borderRadius: 10 }}
+              >
+                {seatLoading ? 'Đang tạo...' : seatManagerTicket.seatCount > 0 ? '🔄 Tạo lại (Reset)' : '✨ Tạo sơ đồ ghế'}
+              </button>
+              <button onClick={() => setSeatManagerTicket(null)}
+                style={{ ...s.btn('#f1f5f9', '#475569'), padding: '0.8rem 1.2rem', borderRadius: 10 }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Confirm Modal */}
       {confirmDialog.show && (

@@ -35,6 +35,8 @@ public class AdminController {
     private final UserTicketRepository userTicketRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final com.ticketbox.service.SeatService seatService;
+    private final com.ticketbox.repository.SeatRepository seatRepository;
 
     // ========== Dashboard Stats ==========
     @GetMapping("/stats")
@@ -213,6 +215,70 @@ public class AdminController {
     public ResponseEntity<ApiResponse<String>> deleteTicketType(@PathVariable Long id) {
         ticketTypeRepository.deleteById(id);
         return ResponseEntity.ok(ApiResponse.success("Đã xóa loại vé", "OK"));
+    }
+
+    // ========== Seat Management ==========
+
+    /** Lấy số ghế hiện có của một ticket type */
+    @GetMapping("/ticket-types/{id}/seats/count")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSeatCount(@PathVariable Long id) {
+        TicketType tt = ticketTypeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("TicketType not found"));
+        long count = seatRepository.countByTicketTypeId(id);
+        Map<String, Object> result = new HashMap<>();
+        result.put("ticketTypeId", id);
+        result.put("ticketTypeName", tt.getName());
+        result.put("seatCount", count);
+        return ResponseEntity.ok(ApiResponse.success("Số ghế hiện có", result));
+    }
+
+    /**
+     * Tạo sơ đồ ghế cho một ticket type.
+     * Nếu ghế đã tồn tại → xóa toàn bộ và tạo lại (reset).
+     * Body: { "rows": 10, "cols": 10, "prefix": "A" }
+     */
+    @PostMapping("/ticket-types/{id}/seats/generate")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateSeats(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+
+        TicketType tt = ticketTypeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("TicketType not found"));
+
+        int rows  = body.containsKey("rows")  ? ((Number) body.get("rows")).intValue()  : 10;
+        int cols  = body.containsKey("cols")  ? ((Number) body.get("cols")).intValue()  : 10;
+        int total = rows * cols;
+
+        // Xóa ghế cũ nếu có
+        long existing = seatRepository.countByTicketTypeId(id);
+        if (existing > 0) {
+            seatRepository.deleteAll(seatRepository.findByTicketTypeId(id));
+        }
+
+        // Tạo ghế mới theo sơ đồ rows x cols
+        java.util.List<com.ticketbox.entity.Seat> seats = new java.util.ArrayList<>();
+        for (int r = 0; r < rows; r++) {
+            String rowLabel = String.valueOf((char) ('A' + r));
+            for (int c = 1; c <= cols; c++) {
+                seats.add(com.ticketbox.entity.Seat.builder()
+                        .ticketType(tt)
+                        .name(rowLabel + String.format("%02d", c))
+                        .status(com.ticketbox.enums.SeatStatus.AVAILABLE)
+                        .build());
+            }
+        }
+        seatRepository.saveAll(seats);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("ticketTypeId", id);
+        result.put("ticketTypeName", tt.getName());
+        result.put("seatsCreated", total);
+        result.put("rows", rows);
+        result.put("cols", cols);
+        log.info("Admin tạo {} ghế ({} hàng × {} cột) cho TicketType [{}] \"{}\"",
+                total, rows, cols, id, tt.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tạo sơ đồ ghế thành công! " + total + " ghế (" + rows + " hàng × " + cols + " cột)", result));
     }
 
     // ========== Order Management ==========
