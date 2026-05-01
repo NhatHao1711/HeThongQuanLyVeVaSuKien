@@ -106,8 +106,9 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link href="/" className="navbar-brand">
-        <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{icons.ticket(22)}</span> TRIVENT
+      <Link href="/" className="navbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <img src="/logo.png" alt="TRIVENT Logo" style={{ height: '28px', width: 'auto' }} />
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '0.5px' }}>TRIVENT</span>
       </Link>
 
       <div className="navbar-links">

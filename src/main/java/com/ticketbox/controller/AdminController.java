@@ -165,6 +165,7 @@ public class AdminController {
                     map.put("endTime", event.getEndTime());
                     map.put("status", event.getStatus());
                     map.put("createdAt", event.getCreatedAt());
+                    map.put("imageUrl", event.getImageUrl());
                     // Include ticket types
                     List<Map<String, Object>> tts = event.getTicketTypes().stream().map(tt -> {
                         Map<String, Object> ttMap = new HashMap<>();

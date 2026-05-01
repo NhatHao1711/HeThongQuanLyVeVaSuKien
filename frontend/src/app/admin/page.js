@@ -113,7 +113,7 @@ export default function AdminDashboard() {
         body: formData
       });
       const data = await res.json();
-      if (data.success) { showMsg('success', 'Upload ảnh thành công!'); loadAll(); }
+      if (data.success) { showMsg('success', 'Upload ảnh thành công!'); }
       else showMsg('error', data.message);
     } catch (e) { showMsg('error', 'Lỗi upload ảnh'); }
   };
