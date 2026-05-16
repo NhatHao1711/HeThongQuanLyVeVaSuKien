@@ -21,11 +21,12 @@
 }
 
 .filterSection {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.2rem;
-  margin-bottom: 1rem;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .filterTitle {
@@ -50,16 +51,35 @@
 .searchInput:focus { border-color: #00B46E; }
 
 .filterItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 0.88rem;
-  color: #4a5568;
-  cursor: pointer;
+  display: block;
+  margin-bottom: 8px;
 }
-.filterItem input[type="radio"] { accent-color: #00B46E; }
-.filterItem label { cursor: pointer; }
+.filterItem input[type="radio"] { display: none; }
+.filterItem label {
+  display: block;
+  cursor: pointer;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  color: #475569;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.filterItem input[type="radio"]:checked + label {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 180, 110, 0.25);
+}
+.filterItem label:hover {
+  background: #f1f5f9;
+}
+.filterItem input[type="radio"]:checked + label:hover {
+  background: var(--primary);
+}
 
 .priceRange {
   display: flex;
@@ -108,8 +128,16 @@
 /* ===== MAIN CONTENT ===== */
 .contentArea { flex: 1; min-width: 0; }
 
-.header { margin-bottom: 1.5rem; }
-.header h1 { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; }
+.header { margin-bottom: 2rem; }
+.header h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #1a1a2e 0%, #00B46E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
 
 .results { margin-bottom: 1.2rem; }
 .resultInfo { display: flex; align-items: center; gap: 8px; }
@@ -119,60 +147,76 @@
 /* ===== EVENT GRID ===== */
 .eventsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.8rem;
 }
 
 .eventCard {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 20px;
   overflow: hidden;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 .eventCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-  border-color: rgba(0,180,110,0.3);
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+  border-color: rgba(0, 180, 110, 0.4);
 }
 
 .eventImage {
-  height: 180px;
+  height: 200px;
   background: linear-gradient(135deg, #e8f5e9 0%, #f3e5f5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3.5rem;
   position: relative;
+  overflow: hidden;
+}
+.eventImage::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+  z-index: 1;
 }
 
 .eventBadges {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 16px;
+  left: 16px;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+  z-index: 2;
 }
 
 .badge {
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 50px;
   font-size: 0.72rem;
-  font-weight: 600;
-  background: rgba(0,180,110,0.9);
-  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  backdrop-filter: blur(4px);
 }
-.free { background: rgba(59,130,246,0.9); }
+.free { background: rgba(59,130,246,0.9); color: white; }
 
-.eventContent { padding: 1.2rem; }
+.eventContent { padding: 1.5rem; flex: 1; display: flex; flex-direction: column; }
 
-.eventCategory { font-size: 0.75rem; color: #00B46E; font-weight: 600; text-transform: uppercase; margin-bottom: 0.3rem; }
-.eventTitle { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.3rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.eventDescription { font-size: 0.82rem; color: #4a5568; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.8rem; }
+.eventCategory { font-size: 0.75rem; color: #00B46E; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.5px; }
+.eventTitle { font-size: 1.15rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.eventDescription { font-size: 0.88rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 1.2rem; line-height: 1.5; }
 
-.eventMeta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 1rem; }
-.eventMetaItem { font-size: 0.8rem; color: #a0aec0; }
+.eventMeta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 1.5rem; margin-top: auto; }
+.eventMetaItem { font-size: 0.82rem; color: #475569; display: flex; align-items: center; gap: 6px; font-weight: 500; }
 
 .eventFooter {
   display: flex;
@@ -181,20 +225,20 @@
   padding-top: 0.8rem;
   border-top: 1px solid #e2e8f0;
 }
-.eventPrice { font-size: 1rem; font-weight: 800; color: #00B46E; }
+.eventPrice { font-size: 1.1rem; font-weight: 800; color: #00B46E; }
 .eventBtn {
-  padding: 6px 14px;
-  background: #00B46E;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
+  padding: 8px 18px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
   font-family: 'Be Vietnam Pro', sans-serif;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
-.eventBtn:hover { background: #009458; }
+.eventBtn:hover { background: #00B46E; color: white; border-color: #00B46E; transform: translateX(2px); }
 
 /* ===== STATES ===== */
 .loadingContainer { text-align: center; padding: 4rem 0; }

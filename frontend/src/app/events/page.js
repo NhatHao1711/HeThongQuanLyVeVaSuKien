@@ -304,12 +304,25 @@ function EventsContent() {
           {/* Main Content */}
           <div className={styles.contentArea}>
           {/* Header */}
-            <div className={styles.header}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className={styles.headerText}>
-                  <h1>Tất cả sự kiện</h1>
+            <div className={styles.header} style={{
+              background: 'linear-gradient(to right, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 100%), url(/images/hero-bg.png) center/cover',
+              padding: '3rem 2rem',
+              borderRadius: '24px',
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.15)'
+            }}>
+              <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0,180,110,0.15) 0%, transparent 70%)', borderRadius: '50%' }}></div>
+              <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(0, 180, 110, 0.2)', color: '#4ade80', borderRadius: '50px', fontWeight: 700, fontSize: '0.85rem', marginBottom: '1rem', border: '1px solid rgba(0,180,110,0.3)' }}>
+                    ✨ KHÁM PHÁ
+                  </div>
+                  <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Tất cả sự kiện</h1>
+                  <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '500px' }}>Tìm kiếm và đặt vé các sự kiện hot nhất đang diễn ra tại các trường Đại học.</p>
                 </div>
-                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+                <Link href="/" className="btn glass" style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50px', padding: '8px 20px', fontSize: '0.9rem' }}>← Quay lại Trang chủ</Link>
               </div>
             </div>
 
@@ -362,11 +375,13 @@ function EventsContent() {
                             const soldOut = event.ticketTypes?.every(t => (t.availableQuantity || 0) <= 0);
                             const isFree = formatPrice(event.ticketTypes) === 'Miễn phí';
                             const badges = [];
-                            if (soldOut) badges.push(<span key="sold" style={{ background: '#ef4444', color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 700 }}>Hết vé</span>);
-                            else if (now < start) badges.push(<span key="soon" style={{ background: '#3b82f6', color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 700 }}>Sắp diễn ra</span>);
-                            else if (now >= start && now <= end) badges.push(<span key="live" style={{ background: '#10b981', color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 700, animation: 'pulse 2s infinite' }}>🔴 Đang diễn ra</span>);
-                            else badges.push(<span key="ended" style={{ background: '#6b7280', color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 700 }}>Đã kết thúc</span>);
-                            if (isFree) badges.push(<span key="free" className={`${styles.badge} ${styles.free}`}>Miễn phí</span>);
+                            
+                            if (soldOut) badges.push(<span key="sold" className={styles.badge} style={{ background: 'rgba(239, 68, 68, 0.95)', color: '#fff' }}>Hết vé</span>);
+                            else if (now < start) badges.push(<span key="soon" className={styles.badge} style={{ background: 'rgba(59, 130, 246, 0.95)', color: '#fff' }}>Sắp diễn ra</span>);
+                            else if (now >= start && now <= end) badges.push(<span key="live" className={styles.badge} style={{ background: 'rgba(16, 185, 129, 0.95)', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 6, height: 6, background: '#fff', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> Đang diễn ra</span>);
+                            else badges.push(<span key="ended" className={styles.badge} style={{ background: 'rgba(100, 116, 139, 0.95)', color: '#fff' }}>Đã kết thúc</span>);
+                            
+                            if (isFree && !soldOut) badges.push(<span key="free" className={`${styles.badge} ${styles.free}`}>Miễn phí</span>);
                             return badges;
                           })()}
                         </div>

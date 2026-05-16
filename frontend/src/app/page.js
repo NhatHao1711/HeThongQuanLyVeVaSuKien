@@ -93,71 +93,75 @@ export default function Home() {
       <section className="hero">
         <div className="hero-orb hero-orb-1"></div>
         <div className="hero-orb hero-orb-2"></div>
-        <div className="hero-content">
-          <div className="hero-badge">
+        <div className="hero-content" style={{ width: '100%' }}>
+          <div className="hero-badge animate-in">
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>✨ {t('home.hero_badge')}</span>
           </div>
-          <h1>
+          <h1 className="animate-in delay-100">
             {t('home.hero_title')}<br />
             <span className="gradient-text">{t('home.hero_title_highlight')}</span>
           </h1>
-          <p className="hero-subtitle animate-in" style={{ animationDelay: '0.2s', color: 'rgba(255,255,255,0.8)' }}>
+          <p className="hero-subtitle animate-in delay-200">
             {t('home.hero_subtitle')}
           </p>
 
-          <div className="hero-actions animate-in" style={{ animationDelay: '0.3s' }}>
-            <Link href="/events" className="btn btn-primary btn-lg" style={{ fontSize: '1.05rem', padding: '16px 36px' }}>
+          <div className="hero-actions animate-in delay-300">
+            <Link href="/events" className="btn btn-primary btn-lg" style={{ fontSize: '1.05rem', padding: '16px 36px', boxShadow: '0 8px 20px rgba(0, 180, 110, 0.3)' }}>
               {t('home.explore_btn')}
             </Link>
-            <Link href="/events/create" className="btn btn-outline btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)' }}>
+            <Link href="/events/create" className="btn btn-outline btn-lg glass" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>
               {t('home.create_btn')}
             </Link>
           </div>
 
-          {/* Hero Search Bar */}
-          <form onSubmit={handleSearch} style={{
-            display: 'flex', alignItems: 'stretch', gap: '0.5rem', width: '100%', maxWidth: 800, margin: '1.5rem auto 0',
-            background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
-            borderRadius: 16, padding: '0.5rem', border: '1px solid rgba(255,255,255,0.2)',
-            boxSizing: 'border-box'
+          {/* Hero Search Bar - Pill Shaped */}
+          <form onSubmit={handleSearch} className="animate-in delay-400 glass" style={{
+            display: 'flex', alignItems: 'center', gap: '0', width: '100%', maxWidth: 700, margin: '3rem auto 0',
+            borderRadius: '50px', padding: '0.4rem', border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            background: 'rgba(255,255,255,0.08)'
           }}>
-            <input
-              type="text" placeholder="Tìm sự kiện..." value={searchKeyword}
-              onChange={e => setSearchKeyword(e.target.value)}
-              style={{
-                flex: 2, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
-                height: 44, boxSizing: 'border-box'
-              }}
-            />
-            <input
-              type="text" placeholder="Địa điểm" value={searchLocation}
-              onChange={e => setSearchLocation(e.target.value)}
-              style={{
-                flex: 1, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
-                height: 44, boxSizing: 'border-box'
-              }}
-            />
-            <input
-              type="date" value={searchDate}
-              onChange={e => setSearchDate(e.target.value)}
-              style={{
-                flex: 1, minWidth: 0, padding: '0 1rem', borderRadius: 12, border: 'none',
-                background: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', outline: 'none',
-                height: 44, boxSizing: 'border-box'
-              }}
-            />
+            <div style={{ flex: 2, position: 'relative', display: 'flex', alignItems: 'center', paddingLeft: '1rem' }}>
+              <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '0.5rem' }}>{icons.search(18)}</span>
+              <input
+                type="text" placeholder="Tên sự kiện..." value={searchKeyword}
+                onChange={e => setSearchKeyword(e.target.value)}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)', margin: '0 10px' }}></div>
+            <div style={{ flex: 1.5, position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '0.5rem' }}>{icons.mapPin(18)}</span>
+              <input
+                type="text" placeholder="Địa điểm" value={searchLocation}
+                onChange={e => setSearchLocation(e.target.value)}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)', margin: '0 10px' }}></div>
+            <div style={{ flex: 1.5, display: 'flex', alignItems: 'center' }}>
+              <input
+                type="date" value={searchDate}
+                onChange={e => setSearchDate(e.target.value)}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.9rem', outline: 'none',
+                  colorScheme: 'dark'
+                }}
+              />
+            </div>
             <button type="submit" className="btn btn-primary" style={{
-              borderRadius: 12, padding: '0 1.5rem', whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-              height: 44, boxSizing: 'border-box', flexShrink: 0
+              borderRadius: '50px', padding: '0 2rem', height: 48, fontSize: '1rem', fontWeight: 700,
+              boxShadow: '0 4px 15px rgba(0, 180, 110, 0.4)', marginLeft: '0.5rem'
             }}>
-              {icons.search(16, '#fff')} Search
+              Tìm kiếm
             </button>
           </form>
 
-          <div className="hero-stats" style={{ marginTop: '2rem' }}>
+          <div className="hero-stats animate-in delay-400" style={{ marginTop: '3rem' }}>
             <div className="hero-stat">
               <div className="hero-stat-number">{events.length || '0'}</div>
               <div className="hero-stat-label">{t('home.stat_events')}</div>
@@ -168,7 +172,7 @@ export default function Home() {
             </div>
             <div className="hero-stat">
               <div className="hero-stat-number">30+</div>
-              <div className="hero-stat-label">Universities</div>
+              <div className="hero-stat-label">Trường đại học</div>
             </div>
           </div>
         </div>
@@ -188,37 +192,53 @@ export default function Home() {
                 {featuredEvents.map((ev, i) => (
                   <Link href={`/events/${ev.id}`} key={ev.id} style={{ minWidth: '100%', textDecoration: 'none' }}>
                     <div style={{
-                      background: ev.imageUrl ? `url(${API_BASE}${ev.imageUrl}) center/cover` : carouselGradients[i % carouselGradients.length],
-                      minHeight: 340, display: 'flex', alignItems: 'flex-end', position: 'relative'
+                      minHeight: 380, display: 'flex', alignItems: 'flex-end', position: 'relative', overflow: 'hidden'
                     }}>
-                      {/* Overlay */}
+                      {/* Blurred Background Layer */}
                       <div style={{
-                        position: 'absolute', inset: 0,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)'
+                        position: 'absolute', inset: 0, zIndex: 0,
+                        background: ev.imageUrl ? `url(${API_BASE}${ev.imageUrl}) center/cover` : carouselGradients[i % carouselGradients.length],
+                        filter: ev.imageUrl ? 'blur(25px) brightness(0.6)' : 'none',
+                        transform: ev.imageUrl ? 'scale(1.1)' : 'none'
                       }} />
-                      {/* Content */}
-                      <div style={{ position: 'relative', zIndex: 2, padding: '2rem 2.5rem', width: '100%', color: '#fff' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      
+                      {/* Contained Image Layer (shows full image) */}
+                      {ev.imageUrl && (
+                        <div style={{
+                          position: 'absolute', inset: 0, zIndex: 1,
+                          background: `url(${API_BASE}${ev.imageUrl}) center/contain no-repeat`
+                        }} />
+                      )}
+
+                      {/* Dark Gradient Overlay for Text Readability */}
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 2,
+                        background: 'linear-gradient(to top, rgba(15,23,42,1) 0%, rgba(15,23,42,0.6) 40%, transparent 100%)'
+                      }} />
+                      
+                      {/* Content - Glassmorphism Glass */}
+                      <div className="glass-dark" style={{ position: 'relative', zIndex: 3, padding: '2rem 2.5rem', width: '100%', color: '#fff', border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
                           <span style={{
                             background: 'var(--primary)', padding: '4px 12px', borderRadius: 20,
-                            fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase'
+                            fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', boxShadow: '0 2px 10px rgba(0,180,110,0.4)'
                           }}>{ev.category?.name || 'Sự kiện'}</span>
                           <span style={{
-                            background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
-                            padding: '4px 12px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600
+                            background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)',
+                            padding: '4px 12px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)'
                           }}>📅 {formatFullDate(ev.startTime)}</span>
                         </div>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 0.5rem', lineHeight: 1.2, textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 0.8rem', lineHeight: 1.2, textShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                           {ev.title}
                         </h2>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.9rem', opacity: 0.9 }}>
-                          <span>📍 {ev.location || 'Chưa xác định'}</span>
-                          <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#4ade80' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.95rem', opacity: 0.9 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>{icons.mapPin(16)} {ev.location || 'Chưa xác định'}</span>
+                          <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#4ade80', textShadow: '0 0 10px rgba(74,222,128,0.3)' }}>
                             {formatPrice(ev.ticketTypes)}
                           </span>
                           <span style={{
-                            background: '#00B46E', padding: '6px 20px', borderRadius: 10,
-                            fontWeight: 700, fontSize: '0.85rem', marginLeft: 'auto'
+                            background: 'linear-gradient(135deg, #00B46E, #10b981)', padding: '8px 24px', borderRadius: 50,
+                            fontWeight: 700, fontSize: '0.9rem', marginLeft: 'auto', boxShadow: '0 4px 15px rgba(0,180,110,0.4)'
                           }}>Đặt vé ngay →</span>
                         </div>
                       </div>
@@ -320,48 +340,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Voucher Showcase */}
+      {/* Voucher Showcase - Ticket UI */}
       {vouchers.length > 0 && (
-        <section className="section" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)' }}>
+        <section className="section" style={{ background: '#f8fafc', borderTop: '1px solid var(--border)' }}>
           <div className="container">
-            <div className="section-header">
-              <h2 style={{ color: '#92400e' }}>🏷️ Mã giảm giá cho sinh viên</h2>
-              <p style={{ color: '#a16207' }}>Lưu mã ngay và sử dụng khi đặt vé!</p>
+            <div className="section-header" style={{ marginBottom: '3rem' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: '50px', fontWeight: 700, fontSize: '0.85rem', marginBottom: '1rem' }}>
+                ✨ SIÊU ƯU ĐÃI
+              </div>
+              <h2 style={{ fontSize: '2.2rem' }}>Mã giảm giá cho sinh viên</h2>
+              <p>Lưu ngay mã giảm giá và áp dụng khi thanh toán vé sự kiện</p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2rem' }}>
               {vouchers.map((v, i) => (
-                <div key={i} style={{
-                  background: 'white', borderRadius: 16, overflow: 'hidden',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: '2px dashed #f59e0b',
-                  transition: 'transform 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                  <div style={{ background: 'linear-gradient(135deg, #00B46E, #10b981)', padding: '1rem 1.2rem', color: 'white' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: 1 }}>
-                      {v.discountPercent ? `Giảm ${v.discountPercent}%` : `Giảm ${new Intl.NumberFormat('vi-VN').format(v.discountAmount)}đ`}
+                <div key={i} className="voucher-ticket">
+                  <div className="voucher-left" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24', lineHeight: 1.2 }}>
+                      {v.discountPercent ? `${v.discountPercent}%` : `${new Intl.NumberFormat('vi-VN').format(v.discountAmount/1000)}K`}
                     </div>
-                    {v.description && <p style={{ fontSize: '0.82rem', opacity: 0.9, marginTop: 4 }}>{v.description}</p>}
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, opacity: 0.9, marginTop: '4px' }}>GIẢM GIÁ</div>
+                    {v.description && <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '8px', lineHeight: 1.4 }}>{v.description}</p>}
                   </div>
-                  <div style={{ padding: '1rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 700, color: '#1a1a2e', letterSpacing: 2, background: '#f1f5f9', padding: '4px 12px', borderRadius: 6, display: 'inline-block' }}>
-                        {v.code}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 6 }}>
-                        {v.remainingUses != null ? `Còn ${v.remainingUses} lượt` : 'Không giới hạn'}
-                        {v.expiryDate && ` • HSD: ${new Date(v.expiryDate).toLocaleDateString('vi-VN')}`}
-                      </div>
+                  <div className="voucher-divider"></div>
+                  <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, background: '#fff' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', letterSpacing: 2, marginBottom: '0.5rem' }}>
+                      {v.code}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span>{v.remainingUses != null ? `Còn ${v.remainingUses} lượt` : 'Không giới hạn'}</span>
+                      <span>{v.expiryDate ? `HSD: ${new Date(v.expiryDate).toLocaleDateString('vi-VN')}` : 'Không thời hạn'}</span>
                     </div>
                     <button
                       onClick={() => { navigator.clipboard.writeText(v.code); alert(`Đã sao chép mã: ${v.code}`); }}
-                      style={{
-                        padding: '8px 16px', background: '#f59e0b', color: 'white',
-                        border: 'none', borderRadius: 10, fontWeight: 700,
-                        fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap'
-                      }}
+                      className="btn btn-outline btn-sm"
+                      style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', alignSelf: 'flex-start', borderRadius: '50px' }}
                     >
-                      📋 Sao chép
+                      Sao chép mã
                     </button>
                   </div>
                 </div>
@@ -371,30 +385,49 @@ export default function Home() {
         </section>
       )}
 
-      {/* Features */}
-      <section className="section" style={{ background: '#ffffff' }}>
+      {/* Features - Bento Grid */}
+      <section className="section" style={{ background: '#ffffff', padding: '6rem 2rem' }}>
         <div className="container">
-          <div className="section-header">
-            <h2>Tại sao chọn TRIVENT?</h2>
-            <p>Nền tảng được thiết kế riêng cho sinh viên</p>
+          <div className="section-header" style={{ marginBottom: '4rem' }}>
+            <h2 style={{ fontSize: '2.5rem' }}>Tại sao chọn TRIVENT?</h2>
+            <p style={{ fontSize: '1.1rem' }}>Nền tảng được thiết kế chuyên biệt cho sinh viên</p>
           </div>
-          <div className="events-grid">
-            {[
-              { icon: icons.shield(32, '#00B46E'), title: 'Chống Over-selling', desc: 'Distributed Lock đảm bảo không bán quá số vé' },
-              { icon: icons.creditCard(32, '#3b82f6'), title: 'Thanh toán an toàn', desc: 'Hỗ trợ chuyển khoản, MoMo, QR Code' },
-              { icon: icons.qrCode(32, '#8b5cf6'), title: 'QR Check-in', desc: 'Mã QR mã hóa AES, check-in nhanh 1 giây' },
-              { icon: icons.users(32, '#f59e0b'), title: 'Event Buddy', desc: 'Tìm bạn đi chung sự kiện cùng trường' },
-              { icon: icons.zap(32, '#ef4444'), title: 'Đặt vé siêu nhanh', desc: 'Xử lý hàng ngàn request cùng lúc' },
-              { icon: icons.graduationCap(32, '#06b6d4'), title: 'Dành cho sinh viên', desc: 'Giá ưu đãi từ 30+ trường đại học' },
-            ].map((f, i) => (
-              <div className="card" key={i} style={{ cursor: 'default' }}>
-                <div className="card-body" style={{ textAlign: 'center', padding: '2rem' }}>
-                  <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'center' }}>{f.icon}</div>
-                  <h3 className="card-title">{f.title}</h3>
-                  <p className="card-text">{f.desc}</p>
-                </div>
-              </div>
-            ))}
+          
+          <div className="bento-grid">
+            {/* Feature 1 - Large spanning 8 cols */}
+            <div className="bento-item bento-col-span-8" style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
+
+              <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', color: '#166534' }}>Luôn có phần cho bạn</h3>
+              <p style={{ color: '#15803d', fontSize: '1.1rem', maxWidth: '80%' }}>Hệ thống giữ vé thông minh của chúng mình đảm bảo không bao giờ có tình trạng "bán lố". Cứ yên tâm đặt vé, không cần sợ bị giành giật phút chót đâu nhé!</p>
+            </div>
+
+            {/* Feature 2 - Small spanning 4 cols */}
+            <div className="bento-item bento-col-span-4" style={{ background: '#f8fafc' }}>
+
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Thanh toán siêu tốc</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>Chốt vé mượt mà chỉ với 1 chạm qua VNPay, ví MoMo hay chuyển khoản ngân hàng.</p>
+            </div>
+
+            {/* Feature 3 - Medium spanning 4 cols */}
+            <div className="bento-item bento-col-span-4" style={{ background: '#fff', border: '2px solid #f1f5f9' }}>
+
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Check-in trong 1 giây</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>Mã QR xịn sò, bảo mật tối đa. Chỉ việc giơ điện thoại lên quét là vào cổng quẩy hết mình!</p>
+            </div>
+
+            {/* Feature 4 - Medium spanning 4 cols */}
+            <div className="bento-item bento-col-span-4" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)' }}>
+
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem', color: '#92400e' }}>Tìm bạn đi cùng</h3>
+              <p style={{ color: '#b45309' }}>Sợ đi quẩy một mình? Tính năng ghép đôi độc quyền sẽ tìm ngay bạn đồng hành cùng trường cho bạn.</p>
+            </div>
+
+            {/* Feature 5 - Medium spanning 4 cols */}
+            <div className="bento-item bento-col-span-4" style={{ background: '#f8fafc' }}>
+
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Trợ giá cực sốc</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>Săn vé xịn với giá "hạt dẻ". Vô vàn ưu đãi độc quyền dành riêng cho thẻ sinh viên của bạn.</p>
+            </div>
           </div>
         </div>
       </section>

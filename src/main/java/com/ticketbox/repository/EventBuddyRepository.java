@@ -25,6 +25,12 @@ public interface EventBuddyRepository extends JpaRepository<EventBuddy, Long> {
             @Param("userId") Long userId,
             @Param("status") BuddyStatus status);
 
+    @Query("SELECT eb FROM EventBuddy eb WHERE eb.event.id = :eventId " +
+           "AND (eb.sender.id = :userId OR eb.receiver.id = :userId)")
+    List<EventBuddy> findByEventAndUser(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId);
+
     Optional<EventBuddy> findByEventIdAndSenderIdAndReceiverId(
             Long eventId, Long senderId, Long receiverId);
 

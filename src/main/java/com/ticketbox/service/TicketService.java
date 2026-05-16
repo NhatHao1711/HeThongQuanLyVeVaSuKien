@@ -25,7 +25,7 @@ public class TicketService {
      * Lấy danh sách vé của user
      */
     public List<TicketResponse> getUserTickets(Long userId) {
-        return userTicketRepository.findByUserId(userId)
+        return userTicketRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());

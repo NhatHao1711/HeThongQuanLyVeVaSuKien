@@ -12,6 +12,7 @@ export default function BuddiesPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
+  const [contactBuddy, setContactBuddy] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -172,6 +173,14 @@ export default function BuddiesPage() {
                               <button className="btn btn-outline btn-sm" onClick={() => respondBuddy(b.buddyId, false)}>Từ chối</button>
                             </div>
                           )}
+                          {b.status === 'ACCEPTED' && (
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              style={{ marginLeft: '10px' }}
+                              onClick={() => setContactBuddy(b)}>
+                              Xem liên hệ
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -221,6 +230,44 @@ export default function BuddiesPage() {
             )}
           </div>
         </section>
+
+        {/* Contact Modal */}
+        {contactBuddy && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+          }}>
+            <div style={{
+              background: '#fff', borderRadius: '12px', padding: '2rem',
+              width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+            }}>
+              <h3 style={{ marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                📞 Thông tin liên hệ
+              </h3>
+              
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#1e293b' }}>
+                  {contactBuddy.senderId === user?.userId ? contactBuddy.receiverName : contactBuddy.senderName}
+                </div>
+                <div style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}>
+                  ✉️ {contactBuddy.senderId === user?.userId ? contactBuddy.receiverEmail : contactBuddy.senderEmail}
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                Hãy chủ động liên hệ qua email để hẹn thời gian và địa điểm gặp mặt nhé! Chúc hai bạn có một trải nghiệm sự kiện tuyệt vời! 🎉
+              </p>
+
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', padding: '0.75rem' }}
+                onClick={() => setContactBuddy(null)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>
