@@ -9,6 +9,7 @@ import CategorySidebar from '@/components/CategorySidebar';
 import EventCard from '@/components/EventCard';
 import { apiRequest } from '@/lib/api';
 import styles from './events-list.module.css';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function EventsPage() {
   return (
@@ -20,6 +21,7 @@ export default function EventsPage() {
 
 function EventsContent() {
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const [allEvents, setAllEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,9 +168,9 @@ function EventsContent() {
   };
 
   const formatPrice = (ticketTypes) => {
-    if (!ticketTypes || ticketTypes.length === 0) return 'Liên hệ';
+    if (!ticketTypes || ticketTypes.length === 0) return t('common.contact');
     const min = Math.min(...ticketTypes.map(t => t.price || 0));
-    if (min === 0) return 'Miễn phí';
+    if (min === 0) return t('common.free');
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
@@ -198,12 +200,12 @@ function EventsContent() {
           <aside className={styles.filters}>
             {/* Search */}
             <div className={styles.filterSection}>
-              <div className={styles.filterTitle}>Tìm kiếm</div>
+              <div className={styles.filterTitle}>{t('events.search_label')}</div>
               <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   className={styles.searchInput}
-                  placeholder="Tên sự kiện..."
+                  placeholder={t('home.search_placeholder_title')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ marginBottom: 0, fontSize: '0.9rem' }}
@@ -213,15 +215,15 @@ function EventsContent() {
 
             {/* Tab Filter */}
             <div className={styles.filterSection}>
-              <div className={styles.filterTitle}>Phân loại</div>
+              <div className={styles.filterTitle}>{t('events.filter_title')}</div>
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'
               }}>
                 {[
-                  { key: 'all', label: 'Tất cả' },
-                  { key: 'upcoming', label: 'Sắp diễn ra' },
-                  { key: 'hot', label: 'HOT' },
-                  { key: 'free', label: 'Miễn phí' },
+                  { key: 'all', label: t('events.category_all') },
+                  { key: 'upcoming', label: t('events.category_upcoming') },
+                  { key: 'hot', label: t('events.category_hot') },
+                  { key: 'free', label: t('events.category_free') },
                 ].map(tab => (
                   <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
                     padding: '0.55rem 0.5rem', borderRadius: 10, cursor: 'pointer',
@@ -239,7 +241,7 @@ function EventsContent() {
             </div>
 
             <div className={styles.filterSection}>
-              <div className={styles.filterTitle}>Thời gian</div>
+              <div className={styles.filterTitle}>{t('events.time_label')}</div>
               {['all', 'today', 'week', 'month'].map(filter => (
                 <div key={filter} className={styles.filterItem}>
                   <input
@@ -251,22 +253,22 @@ function EventsContent() {
                     onChange={() => setDateFilter(filter)}
                   />
                   <label htmlFor={`date-${filter}`}>
-                    {filter === 'all' && 'Tất cả'}
-                    {filter === 'today' && 'Hôm nay'}
-                    {filter === 'week' && 'Tuần này'}
-                    {filter === 'month' && 'Tháng này'}
+                    {filter === 'all' && t('events.time_all')}
+                    {filter === 'today' && t('events.time_today')}
+                    {filter === 'week' && t('events.time_week')}
+                    {filter === 'month' && t('events.time_month')}
                   </label>
                 </div>
               ))}
             </div>
 
             <div className={styles.filterSection}>
-              <div className={styles.filterTitle}>Khoảng giá</div>
+              <div className={styles.filterTitle}>{t('events.price_label')}</div>
               <div className={styles.priceRange}>
                 <input
                   type="number"
                   className={styles.priceInput}
-                  placeholder="Tối thiểu"
+                  placeholder={t('events.price_min')}
                   value={priceRange.min}
                   onChange={(e) => setPriceRange({...priceRange, min: parseInt(e.target.value) || 0})}
                 />
@@ -274,7 +276,7 @@ function EventsContent() {
                 <input
                   type="number"
                   className={styles.priceInput}
-                  placeholder="Tối đa"
+                  placeholder={t('events.price_max')}
                   value={priceRange.max}
                   onChange={(e) => setPriceRange({...priceRange, max: parseInt(e.target.value) || 10000000})}
                 />
@@ -282,22 +284,22 @@ function EventsContent() {
             </div>
 
             <div className={styles.filterSection}>
-              <div className={styles.filterTitle}>Sắp xếp</div>
+              <div className={styles.filterTitle}>{t('events.sort_label')}</div>
               <select 
                 className={styles.sortSelect} 
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 style={{ width: '100%' }}
               >
-                <option value="newest">Mới nhất</option>
-                <option value="oldest">Cũ nhất</option>
-                <option value="cheapest">Giá thấp nhất</option>
-                <option value="expensive">Giá cao nhất</option>
+                <option value="newest">{t('events.sort_newest')}</option>
+                <option value="oldest">{t('events.sort_oldest')}</option>
+                <option value="cheapest">{t('events.sort_cheapest')}</option>
+                <option value="expensive">{t('events.sort_expensive')}</option>
               </select>
             </div>
 
             <button onClick={handleClearFilters} className={styles.clearFilters}>
-              🔄 Xóa bộ lọc
+              🔄 {t('events.clear_filters')}
             </button>
           </aside>
 
@@ -317,12 +319,12 @@ function EventsContent() {
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(0, 180, 110, 0.2)', color: '#4ade80', borderRadius: '50px', fontWeight: 700, fontSize: '0.85rem', marginBottom: '1rem', border: '1px solid rgba(0,180,110,0.3)' }}>
-                    ✨ KHÁM PHÁ
+                    ✨ {t('home.hero_badge').toUpperCase()}
                   </div>
-                  <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Tất cả sự kiện</h1>
-                  <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '500px' }}>Tìm kiếm và đặt vé các sự kiện hot nhất đang diễn ra tại các trường Đại học.</p>
+                  <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>{t('events.list_title')}</h1>
+                  <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '500px' }}>{t('events.list_subtitle')}</p>
                 </div>
-                <Link href="/" className="btn glass" style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50px', padding: '8px 20px', fontSize: '0.9rem' }}>← Quay lại Trang chủ</Link>
+                <Link href="/" className="btn glass" style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50px', padding: '8px 20px', fontSize: '0.9rem' }}>← {t('create_event.back_home')}</Link>
               </div>
             </div>
 
@@ -331,11 +333,11 @@ function EventsContent() {
               <div className={styles.results}>
                 <div className={styles.resultInfo}>
                   <span className={styles.resultCount}>
-                    Tìm thấy {filteredEvents.length} sự kiện
+                    {t('events.found_count').replace('{count}', filteredEvents.length)}
                   </span>
                   <span className={styles.resultFilters}>
                     {searchQuery && `"${searchQuery}"`}
-                    {selectedCategory && ' • Có bộ lọc'}
+                    {selectedCategory && ' • Filtered'}
                   </span>
                 </div>
               </div>
@@ -347,17 +349,17 @@ function EventsContent() {
                 <div className={styles.spinner}>
                   <div className="spinner"></div>
                 </div>
-                <p className={styles.loadingText}>Đang tải sự kiện...</p>
+                <p className={styles.loadingText}>{t('common.loading')}</p>
               </div>
             ) : filteredEvents.length === 0 ? (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>📭</div>
-                <h3 className={styles.emptyTitle}>Không tìm thấy sự kiện</h3>
+                <h3 className={styles.emptyTitle}>{t('events.no_events_found')}</h3>
                 <p className={styles.emptyText}>
-                  {searchQuery ? 'Hãy thử tìm kiếm với từ khóa khác' : 'Chưa có sự kiện nào được đăng'}
+                  {searchQuery ? t('events.try_different_keyword') : t('events.no_events_found')}
                 </p>
                 <button onClick={handleClearFilters} className={styles.emptyBtn}>
-                  Xóa bộ lọc
+                  {t('events.clear_filters')}
                 </button>
               </div>
             ) : (
@@ -373,26 +375,26 @@ function EventsContent() {
                             const start = new Date(event.startTime);
                             const end = new Date(event.endTime);
                             const soldOut = event.ticketTypes?.every(t => (t.availableQuantity || 0) <= 0);
-                            const isFree = formatPrice(event.ticketTypes) === 'Miễn phí';
+                            const isFree = formatPrice(event.ticketTypes) === t('common.free');
                             const badges = [];
                             
-                            if (soldOut) badges.push(<span key="sold" className={styles.badge} style={{ background: 'rgba(239, 68, 68, 0.95)', color: '#fff' }}>Hết vé</span>);
-                            else if (now < start) badges.push(<span key="soon" className={styles.badge} style={{ background: 'rgba(59, 130, 246, 0.95)', color: '#fff' }}>Sắp diễn ra</span>);
-                            else if (now >= start && now <= end) badges.push(<span key="live" className={styles.badge} style={{ background: 'rgba(16, 185, 129, 0.95)', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 6, height: 6, background: '#fff', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> Đang diễn ra</span>);
-                            else badges.push(<span key="ended" className={styles.badge} style={{ background: 'rgba(100, 116, 139, 0.95)', color: '#fff' }}>Đã kết thúc</span>);
+                            if (soldOut) badges.push(<span key="sold" className={styles.badge} style={{ background: 'rgba(239, 68, 68, 0.95)', color: '#fff' }}>{t('common.sold_out')}</span>);
+                            else if (now < start) badges.push(<span key="soon" className={styles.badge} style={{ background: 'rgba(59, 130, 246, 0.95)', color: '#fff' }}>{t('common.upcoming')}</span>);
+                            else if (now >= start && now <= end) badges.push(<span key="live" className={styles.badge} style={{ background: 'rgba(16, 185, 129, 0.95)', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 6, height: 6, background: '#fff', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> {t('common.live')}</span>);
+                            else badges.push(<span key="ended" className={styles.badge} style={{ background: 'rgba(100, 116, 139, 0.95)', color: '#fff' }}>{t('common.ended')}</span>);
                             
-                            if (isFree && !soldOut) badges.push(<span key="free" className={`${styles.badge} ${styles.free}`}>Miễn phí</span>);
+                            if (isFree && !soldOut) badges.push(<span key="free" className={`${styles.badge} ${styles.free}`}>{t('common.free')}</span>);
                             return badges;
                           })()}
                         </div>
                       </div>
                       <div className={styles.eventContent}>
-                        <div className={styles.eventCategory}>{event.category?.name || 'Khác'}</div>
+                        <div className={styles.eventCategory}>{event.category?.name || 'Other'}</div>
                         <h3 className={styles.eventTitle}>{event.title}</h3>
                         <p className={styles.eventDescription}>{event.description}</p>
                         <div className={styles.eventMeta}>
                           <div className={styles.eventMetaItem}>
-                            📍 {event.location || 'Địa điểm chưa xác định'}
+                            📍 {event.location || 'N/A'}
                           </div>
                           <div className={styles.eventMetaItem}>
                             📅 {new Date(event.startTime).toLocaleDateString('vi-VN')}
@@ -400,7 +402,7 @@ function EventsContent() {
                         </div>
                         <div className={styles.eventFooter}>
                           <span className={styles.eventPrice}>{formatPrice(event.ticketTypes)}</span>
-                          <button className={styles.eventBtn}>Đặt vé →</button>
+                          <button className={styles.eventBtn}>{t('common.buy_ticket')} →</button>
                         </div>
                       </div>
                     </div>

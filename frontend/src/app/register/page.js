@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { apiRequest, setToken, setUser } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -11,13 +12,14 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (form.password !== form.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp!');
+      setError(t('auth.pwd_not_match'));
       return;
     }
 
@@ -42,10 +44,10 @@ export default function RegisterPage() {
         });
         window.location.href = '/';
       } else {
-        setError(res.message || 'Đăng ký thất bại!');
+        setError(res.message || t('auth.register_fail'));
       }
     } catch (err) {
-      setError('Không thể kết nối server!');
+      setError(t('common.error_connect'));
     } finally {
       setLoading(false);
     }
@@ -57,41 +59,41 @@ export default function RegisterPage() {
       <section className="hero" style={{ minHeight: '100vh' }}>
         <div className="hero-orb hero-orb-2"></div>
         <div className="form-card animate-in">
-          <Link href="/" style={{ color: 'var(--primary)', fontSize: '0.88rem', display: 'block', marginBottom: '1rem' }}>← Về trang chủ</Link>
-          <h2>Đăng ký</h2>
-          <p className="subtitle">Tham gia cộng đồng sinh viên TRIVENT</p>
+          <Link href="/" style={{ color: 'var(--primary)', fontSize: '0.88rem', display: 'block', marginBottom: '1rem' }}>← {t('nav.home')}</Link>
+          <h2>{t('auth.register_title')}</h2>
+          <p className="subtitle">{t('auth.register_subtitle')}</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Họ và tên</label>
+              <label className="form-label">{t('auth.fullname')}</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Nguyễn Văn A"
+                placeholder={t('auth.fullname_placeholder')}
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Email sinh viên</label>
+              <label className="form-label">{t('auth.email')}</label>
               <input
                 type="email"
                 className="form-input"
-                placeholder="you@university.edu.vn"
+                placeholder={t('auth.email_placeholder')}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Mật khẩu</label>
+              <label className="form-label">{t('auth.password')}</label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="Ít nhất 6 ký tự"
+                placeholder={t('profile.pwd_new_placeholder')}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
@@ -99,24 +101,24 @@ export default function RegisterPage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Xác nhận mật khẩu</label>
+              <label className="form-label">{t('auth.confirm_password')}</label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="Nhập lại mật khẩu"
+                placeholder={t('auth.confirm_password_placeholder')}
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                 required
               />
             </div>
             <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}>
-              {loading ? <span className="spinner"></span> : 'Tạo tài khoản'}
+              {loading ? <span className="spinner"></span> : t('auth.create_account')}
             </button>
           </form>
 
-          <p className="form-divider">Đã có tài khoản?</p>
+          <p className="form-divider">{t('auth.have_account')}</p>
           <Link href="/login" className="btn btn-outline btn-block">
-            Đăng nhập
+            {t('auth.login_title')}
           </Link>
         </div>
       </section>

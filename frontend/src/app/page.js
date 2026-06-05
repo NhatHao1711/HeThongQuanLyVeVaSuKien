@@ -124,7 +124,7 @@ export default function Home() {
             <div style={{ flex: 2, position: 'relative', display: 'flex', alignItems: 'center', paddingLeft: '1rem' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '0.5rem' }}>{icons.search(18)}</span>
               <input
-                type="text" placeholder="Tên sự kiện..." value={searchKeyword}
+                type="text" placeholder={t('home.search_placeholder_title')} value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
                 style={{
                   width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', outline: 'none'
@@ -135,7 +135,7 @@ export default function Home() {
             <div style={{ flex: 1.5, position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '0.5rem' }}>{icons.mapPin(18)}</span>
               <input
-                type="text" placeholder="Địa điểm" value={searchLocation}
+                type="text" placeholder={t('home.search_placeholder_location')} value={searchLocation}
                 onChange={e => setSearchLocation(e.target.value)}
                 style={{
                   width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '1rem', outline: 'none'
@@ -157,7 +157,7 @@ export default function Home() {
               borderRadius: '50px', padding: '0 2rem', height: 48, fontSize: '1rem', fontWeight: 700,
               boxShadow: '0 4px 15px rgba(0, 180, 110, 0.4)', marginLeft: '0.5rem'
             }}>
-              Tìm kiếm
+              {t('home.search')}
             </button>
           </form>
 
@@ -172,7 +172,7 @@ export default function Home() {
             </div>
             <div className="hero-stat">
               <div className="hero-stat-number">30+</div>
-              <div className="hero-stat-label">Trường đại học</div>
+              <div className="hero-stat-label">{t('home.stat_universities')}</div>
             </div>
           </div>
         </div>
@@ -183,8 +183,8 @@ export default function Home() {
         <section style={{ padding: '2.5rem 0', background: '#f8fafc' }}>
           <div className="container">
             <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-              <h2>🔥 Sự kiện đang HOT</h2>
-              <p>Đừng bỏ lỡ — các sự kiện được săn vé nhiều nhất</p>
+              <h2>🔥 {t('home.hot_events_title')}</h2>
+              <p>{t('home.hot_events_desc')}</p>
             </div>
             <div style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
               {/* Slides */}
@@ -239,7 +239,7 @@ export default function Home() {
                           <span style={{
                             background: 'linear-gradient(135deg, #00B46E, #10b981)', padding: '8px 24px', borderRadius: 50,
                             fontWeight: 700, fontSize: '0.9rem', marginLeft: 'auto', boxShadow: '0 4px 15px rgba(0,180,110,0.4)'
-                          }}>Đặt vé ngay →</span>
+                          }}>{t('home.book_now')} →</span>
                         </div>
                       </div>
                     </div>
@@ -289,8 +289,8 @@ export default function Home() {
       <section className="section" id="events">
         <div className="container">
           <div className="section-header">
-            <h2>Sự kiện nổi bật</h2>
-            <p>Đừng bỏ lỡ những sự kiện hot nhất</p>
+            <h2>{t('home.upcoming_events')}</h2>
+            <p>{t('home.upcoming_desc')}</p>
           </div>
 
           {loading ? (
@@ -300,7 +300,7 @@ export default function Home() {
             </div>
           ) : events.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-              <p>Chưa có sự kiện nào. Hãy đăng nhập Admin để tạo và publish sự kiện!</p>
+              <p>{t('home.no_events')}</p>
             </div>
           ) : (
             <>
@@ -332,7 +332,7 @@ export default function Home() {
               </div>
               {events.length > 6 && (
                 <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                  <Link href="/events" className="btn btn-outline">Xem tất cả sự kiện →</Link>
+                  <Link href="/events" className="btn btn-outline">{t('home.view_all')}</Link>
                 </div>
               )}
             </>
@@ -346,10 +346,10 @@ export default function Home() {
           <div className="container">
             <div className="section-header" style={{ marginBottom: '3rem' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: '50px', fontWeight: 700, fontSize: '0.85rem', marginBottom: '1rem' }}>
-                ✨ SIÊU ƯU ĐÃI
+                ✨ {t('home.super_deal')}
               </div>
-              <h2 style={{ fontSize: '2.2rem' }}>Mã giảm giá cho sinh viên</h2>
-              <p>Lưu ngay mã giảm giá và áp dụng khi thanh toán vé sự kiện</p>
+              <h2 style={{ fontSize: '2.2rem' }}>{t('home.vouchers_title')}</h2>
+              <p>{t('home.vouchers_desc')}</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2rem' }}>
               {vouchers.map((v, i) => (
@@ -358,7 +358,7 @@ export default function Home() {
                     <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24', lineHeight: 1.2 }}>
                       {v.discountPercent ? `${v.discountPercent}%` : `${new Intl.NumberFormat('vi-VN').format(v.discountAmount/1000)}K`}
                     </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, opacity: 0.9, marginTop: '4px' }}>GIẢM GIÁ</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, opacity: 0.9, marginTop: '4px' }}>{t('home.discount')}</div>
                     {v.description && <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '8px', lineHeight: 1.4 }}>{v.description}</p>}
                   </div>
                   <div className="voucher-divider"></div>
@@ -367,15 +367,15 @@ export default function Home() {
                       {v.code}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span>{v.remainingUses != null ? `Còn ${v.remainingUses} lượt` : 'Không giới hạn'}</span>
-                      <span>{v.expiryDate ? `HSD: ${new Date(v.expiryDate).toLocaleDateString('vi-VN')}` : 'Không thời hạn'}</span>
+                      <span>{v.remainingUses != null ? t('home.remaining_uses').replace('{count}', v.remainingUses) : t('home.unlimited')}</span>
+                      <span>{v.expiryDate ? t('home.expiry').replace('{date}', new Date(v.expiryDate).toLocaleDateString('vi-VN')) : t('home.no_expiry')}</span>
                     </div>
                     <button
                       onClick={() => { navigator.clipboard.writeText(v.code); alert(`Đã sao chép mã: ${v.code}`); }}
                       className="btn btn-outline btn-sm"
                       style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', alignSelf: 'flex-start', borderRadius: '50px' }}
                     >
-                      Sao chép mã
+                      {t('home.copy_code')}
                     </button>
                   </div>
                 </div>
@@ -389,44 +389,44 @@ export default function Home() {
       <section className="section" style={{ background: '#ffffff', padding: '6rem 2rem' }}>
         <div className="container">
           <div className="section-header" style={{ marginBottom: '4rem' }}>
-            <h2 style={{ fontSize: '2.5rem' }}>Tại sao chọn TRIVENT?</h2>
-            <p style={{ fontSize: '1.1rem' }}>Nền tảng được thiết kế chuyên biệt cho sinh viên</p>
+            <h2 style={{ fontSize: '2.5rem' }}>{t('home.why_title')}</h2>
+            <p style={{ fontSize: '1.1rem' }}>{t('home.why_desc')}</p>
           </div>
           
           <div className="bento-grid">
             {/* Feature 1 - Large spanning 8 cols */}
             <div className="bento-item bento-col-span-8" style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
 
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', color: '#166534' }}>Luôn có phần cho bạn</h3>
-              <p style={{ color: '#15803d', fontSize: '1.1rem', maxWidth: '80%' }}>Hệ thống giữ vé thông minh của chúng mình đảm bảo không bao giờ có tình trạng "bán lố". Cứ yên tâm đặt vé, không cần sợ bị giành giật phút chót đâu nhé!</p>
+              <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', color: '#166534' }}>{t('home.why_item1_title')}</h3>
+              <p style={{ color: '#15803d', fontSize: '1.1rem', maxWidth: '80%' }}>{t('home.why_item1_desc')}</p>
             </div>
 
             {/* Feature 2 - Small spanning 4 cols */}
             <div className="bento-item bento-col-span-4" style={{ background: '#f8fafc' }}>
 
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Thanh toán siêu tốc</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>Chốt vé mượt mà chỉ với 1 chạm qua VNPay, ví MoMo hay chuyển khoản ngân hàng.</p>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>{t('home.why_item2_title')}</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('home.why_item2_desc')}</p>
             </div>
 
             {/* Feature 3 - Medium spanning 4 cols */}
             <div className="bento-item bento-col-span-4" style={{ background: '#fff', border: '2px solid #f1f5f9' }}>
 
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Check-in trong 1 giây</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>Mã QR xịn sò, bảo mật tối đa. Chỉ việc giơ điện thoại lên quét là vào cổng quẩy hết mình!</p>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>{t('home.why_item3_title')}</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('home.why_item3_desc')}</p>
             </div>
 
             {/* Feature 4 - Medium spanning 4 cols */}
             <div className="bento-item bento-col-span-4" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)' }}>
 
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem', color: '#92400e' }}>Tìm bạn đi cùng</h3>
-              <p style={{ color: '#b45309' }}>Sợ đi quẩy một mình? Tính năng ghép đôi độc quyền sẽ tìm ngay bạn đồng hành cùng trường cho bạn.</p>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem', color: '#92400e' }}>{t('home.why_item4_title')}</h3>
+              <p style={{ color: '#b45309' }}>{t('home.why_item4_desc')}</p>
             </div>
 
             {/* Feature 5 - Medium spanning 4 cols */}
             <div className="bento-item bento-col-span-4" style={{ background: '#f8fafc' }}>
 
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Trợ giá cực sốc</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>Săn vé xịn với giá "hạt dẻ". Vô vàn ưu đãi độc quyền dành riêng cho thẻ sinh viên của bạn.</p>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>{t('home.why_item5_title')}</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('home.why_item5_desc')}</p>
             </div>
           </div>
         </div>

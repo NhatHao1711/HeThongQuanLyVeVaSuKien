@@ -13,7 +13,6 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [theme, setTheme] = useState('light');
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
   const { lang, changeLang, t } = useTranslation();
@@ -34,11 +33,6 @@ export default function Navbar() {
     if (isLoggedIn()) {
       loadUnreadCount();
     }
-    
-    // Load theme Preference
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
   useEffect(() => {
@@ -87,17 +81,10 @@ export default function Navbar() {
   const formatTimeAgo = (d) => {
     if (!d) return '';
     const diff = (Date.now() - new Date(d).getTime()) / 1000;
-    if (diff < 60) return 'Vừa xong';
-    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-    return `${Math.floor(diff / 86400)} ngày trước`;
-  };
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
+    if (diff < 60) return t('time.just_now');
+    if (diff < 3600) return t('time.minutes_ago').replace('{count}', Math.floor(diff / 60));
+    if (diff < 86400) return t('time.hours_ago').replace('{count}', Math.floor(diff / 3600));
+    return t('time.days_ago').replace('{count}', Math.floor(diff / 86400));
   };
 
   const toggleLang = () => {
@@ -124,13 +111,7 @@ export default function Navbar() {
         <button onClick={toggleLang} title={t('common.language_toggle')} style={{
           background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.85rem'
         }}>
-          {lang === 'vi' ? 'VN' : 'EN'}
-        </button>
-
-        <button onClick={toggleTheme} title={t('common.theme_toggle')} style={{
-          background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0.4rem', color: 'var(--text-secondary)'
-        }}>
-          {theme === 'light' ? '🌙' : '☀️'}
+          {lang === 'vi' ? 'EN' : 'VN'}
         </button>
 
         {loggedIn ? (
@@ -219,7 +200,7 @@ export default function Navbar() {
                       borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
                     }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
                        onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                      {icons.crown(15, 'var(--primary)')} Quản trị
+                      {icons.crown(15, 'var(--primary)')} {t('nav.admin')}
                     </Link>
                   )}
                   <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
@@ -229,7 +210,7 @@ export default function Navbar() {
                     transition: 'background 0.15s'
                   }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
                      onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                    {icons.user(15, 'var(--text-secondary)')} Hồ sơ cá nhân
+                    {icons.user(15, 'var(--text-secondary)')} {t('profile.title')}
                   </Link>
                 </div>
               )}

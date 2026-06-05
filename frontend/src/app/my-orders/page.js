@@ -4,10 +4,12 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
@@ -26,9 +28,9 @@ export default function MyOrdersPage() {
   const formatPrice = (p) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(p || 0);
 
   const statusConfig = {
-    PENDING: { label: 'Chờ thanh toán', color: '#f59e0b', bg: '#fef3c7' },
-    PAID: { label: 'Đã thanh toán', color: '#10b981', bg: '#d1fae5' },
-    FAILED: { label: 'Đã hủy', color: '#ef4444', bg: '#fee2e2' },
+    PENDING: { label: t('orders.status_pending'), color: '#f59e0b', bg: '#fef3c7' },
+    PAID: { label: t('orders.status_paid'), color: '#10b981', bg: '#d1fae5' },
+    FAILED: { label: t('orders.status_failed'), color: '#ef4444', bg: '#fee2e2' },
   };
 
   const getStatus = (s) => statusConfig[s] || statusConfig.PENDING;
@@ -41,10 +43,10 @@ export default function MyOrdersPage() {
           <div className="container" style={{ maxWidth: 900 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Trang chủ</Link>
-                <span> / Đơn hàng</span>
+                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{t('nav.home')}</Link>
+                <span> / {t('orders.title')}</span>
               </div>
-              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
             </div>
 
             <div style={{
@@ -59,8 +61,8 @@ export default function MyOrdersPage() {
               overflow: 'hidden'
             }}>
               <div style={{ position: 'absolute', top: '-50%', left: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(0,180,110,0.15) 0%, transparent 70%)', borderRadius: '50%' }}></div>
-              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>📦 Đơn hàng của tôi</h2>
-              <p style={{ color: '#94a3b8', fontSize: '1.05rem', position: 'relative', zIndex: 2 }}>Theo dõi trạng thái đơn hàng và lịch sử giao dịch</p>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>📦 {t('orders.title')}</h2>
+              <p style={{ color: '#94a3b8', fontSize: '1.05rem', position: 'relative', zIndex: 2 }}>{t('orders.subtitle')}</p>
             </div>
 
             {loading ? (
@@ -70,9 +72,9 @@ export default function MyOrdersPage() {
             ) : orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#fff', borderRadius: '24px', border: '1px dashed #cbd5e1' }}>
                 <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🛒</div>
-                <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '0.5rem' }}>Bạn chưa có đơn hàng nào</h3>
-                <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Hãy chọn cho mình một sự kiện yêu thích và bắt đầu trải nghiệm nhé!</p>
-                <Link href="/events" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '50px', fontWeight: 600 }}>Khám phá sự kiện</Link>
+                <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '0.5rem' }}>{t('orders.no_orders_title')}</h3>
+                <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{t('orders.no_orders_desc')}</p>
+                <Link href="/events" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '50px', fontWeight: 600 }}>{t('orders.explore_btn')}</Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -110,7 +112,7 @@ export default function MyOrdersPage() {
 
                       {/* Order Timeline */}
                       <div style={{ padding: '2rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {['Đặt vé', 'Chờ thanh toán', 'Đã thanh toán', 'Hoàn thành'].map((step, i) => {
+                        {[t('events.booking_title'), t('orders.status_pending'), t('orders.status_paid'), t('events.booking_step_success')].map((step, i) => {
                           const isActive = (order.paymentStatus === 'PENDING' && i <= 1) ||
                             (order.paymentStatus === 'PAID' && i <= 3) ||
                             (order.paymentStatus === 'FAILED' && i === 0);
@@ -128,7 +130,7 @@ export default function MyOrdersPage() {
                                   {isFailed ? '✕' : isActive ? '✓' : i + 1}
                                 </div>
                                 <span style={{ position: 'absolute', top: '40px', fontSize: '0.75rem', color: isActive ? '#1e293b' : '#94a3b8', fontWeight: isActive ? 700 : 500, whiteSpace: 'nowrap' }}>
-                                  {isFailed ? 'Đã hủy' : step}
+                                  {isFailed ? t('orders.status_failed') : step}
                                 </span>
                               </div>
                               {i < 3 && <div style={{ flex: 1, height: 3, background: isActive && !isFailed ? '#10b981' : '#e2e8f0', margin: '0 -4px', zIndex: 1 }} />}
@@ -164,11 +166,11 @@ export default function MyOrdersPage() {
                         padding: '1.2rem 1.5rem', background: '#fff'
                       }}>
                         <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                          <span style={{ fontWeight: 600, color: '#475569' }}>{order.ticketCount} vé</span>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>{order.ticketCount} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'tickets' : 'vé'}</span>
                           {order.voucherCode && <span> • 🎁 Voucher: <strong style={{ color: '#f59e0b' }}>{order.voucherCode}</strong> (-{formatPrice(order.discountAmount)})</span>}
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.2rem', fontWeight: 600 }}>Tổng thanh toán</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.2rem', fontWeight: 600 }}>{t('events.booking_final_total')}</div>
                           <div style={{ fontWeight: 900, fontSize: '1.3rem', color: '#00B46E' }}>
                             {formatPrice(order.totalAmount)}
                           </div>

@@ -76,7 +76,7 @@ npm install
 
 ## Quy trình mỗi ngày mở project:
 
-### Bước 1: Mở Docker Desktop
+### Bướdocker-compose -f docker-compose.dev.yml up -dc 1: Mở Docker Desktop
 - Chờ cho đến khi góc dưới trái hiện **"Engine running"**
 
 ### Bước 2: Chạy Redis + RabbitMQ (Terminal 1)

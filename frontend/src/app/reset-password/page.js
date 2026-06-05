@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function ResetPasswordPage() {
   return (
@@ -20,15 +21,16 @@ function ResetPasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setMsg({ type: 'error', text: 'Mật khẩu xác nhận không khớp!' });
+      setMsg({ type: 'error', text: t('auth.pwd_not_match') });
       return;
     }
     if (newPassword.length < 6) {
-      setMsg({ type: 'error', text: 'Mật khẩu phải có ít nhất 6 ký tự!' });
+      setMsg({ type: 'error', text: t('profile.pwd_new_placeholder') });
       return;
     }
     setLoading(true);
@@ -41,12 +43,12 @@ function ResetPasswordContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setMsg({ type: 'success', text: '✅ Đặt lại mật khẩu thành công! Hãy đăng nhập lại.' });
+        setMsg({ type: 'success', text: t('auth.reset_success_msg') });
       } else {
-        setMsg({ type: 'error', text: data.message || 'Link hết hạn hoặc không hợp lệ' });
+        setMsg({ type: 'error', text: data.message || t('auth.invalid_link') });
       }
     } catch {
-      setMsg({ type: 'error', text: 'Lỗi kết nối server' });
+      setMsg({ type: 'error', text: t('common.error_connect') });
     } finally {
       setLoading(false);
     }
@@ -59,10 +61,10 @@ function ResetPasswordContent() {
         <main style={{ paddingTop: '100px', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-            <h2 style={{ fontWeight: 700, color: '#1a1a2e' }}>Link không hợp lệ</h2>
-            <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>Vui lòng sử dụng link được gửi qua email.</p>
+            <h2 style={{ fontWeight: 700, color: '#1a1a2e' }}>{t('auth.invalid_link')}</h2>
+            <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>{t('auth.invalid_link')}</p>
             <Link href="/forgot-password" style={{ color: '#00B46E', textDecoration: 'none', fontWeight: 600, display: 'inline-block', marginTop: '1rem' }}>
-              Yêu cầu link mới →
+              {t('auth.forgot_title')} →
             </Link>
           </div>
         </main>
@@ -80,9 +82,9 @@ function ResetPasswordContent() {
         }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔐</div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>Đặt lại mật khẩu</h1>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>{t('auth.reset_title')}</h1>
             <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Nhập mật khẩu mới cho tài khoản
+              {t('auth.reset_subtitle')}
             </p>
           </div>
 
@@ -97,7 +99,7 @@ function ResetPasswordContent() {
               {msg.type === 'success' && (
                 <div style={{ marginTop: '0.5rem' }}>
                   <Link href="/login" style={{ color: '#00B46E', fontWeight: 700, textDecoration: 'none' }}>
-                    Đăng nhập ngay →
+                    {t('auth.login_title')} →
                   </Link>
                 </div>
               )}
@@ -108,11 +110,11 @@ function ResetPasswordContent() {
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: '#374151' }}>
-                  Mật khẩu mới
+                  {t('auth.reset_new_pwd')}
                 </label>
                 <input
                   type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Ít nhất 6 ký tự"
+                  placeholder={t('profile.pwd_new_placeholder')}
                   minLength={6}
                   style={{
                     width: '100%', padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid #e2e8f0',
@@ -124,11 +126,11 @@ function ResetPasswordContent() {
               </div>
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: '#374151' }}>
-                  Xác nhận mật khẩu
+                  {t('auth.reset_confirm_pwd')}
                 </label>
                 <input
                   type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Nhập lại mật khẩu"
+                  placeholder={t('auth.confirm_password_placeholder')}
                   style={{
                     width: '100%', padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid #e2e8f0',
                     fontSize: '0.92rem', outline: 'none', boxSizing: 'border-box'
@@ -145,7 +147,7 @@ function ResetPasswordContent() {
                   fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? '⏳ Đang xử lý...' : '🔐 Đặt lại mật khẩu'}
+                {loading ? '⏳ ...' : '🔐 ' + t('auth.reset_btn')}
               </button>
             </form>
           )}

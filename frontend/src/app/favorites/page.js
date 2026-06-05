@@ -1,13 +1,14 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest } from '@/lib/api';
 import { icons } from '@/components/Icons';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function FavoritesPage() {
+  const { lang, t } = useTranslation();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +29,7 @@ export default function FavoritesPage() {
     } catch (e) { console.error(e); }
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   const API_BASE = 'http://localhost:8080';
 
   return (
@@ -37,16 +38,16 @@ export default function FavoritesPage() {
       <div style={{ minHeight: '80vh', background: 'var(--bg-secondary)', padding: '2rem 0' }}>
         <div className="container" style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Trang chủ</Link>
+            <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{t('nav.home')}</Link>
             <span style={{ color: 'var(--text-muted)' }}>/</span>
-            <span style={{ color: 'var(--text-muted)' }}>Sự kiện yêu thích</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t('favorites.title')}</span>
           </div>
-          <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+          <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
 
           <h1 style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-            {icons.heart(24, '#e91e63', true)} Sự kiện yêu thích
+            {icons.heart(24, '#e91e63', true)} {t('favorites.title')}
           </h1>
-          <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>Các sự kiện bạn đã lưu</p>
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>{t('favorites.subtitle')}</p>
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem' }}>
@@ -55,8 +56,8 @@ export default function FavoritesPage() {
           ) : favorites.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
               <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>{icons.heartBroken(48, '#ccc')}</div>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Bạn chưa lưu sự kiện nào</p>
-              <Link href="/events" className="btn btn-primary">Khám phá sự kiện</Link>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>{t('favorites.no_favorites')}</p>
+              <Link href="/events" className="btn btn-primary">{t('favorites.explore_btn')}</Link>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '1rem' }}>
@@ -87,10 +88,10 @@ export default function FavoritesPage() {
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>{icons.calendar(14, '#888')} {formatDate(fav.startTime)}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <Link href={`/events/${fav.eventId}`} className="btn btn-primary btn-sm">Xem chi tiết</Link>
+                        <Link href={`/events/${fav.eventId}`} className="btn btn-primary btn-sm">{t('favorites.view_detail')}</Link>
                         <button onClick={() => removeFavorite(fav.eventId)} 
                           style={{ background: 'none', border: '1px solid #e57373', color: '#e57373', borderRadius: 8, padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                          {icons.heartBroken(14, '#e57373')} Bỏ lưu
+                          {icons.heartBroken(14, '#e57373')} {t('favorites.remove_btn')}
                         </button>
                       </div>
                     </div>

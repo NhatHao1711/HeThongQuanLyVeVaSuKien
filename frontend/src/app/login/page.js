@@ -4,11 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { apiRequest, setToken, setUser } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,10 +33,10 @@ export default function LoginPage() {
         });
         window.location.href = res.data.role === 'ROLE_ADMIN' ? '/admin' : '/';
       } else {
-        setError(res.message || 'Đăng nhập thất bại');
+        setError(res.message || t('auth.login_fail'));
       }
     } catch (err) {
-      setError('Không thể kết nối đến server');
+      setError(t('common.error_connect'));
     } finally {
       setLoading(false);
     }
@@ -46,48 +48,48 @@ export default function LoginPage() {
       <section className="hero" style={{ minHeight: '100vh' }}>
         <div className="hero-orb hero-orb-1"></div>
         <div className="form-card animate-in">
-          <Link href="/" style={{ color: 'var(--primary)', fontSize: '0.88rem', display: 'block', marginBottom: '1rem' }}>← Về trang chủ</Link>
-          <h2>Đăng nhập</h2>
-          <p className="subtitle">Chào mừng bạn quay trở lại TRIVENT</p>
+          <Link href="/" style={{ color: 'var(--primary)', fontSize: '0.88rem', display: 'block', marginBottom: '1rem' }}>← {t('nav.home')}</Link>
+          <h2>{t('auth.login_title')}</h2>
+          <p className="subtitle">{t('auth.login_subtitle')}</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label className="form-label">{t('auth.email')}</label>
               <input
                 type="email"
                 className="form-input"
-                placeholder="you@university.edu.vn"
+                placeholder={t('auth.email_placeholder')}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Mật khẩu</label>
+              <label className="form-label">{t('auth.password')}</label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="••••••••"
+                placeholder={t('auth.password_placeholder')}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
             </div>
             <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}>
-              {loading ? <span className="spinner"></span> : 'Đăng nhập'}
+              {loading ? <span className="spinner"></span> : t('auth.login_title')}
             </button>
           </form>
 
           <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
             <Link href="/forgot-password" style={{ color: '#6b7280', fontSize: '0.85rem', textDecoration: 'none' }}>
-              Quên mật khẩu?
+              {t('auth.forgot_password')}
             </Link>
           </div>
-          <p className="form-divider">Chưa có tài khoản?</p>
+          <p className="form-divider">{t('auth.no_account')}</p>
           <Link href="/register" className="btn btn-outline btn-block">
-            Đăng ký miễn phí
+            {t('auth.register_free')}
           </Link>
         </div>
       </section>

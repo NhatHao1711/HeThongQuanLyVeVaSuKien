@@ -1,13 +1,14 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
 import { apiRequest, isLoggedIn } from '@/lib/api';
 import { icons } from '@/components/Icons';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function ProfilePage() {
+  const { lang, t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -33,15 +34,15 @@ export default function ProfilePage() {
   const handleSave = async () => {
     try {
       const res = await apiRequest('/profile', { method: 'PUT', body: JSON.stringify(form) });
-      if (res.success) { setMsg('Cập nhật thành công!'); setEditing(false); loadProfile(); }
-      else setMsg('Lỗi: ' + res.message);
-    } catch (e) { setMsg('Lỗi kết nối'); }
+      if (res.success) { setMsg(t('profile.save_success')); setEditing(false); loadProfile(); }
+      else setMsg(t('profile.save_fail') + ': ' + res.message);
+    } catch (e) { setMsg(t('common.error_connect')); }
     setTimeout(() => setMsg(''), 3000);
   };
 
   const handleChangePassword = async () => {
     if (pwForm.newPassword !== pwForm.confirmPassword) {
-      setPwMsg('Mật khẩu mới không khớp'); return;
+      setPwMsg(t('profile.pwd_mismatch')); return;
     }
     try {
       const res = await apiRequest('/profile/password', {
@@ -49,11 +50,11 @@ export default function ProfilePage() {
         body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
       });
       if (res.success) {
-        setPwMsg('Đổi mật khẩu thành công!');
+        setPwMsg(t('profile.pwd_success'));
         setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowPwForm(false);
-      } else setPwMsg('Lỗi: ' + res.message);
-    } catch (e) { setPwMsg('Lỗi kết nối'); }
+      } else setPwMsg(t('profile.pwd_fail') + ': ' + res.message);
+    } catch (e) { setPwMsg(t('common.error_connect')); }
     setTimeout(() => setPwMsg(''), 3000);
   };
 
@@ -73,7 +74,7 @@ export default function ProfilePage() {
   };
 
   if (loading) return (<><Navbar /><div style={{ textAlign: 'center', padding: '4rem' }}><div className="spinner" style={{ width: 40, height: 40, margin: '0 auto' }}></div></div></>);
-  if (!profile) return (<><Navbar /><div style={{ textAlign: 'center', padding: '4rem' }}><p>Vui lòng <Link href="/login">đăng nhập</Link></p></div></>);
+  if (!profile) return (<><Navbar /><div style={{ textAlign: 'center', padding: '4rem' }}><p><Link href="/login" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>{t('profile.login_required')}</Link></p></div></>);
 
   const API_BASE = 'http://localhost:8080';
 
@@ -83,11 +84,11 @@ export default function ProfilePage() {
       <div style={{ minHeight: '80vh', background: 'var(--bg-secondary)', padding: '2rem 0' }}>
         <div className="container" style={{ maxWidth: 700, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Trang chủ</Link>
+            <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{t('nav.home')}</Link>
             <span style={{ color: 'var(--text-muted)' }}>/</span>
-            <span style={{ color: 'var(--text-muted)' }}>Hồ sơ cá nhân</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t('profile.title')}</span>
           </div>
-          <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+          <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
 
           <div style={{ background: '#fff', borderRadius: 16, padding: '2.5rem', marginTop: '1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -122,39 +123,39 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            {msg && <div style={{ padding: '0.75rem', borderRadius: 8, background: msg.includes('thành công') ? '#e8f5e9' : '#fbe9e7', textAlign: 'center', marginBottom: '1rem' }}>{msg}</div>}
+            {msg && <div style={{ padding: '0.75rem', borderRadius: 8, background: (msg.includes('thành công') || msg.toLowerCase().includes('success')) ? '#e8f5e9' : '#fbe9e7', textAlign: 'center', marginBottom: '1rem' }}>{msg}</div>}
 
             <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {icons.clipboardList(18)} Thông tin cá nhân
+                {icons.clipboardList(18)} {t('profile.tab_info')}
               </h3>
               <div style={{ display: 'grid', gap: '1rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Họ và tên</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>{t('profile.fullname')}</label>
                   {editing
                     ? <input value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })}
                         style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #ddd', fontSize: '0.95rem' }} />
                     : <p style={{ fontWeight: 500 }}>{profile.fullName}</p>}
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Email</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>{t('profile.email')}</label>
                   <p style={{ fontWeight: 500 }}>{profile.email}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Số điện thoại</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>{t('profile.phone')}</label>
                   {editing
                     ? <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                        placeholder="Nhập số điện thoại"
+                        placeholder={t('auth.phone_placeholder')}
                         style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #ddd', fontSize: '0.95rem' }} />
-                    : <p style={{ fontWeight: 500 }}>{profile.phone || 'Chưa cập nhật'}</p>}
+                    : <p style={{ fontWeight: 500 }}>{profile.phone || t('profile.unupdated')}</p>}
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Trường đại học</label>
-                  <p style={{ fontWeight: 500 }}>{profile.universityName || 'Chưa liên kết'}</p>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>{t('profile.university')}</label>
+                  <p style={{ fontWeight: 500 }}>{profile.universityName || t('profile.unlinked')}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Ngày tham gia</label>
-                  <p style={{ fontWeight: 500 }}>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('vi-VN') : ''}</p>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>{t('profile.joined_date')}</label>
+                  <p style={{ fontWeight: 500 }}>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US') : ''}</p>
                 </div>
               </div>
 
@@ -162,17 +163,17 @@ export default function ProfilePage() {
                 {editing ? (
                   <>
                     <button onClick={handleSave} className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.save(16, '#fff')} Lưu thay đổi
+                      {icons.save(16, '#fff')} {t('common.save')}
                     </button>
-                    <button onClick={() => setEditing(false)} className="btn btn-outline" style={{ flex: 1 }}>Hủy</button>
+                    <button onClick={() => setEditing(false)} className="btn btn-outline" style={{ flex: 1 }}>{t('common.cancel')}</button>
                   </>
                 ) : (
                   <>
                     <button onClick={() => setEditing(true)} className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.edit(16, '#fff')} Chỉnh sửa
+                      {icons.edit(16, '#fff')} {t('profile.edit_btn')}
                     </button>
                     <button onClick={() => setShowPwForm(!showPwForm)} className="btn btn-outline" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.lock(16)} Đổi mật khẩu
+                      {icons.lock(16)} {t('profile.tab_pwd')}
                     </button>
                   </>
                 )}
@@ -182,20 +183,20 @@ export default function ProfilePage() {
             {showPwForm && (
               <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {icons.lock(18)} Đổi mật khẩu
+                  {icons.lock(18)} {t('profile.tab_pwd')}
                 </h3>
-                {pwMsg && <div style={{ padding: '0.75rem', borderRadius: 8, background: pwMsg.includes('thành công') ? '#e8f5e9' : '#fbe9e7', textAlign: 'center', marginBottom: '1rem' }}>{pwMsg}</div>}
+                {pwMsg && <div style={{ padding: '0.75rem', borderRadius: 8, background: (pwMsg.includes('thành công') || pwMsg.toLowerCase().includes('success')) ? '#e8f5e9' : '#fbe9e7', textAlign: 'center', marginBottom: '1rem' }}>{pwMsg}</div>}
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
-                  <input type="password" placeholder="Mật khẩu hiện tại" value={pwForm.currentPassword}
+                  <input type="password" placeholder={t('profile.pwd_current_placeholder')} value={pwForm.currentPassword}
                     onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })}
                     style={{ padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #ddd' }} />
-                  <input type="password" placeholder="Mật khẩu mới (ít nhất 6 ký tự)" value={pwForm.newPassword}
+                  <input type="password" placeholder={t('profile.pwd_new_placeholder')} value={pwForm.newPassword}
                     onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })}
                     style={{ padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #ddd' }} />
-                  <input type="password" placeholder="Xác nhận mật khẩu mới" value={pwForm.confirmPassword}
+                  <input type="password" placeholder={t('profile.pwd_confirm_placeholder')} value={pwForm.confirmPassword}
                     onChange={e => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
                     style={{ padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #ddd' }} />
-                  <button onClick={handleChangePassword} className="btn btn-primary">Đổi mật khẩu</button>
+                  <button onClick={handleChangePassword} className="btn btn-primary">{t('profile.tab_pwd')}</button>
                 </div>
               </div>
             )}
