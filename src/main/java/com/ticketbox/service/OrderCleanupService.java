@@ -26,6 +26,7 @@ public class OrderCleanupService {
     private final OrderRepository orderRepository;
     private final TicketTypeRepository ticketTypeRepository;
     private final SeatRepository seatRepository;
+    private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
     @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
     @Transactional
@@ -54,6 +55,8 @@ public class OrderCleanupService {
                 if (seat != null) {
                     seat.setStatus(SeatStatus.AVAILABLE);
                     seatRepository.save(seat);
+                    ticket.setSeat(null); // Gỡ liên kết ghế để ghế khác có thể sử dụng (chống Duplicate entry)
+                    userTicketRepository.save(ticket);
                 }
             }
         }

@@ -28,6 +28,7 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final TicketTypeRepository ticketTypeRepository;
     private final StringRedisTemplate redisTemplate;
+    private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
     private static final String SEAT_LOCK_PREFIX = "seat:lock:";
     private static final long SEAT_LOCK_DURATION_MINUTES = 10;
@@ -37,10 +38,11 @@ public class SeatService {
         
         return seats.stream().map(seat -> {
             String status = seat.getStatus().name();
-            // If it's available in DB, check if it's locked in Redis
+            // If it's available in DB, check if it's locked in Redis or has a pending order
             if (seat.getStatus() == SeatStatus.AVAILABLE) {
                 String lockKey = SEAT_LOCK_PREFIX + seat.getId();
-                if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
+                if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey)) || 
+                    userTicketRepository.existsBySeatIdAndOrderPaymentStatus(seat.getId(), com.ticketbox.enums.PaymentStatus.PENDING)) {
                     status = "LOCKED";
                 }
             }

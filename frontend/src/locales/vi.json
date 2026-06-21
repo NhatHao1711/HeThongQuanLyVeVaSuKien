@@ -242,7 +242,9 @@
     "confirm_modal_placeholder": "Nhập mã giao dịch ngân hàng...",
     "confirm_modal_submit": "Gửi xác nhận",
     "confirm_modal_success": "Đã gửi yêu cầu xác nhận thành công!",
-    "confirm_modal_fail": "Lỗi khi gửi yêu cầu"
+    "confirm_modal_fail": "Lỗi khi gửi yêu cầu",
+    "pay_now": "Thanh toán ngay",
+    "payment_repay": "Thanh toán đơn hàng"
   },
   "buddies": {
     "title": "Tìm bạn đồng hành",

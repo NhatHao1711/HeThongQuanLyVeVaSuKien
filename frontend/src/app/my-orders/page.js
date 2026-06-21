@@ -11,6 +11,11 @@ export default function MyOrdersPage() {
   const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
 
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [repayMethod, setRepayMethod] = useState('bank'); // 'bank' | 'vnpay'
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     loadOrders();
@@ -176,6 +181,41 @@ export default function MyOrdersPage() {
                           </div>
                         </div>
                       </div>
+
+                      {order.paymentStatus === 'PENDING' && (
+                        <div style={{
+                          padding: '0 1.5rem 1.2rem',
+                          textAlign: 'right',
+                          borderTop: '1px solid #f1f5f9',
+                          paddingTop: '1rem',
+                          marginTop: '-0.5rem'
+                        }}>
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setRepayMethod('bank');
+                              setPaymentError('');
+                            }}
+                            className="btn btn-primary"
+                            style={{
+                              padding: '8px 24px',
+                              borderRadius: '50px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              background: '#f59e0b',
+                              borderColor: '#f59e0b',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
+                              transition: 'transform 0.2s, box-shadow 0.2s'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(245,158,11,0.35)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(245,158,11,0.25)'; }}
+                          >
+                            {t('orders.pay_now') || 'Thanh toán ngay'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -183,6 +223,204 @@ export default function MyOrdersPage() {
             )}
           </div>
         </section>
+
+        {/* Payment Modal */}
+        {selectedOrder && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '1rem'
+          }} onClick={(e) => { if (e.target === e.currentTarget) setSelectedOrder(null); }}>
+            <div style={{
+              background: '#fff', borderRadius: '24px', width: '100%', maxWidth: '480px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden',
+              position: 'relative', display: 'flex', flexDirection: 'column'
+            }}>
+              {/* Header */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9'
+              }}>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    {t('orders.payment_repay') || 'Thanh toán đơn hàng'}
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0' }}>
+                    Mã giao dịch: <strong style={{ fontFamily: 'monospace' }}>{selectedOrder.transactionRef}</strong>
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedOrder(null)}
+                  style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: '#94a3b8', cursor: 'pointer' }}
+                >✕</button>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+                {/* Payment Method Selector */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
+                  <button
+                    onClick={() => setRepayMethod('bank')}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '12px', border: repayMethod === 'bank' ? '2px solid #00B46E' : '1px solid #cbd5e1',
+                      background: repayMethod === 'bank' ? '#f0fdf4' : '#fff', color: repayMethod === 'bank' ? '#15803d' : '#475569',
+                      fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    }}
+                  >
+                    🏦 Chuyển khoản
+                  </button>
+                  <button
+                    onClick={() => setRepayMethod('vnpay')}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '12px', border: repayMethod === 'vnpay' ? '2px solid #00B46E' : '1px solid #cbd5e1',
+                      background: repayMethod === 'vnpay' ? '#f0fdf4' : '#fff', color: repayMethod === 'vnpay' ? '#15803d' : '#475569',
+                      fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    }}
+                  >
+                    💳 Cổng VNPay
+                  </button>
+                </div>
+
+                {repayMethod === 'bank' ? (
+                  <div>
+                    {/* Bank Details */}
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#64748b' }}>Ngân hàng:</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>Vietcombank</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#64748b' }}>Số tài khoản:</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>1030490936</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#64748b' }}>Chủ tài khoản:</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>TRUONG HUY NHAT HAO</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#64748b' }}>Nội dung chuyển khoản:</span>
+                          <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {selectedOrder.id}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QR Code */}
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>Quét mã QR để thanh toán nhanh:</p>
+                      <img 
+                        src={`https://img.vietqr.io/image/VCB-1030490936-compact2.png?amount=${selectedOrder.totalAmount}&addInfo=${encodeURIComponent("TRIVENT " + selectedOrder.id)}&accountName=${encodeURIComponent('TRUONG HUY NHAT HAO')}`} 
+                        alt="Mã QR VietQR" 
+                        style={{ width: '100%', maxWidth: '240px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'inline-block' }}
+                      />
+                    </div>
+
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '12px 16px', background: '#f0fdf4', borderRadius: '12px', marginBottom: '16px'
+                    }}>
+                      <span style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 600 }}>Tổng tiền:</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#166534' }}>{formatPrice(selectedOrder.totalAmount)}</span>
+                    </div>
+
+                    {paymentError && (
+                      <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
+                        ❌ {paymentError}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={async () => {
+                        setConfirmLoading(true);
+                        setPaymentError('');
+                        try {
+                          const res = await apiRequest(`/orders/${selectedOrder.id}/confirm-transfer`, {
+                            method: 'POST'
+                          });
+                          if (res.success) {
+                            alert("Xác nhận đã chuyển khoản thành công! Đang chờ admin phê duyệt.");
+                            setSelectedOrder(null);
+                            loadOrders();
+                          } else {
+                            setPaymentError(res.message || "Xác nhận chuyển khoản thất bại.");
+                          }
+                        } catch {
+                          setPaymentError("Lỗi kết nối server.");
+                        } finally {
+                          setConfirmLoading(false);
+                        }
+                      }}
+                      disabled={confirmLoading}
+                      className="btn btn-primary"
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '12px',
+                        background: '#00B46E', borderColor: '#00B46E',
+                        fontWeight: 700, fontSize: '0.9rem', color: '#fff', cursor: 'pointer'
+                      }}
+                    >
+                      {confirmLoading ? 'Đang xử lý...' : '✓ Xác nhận đã chuyển khoản'}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ textAlign: 'center', padding: '1.5rem 0 2rem' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💳</div>
+                      <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.6, marginBottom: '20px' }}>
+                        Hệ thống sẽ chuyển hướng bạn sang cổng thanh toán VNPay để hoàn tất giao dịch an toàn.
+                      </p>
+
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '12px 16px', background: '#f8fafc', borderRadius: '12px', marginBottom: '20px'
+                      }}>
+                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>Cần thanh toán:</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#00B46E' }}>{formatPrice(selectedOrder.totalAmount)}</span>
+                      </div>
+
+                      {paymentError && (
+                        <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
+                          ❌ {paymentError}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={async () => {
+                          setConfirmLoading(true);
+                          setPaymentError('');
+                          try {
+                            const res = await apiRequest('/payments/create-url', {
+                              method: 'POST',
+                              body: JSON.stringify({ orderId: selectedOrder.id })
+                            });
+                            if (res.success && res.data?.paymentUrl) {
+                              window.location.href = res.data.paymentUrl;
+                            } else {
+                              setPaymentError(res.message || "Tạo liên kết thanh toán VNPay thất bại.");
+                            }
+                          } catch {
+                            setPaymentError("Lỗi kết nối server.");
+                          } finally {
+                            setConfirmLoading(false);
+                          }
+                        }}
+                        disabled={confirmLoading}
+                        className="btn btn-primary"
+                        style={{
+                          width: '100%', padding: '12px', borderRadius: '12px',
+                          background: '#00B46E', borderColor: '#00B46E',
+                          fontWeight: 700, fontSize: '0.9rem', color: '#fff', cursor: 'pointer'
+                        }}
+                      >
+                        {confirmLoading ? 'Đang chuyển hướng...' : '💳 Đi đến thanh toán VNPay'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>

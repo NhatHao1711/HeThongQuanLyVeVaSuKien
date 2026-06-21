@@ -242,7 +242,9 @@
     "confirm_modal_placeholder": "Enter bank transaction code...",
     "confirm_modal_submit": "Submit Confirmation",
     "confirm_modal_success": "Confirmation request submitted successfully!",
-    "confirm_modal_fail": "Error submitting request"
+    "confirm_modal_fail": "Error submitting request",
+    "pay_now": "Pay Now",
+    "payment_repay": "Complete Payment"
   },
   "buddies": {
     "title": "Find Companions",

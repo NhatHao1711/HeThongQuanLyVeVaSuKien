@@ -311,6 +311,15 @@ public class AdminController {
         order.setPaymentStatus(com.ticketbox.enums.PaymentStatus.PAID);
         orderRepository.save(order);
 
+        // Ensure all seats associated with the order are marked as BOOKED
+        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            com.ticketbox.entity.Seat seat = ticket.getSeat();
+            if (seat != null) {
+                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                seatRepository.save(seat);
+            }
+        }
+
         // Send confirmation email with QR code
         try {
             var user = order.getUser();
@@ -345,6 +354,24 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         order.setPaymentStatus(com.ticketbox.enums.PaymentStatus.FAILED);
         orderRepository.save(order);
-        return ResponseEntity.ok(ApiResponse.success("Từ chối thanh toán", "OK"));
+
+        // Hoàn trả vé và ghế khi từ chối thanh toán
+        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            // Hoàn vé
+            com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+            ticketType.setAvailableQuantity(ticketType.getAvailableQuantity() + 1);
+            ticketTypeRepository.save(ticketType);
+
+            // Hoàn ghế
+            com.ticketbox.entity.Seat seat = ticket.getSeat();
+            if (seat != null) {
+                seat.setStatus(com.ticketbox.enums.SeatStatus.AVAILABLE);
+                seatRepository.save(seat);
+                ticket.setSeat(null); // Gỡ liên kết ghế để ghế khác có thể sử dụng (chống Duplicate entry)
+                userTicketRepository.save(ticket);
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("Từ chối thanh toán và hoàn trả vé/ghế thành công", "OK"));
     }
 }

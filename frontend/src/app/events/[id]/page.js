@@ -262,7 +262,19 @@ export default function EventDetailPage({ params }) {
     }
   };
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
+    if (booking) {
+      try {
+        const orderIds = booking.allOrderIds || [booking.orderId];
+        for (const orderId of orderIds) {
+          await apiRequest(`/orders/${orderId}/confirm-transfer`, {
+            method: 'POST'
+          });
+        }
+      } catch (err) {
+        console.error("Failed to confirm transfer:", err);
+      }
+    }
     setBookingStep('success');
   };
 
@@ -304,7 +316,30 @@ export default function EventDetailPage({ params }) {
     document.body.style.overflow = 'hidden';
   };
 
-  const closeBookingModal = () => {
+  const closeBookingModal = async () => {
+    if (bookingStep === 'select' || bookingStep === 'confirm') {
+      // Release locked seats
+      for (const [typeId, seatIds] of Object.entries(selectedSeatIds)) {
+        if (seatIds && seatIds.length > 0) {
+          try {
+            await apiRequest('/seats/unlock', {
+              method: 'POST',
+              body: JSON.stringify({ seatIds })
+            });
+          } catch (e) {
+            console.error("Failed to unlock seats on modal close:", e);
+          }
+        }
+      }
+    }
+
+    // Clear selection state
+    setSelectedTickets({});
+    setSelectedSeatIds({});
+    setSelectedSeatObjects({});
+    setVoucherResult(null);
+    setVoucherCode('');
+
     setShowBookingModal(false);
     document.body.style.overflow = '';
   };

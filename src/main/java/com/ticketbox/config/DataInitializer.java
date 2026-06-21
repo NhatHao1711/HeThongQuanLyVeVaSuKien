@@ -37,6 +37,17 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         try {
+            // Dọn dẹp các seat_id của vé thuộc đơn hàng FAILED để tránh lỗi Unique Constraint
+            try {
+                jdbcTemplate.update("UPDATE user_tickets ut " +
+                        "JOIN orders o ON ut.order_id = o.id " +
+                        "SET ut.seat_id = NULL " +
+                        "WHERE o.payment_status = 'FAILED'");
+                log.info("🧹 Đã dọn dẹp các seat_id của vé thuộc đơn hàng FAILED.");
+            } catch (Exception ex) {
+                log.warn("⚠️ Không thể dọn dẹp seat_id của đơn hàng FAILED: {}", ex.getMessage());
+            }
+
             // Kiểm tra xem bảng event_categories đã có dữ liệu chưa
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM event_categories", Integer.class);

@@ -181,10 +181,8 @@ public class TicketBookingService {
                     Seat seat = null;
                     if (!bookingSeats.isEmpty() && i < bookingSeats.size()) {
                         seat = bookingSeats.get(i);
-                        seat.setStatus(SeatStatus.BOOKED);
-                        seatRepository.save(seat);
-                        
-                        // Clear Redis lock immediately since it's booked
+                        // Do not modify seat status here, keep it AVAILABLE.
+                        // Clear Redis lock immediately since it is now protected by the PENDING order
                         redisTemplate.delete(SEAT_LOCK_PREFIX + seat.getId());
                     }
 
