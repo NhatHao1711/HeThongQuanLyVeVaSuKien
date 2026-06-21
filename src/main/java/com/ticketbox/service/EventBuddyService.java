@@ -133,7 +133,7 @@ public class EventBuddyService {
      */
     public List<EventBuddyResponse> getMyBuddies(Long eventId, Long userId) {
         List<EventBuddy> buddies = eventBuddyRepository
-                .findByEventAndUserAndStatus(eventId, userId, BuddyStatus.ACCEPTED);
+                .findByEventAndUser(eventId, userId);
 
         return buddies.stream()
                 .map(this::toResponse)
@@ -154,8 +154,10 @@ public class EventBuddyService {
                 .eventTitle(buddy.getEvent().getTitle())
                 .senderId(buddy.getSender().getId())
                 .senderName(buddy.getSender().getFullName())
+                .senderEmail(buddy.getSender().getEmail())
                 .receiverId(buddy.getReceiver().getId())
                 .receiverName(buddy.getReceiver().getFullName())
+                .receiverEmail(buddy.getReceiver().getEmail())
                 .status(buddy.getStatus().name())
                 .build();
     }

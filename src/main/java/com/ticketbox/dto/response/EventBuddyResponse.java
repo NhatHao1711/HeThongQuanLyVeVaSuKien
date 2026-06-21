@@ -15,7 +15,9 @@ public class EventBuddyResponse {
     private String eventTitle;
     private Long senderId;
     private String senderName;
+    private String senderEmail;
     private Long receiverId;
     private String receiverName;
+    private String receiverEmail;
     private String status;
 }

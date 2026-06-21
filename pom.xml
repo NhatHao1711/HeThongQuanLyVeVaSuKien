@@ -55,6 +55,15 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- DevTools: Auto-restart khi thay đổi code (chỉ dùng khi dev) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+
         <!-- MySQL -->
         <dependency>
             <groupId>com.mysql</groupId>

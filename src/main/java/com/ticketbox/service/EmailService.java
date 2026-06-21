@@ -9,9 +9,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import com.ticketbox.entity.Order;
 import com.ticketbox.entity.Event;
-import com.ticketbox.entity.User;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;

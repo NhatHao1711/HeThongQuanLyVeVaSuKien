@@ -4,14 +4,17 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function BuddiesPage() {
+  const { t } = useTranslation();
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [buddies, setBuddies] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
+  const [contactBuddy, setContactBuddy] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -113,22 +116,22 @@ export default function BuddiesPage() {
             {/* Back button */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Trang chủ</Link>
-                <span> / Tìm bạn đồng hành</span>
+                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{t('nav.home')}</Link>
+                <span> / {t('buddies.title')}</span>
               </div>
-              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
             </div>
 
             <div className="section-header">
-              <h2>Tìm bạn đồng hành</h2>
-              <p>Tìm bạn đi chung sự kiện</p>
+              <h2>{t('buddies.title')}</h2>
+              <p>{t('buddies.subtitle')}</p>
             </div>
 
             {/* Event Selector */}
             {events.length > 0 ? (
               <>
                 <div className="form-group" style={{ marginBottom: '2rem' }}>
-                  <label className="form-label">Chọn sự kiện:</label>
+                  <label className="form-label">{t('buddies.event_label')}</label>
                   <select className="form-input"
                     value={selectedEvent?.id || ''}
                     onChange={(e) => handleEventChange(e.target.value)}>
@@ -139,11 +142,11 @@ export default function BuddiesPage() {
                 </div>
 
                 {/* My Buddies */}
-                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>✅ Bạn đã kết nối</h3>
+                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>✅ {t('buddies.tab_my_buddies')}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '2.5rem' }}>
                   {buddies.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)' }}>
-                      Chưa có bạn đồng hành nào cho sự kiện này. Gửi lời mời kết nối nhé!
+                      {t('buddies.no_buddies')}
                     </div>
                   ) : (
                     buddies.map((b) => (
@@ -164,13 +167,21 @@ export default function BuddiesPage() {
                             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>🎫 {b.eventTitle}</div>
                           </div>
                           <span className={`badge ${b.status === 'ACCEPTED' ? 'badge-free' : b.status === 'PENDING' ? 'badge-upcoming' : 'badge-live'}`}>
-                            {b.status === 'ACCEPTED' ? 'Đã kết nối' : b.status === 'PENDING' ? 'Đang chờ' : b.status}
+                            {b.status === 'ACCEPTED' ? t('buddies.status_accepted') : b.status === 'PENDING' ? t('buddies.status_pending') : b.status}
                           </span>
                           {b.status === 'PENDING' && b.receiverId === user?.userId && (
                             <div style={{ display: 'flex', gap: '0.3rem' }}>
-                              <button className="btn btn-primary btn-sm" onClick={() => respondBuddy(b.buddyId, true)}>Chấp nhận</button>
-                              <button className="btn btn-outline btn-sm" onClick={() => respondBuddy(b.buddyId, false)}>Từ chối</button>
+                              <button className="btn btn-primary btn-sm" onClick={() => respondBuddy(b.buddyId, true)}>{t('buddies.accept_btn')}</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => respondBuddy(b.buddyId, false)}>{t('buddies.decline_btn')}</button>
                             </div>
+                          )}
+                          {b.status === 'ACCEPTED' && (
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              style={{ marginLeft: '10px' }}
+                              onClick={() => setContactBuddy(b)}>
+                              {t('buddies.view_contact')}
+                            </button>
                           )}
                         </div>
                       </div>
@@ -179,11 +190,11 @@ export default function BuddiesPage() {
                 </div>
 
                 {/* Suggestions */}
-                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>💡 Gợi ý kết nối</h3>
+                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>💡 {t('buddies.potential_buddies_title').replace('{count}', suggestions.length)}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   {suggestions.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)' }}>
-                      Chưa có gợi ý kết nối. Hãy mời bạn bè tham gia sự kiện nhé!
+                      {t('buddies.no_suggestions')}
                     </div>
                   ) : (
                     suggestions.map((userId) => (
@@ -199,13 +210,13 @@ export default function BuddiesPage() {
                           </div>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 600 }}>User #{userId}</div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Gợi ý từ hệ thống</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('buddies.system_suggestion')}</div>
                           </div>
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={() => sendBuddyRequest(userId)}
                             disabled={sendingTo === userId}>
-                            {sendingTo === userId ? '...' : '🤝 Kết nối'}
+                            {sendingTo === userId ? '...' : `🤝 ${t('buddies.connect_btn')}`}
                           </button>
                         </div>
                       </div>
@@ -216,11 +227,49 @@ export default function BuddiesPage() {
             ) : (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-                <p>Chưa có sự kiện nào. <Link href="/events" style={{ color: 'var(--primary)' }}>Khám phá sự kiện!</Link></p>
+                <p>{t('buddies.no_events')} <Link href="/events" style={{ color: 'var(--primary)' }}>{t('tickets.explore_btn')}!</Link></p>
               </div>
             )}
           </div>
         </section>
+
+        {/* Contact Modal */}
+        {contactBuddy && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+          }}>
+            <div style={{
+              background: '#fff', borderRadius: '12px', padding: '2rem',
+              width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+            }}>
+              <h3 style={{ marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                📞 {t('buddies.contact_modal_title')}
+              </h3>
+              
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#1e293b' }}>
+                  {contactBuddy.senderId === user?.userId ? contactBuddy.receiverName : contactBuddy.senderName}
+                </div>
+                <div style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}>
+                  ✉️ {contactBuddy.senderId === user?.userId ? contactBuddy.receiverEmail : contactBuddy.senderEmail}
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                {t('buddies.contact_modal_desc')}
+              </p>
+
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', padding: '0.75rem' }}
+                onClick={() => setContactBuddy(null)}>
+                {t('buddies.close_btn')}
+              </button>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>

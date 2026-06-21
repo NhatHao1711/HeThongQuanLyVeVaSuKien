@@ -9,6 +9,7 @@ export async function apiRequest(endpoint, options = {}) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
+    cache: 'no-store',
     ...options,
   };
 

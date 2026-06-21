@@ -3,6 +3,7 @@ package com.ticketbox.config;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -25,6 +26,7 @@ import javax.sql.DataSource;
  * - Không cần chạy SQL thủ công
  */
 @Component
+@Order(1)
 @RequiredArgsConstructor
 @Slf4j
 public class DataInitializer implements CommandLineRunner {
@@ -35,6 +37,17 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         try {
+            // Dọn dẹp các seat_id của vé thuộc đơn hàng FAILED để tránh lỗi Unique Constraint
+            try {
+                jdbcTemplate.update("UPDATE user_tickets ut " +
+                        "JOIN orders o ON ut.order_id = o.id " +
+                        "SET ut.seat_id = NULL " +
+                        "WHERE o.payment_status = 'FAILED'");
+                log.info("🧹 Đã dọn dẹp các seat_id của vé thuộc đơn hàng FAILED.");
+            } catch (Exception ex) {
+                log.warn("⚠️ Không thể dọn dẹp seat_id của đơn hàng FAILED: {}", ex.getMessage());
+            }
+
             // Kiểm tra xem bảng event_categories đã có dữ liệu chưa
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM event_categories", Integer.class);

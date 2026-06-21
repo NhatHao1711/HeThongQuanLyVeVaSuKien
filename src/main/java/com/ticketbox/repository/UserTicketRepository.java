@@ -11,5 +11,6 @@ import java.util.Optional;
 public interface UserTicketRepository extends JpaRepository<UserTicket, Long> {
     Optional<UserTicket> findByQrToken(String qrToken);
     List<UserTicket> findByOrderId(Long orderId);
-    List<UserTicket> findByUserId(Long userId);
+    List<UserTicket> findByUserIdOrderByCreatedAtDesc(Long userId);
+    boolean existsBySeatIdAndOrderPaymentStatus(Long seatId, com.ticketbox.enums.PaymentStatus paymentStatus);
 }

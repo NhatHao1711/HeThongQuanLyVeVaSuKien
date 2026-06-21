@@ -54,6 +54,19 @@ public class EventController {
     }
 
     /**
+     * POST /api/events/create - Sinh viên/Ban tổ chức đề xuất sự kiện mới (DRAFT)
+     */
+    @PostMapping("/create")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<EventResponse>> createEventByUser(
+            @Valid @RequestBody CreateEventRequest request) {
+        log.info("📝 User/Student proposing new event: {}", request.getTitle());
+        EventResponse event = eventService.createEvent(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Đề xuất sự kiện thành công! Vui lòng chờ Ban quản trị phê duyệt.", event));
+    }
+
+    /**
      * POST /api/events/admin/create - Tạo sự kiện mới (Admin only, Draft status)
      */
     @PostMapping("/admin/create")
@@ -159,6 +172,35 @@ public class EventController {
         log.info("🗑️ Admin deleting ticket type with id: {}", ticketTypeId);
         eventService.deleteTicketType(ticketTypeId);
         return ResponseEntity.ok(ApiResponse.success("Xoá loại vé thành công", (Void) null));
+    }
+
+    /**
+     * POST /api/events/{id}/upload-image - Upload ảnh cho sự kiện do User tạo (Authenticated user)
+     */
+    @PostMapping("/{id}/upload-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> uploadEventImageByUser(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        log.info("🖼️ User uploading image for event: {}", id);
+
+        String uploadDir = "uploads/events/";
+        java.nio.file.Files.createDirectories(java.nio.file.Paths.get(uploadDir));
+
+        String ext = ".jpg";
+        String origName = file.getOriginalFilename();
+        if (origName != null && origName.contains(".")) {
+            ext = origName.substring(origName.lastIndexOf('.'));
+        }
+        String filename = "event_" + id + "_" + java.util.UUID.randomUUID().toString().substring(0, 8) + ext;
+        java.nio.file.Path filePath = java.nio.file.Paths.get(uploadDir + filename);
+        java.nio.file.Files.write(filePath, file.getBytes());
+
+        String imageUrl = "/uploads/events/" + filename;
+        eventService.updateEventImageUrl(id, imageUrl);
+
+        log.info("✅ Image uploaded for event {}: {}", id, imageUrl);
+        return ResponseEntity.ok(ApiResponse.success("Upload ảnh thành công", imageUrl));
     }
 
     /**

@@ -9,12 +9,14 @@ const TranslationContext = createContext();
 
 export function TranslationProvider({ children }) {
   const [lang, setLang] = useState('vi');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('lang');
     if (savedLang && translations[savedLang]) {
       setLang(savedLang);
     }
+    setMounted(true);
   }, []);
 
   const changeLang = (newLang) => {
@@ -23,8 +25,9 @@ export function TranslationProvider({ children }) {
   };
 
   const t = (key) => {
+    const activeLang = mounted ? lang : 'vi';
     const keys = key.split('.');
-    let value = translations[lang];
+    let value = translations[activeLang];
     for (const k of keys) {
       if (value === undefined) break;
       value = value[k];

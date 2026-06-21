@@ -78,96 +78,51 @@ INSERT IGNORE INTO users (id, university_id, full_name, email, password_hash,
  '["international","languages","culture"]', true, 'ROLE_USER', NOW(), NOW());
 
 -- =========== EVENTS (Dates in 2026) ===========
-INSERT IGNORE INTO events (id, title, description, location, start_time, end_time, status, category_id, created_at, updated_at) VALUES
+INSERT IGNORE INTO events (id, title, description, location, image_url, start_time, end_time, status, category_id, created_at, updated_at) VALUES
 
-(1, 'TechFest 2026 - Lễ Hội Công Nghệ',
- 'Lễ hội công nghệ lớn nhất TP.HCM với các buổi talk, workshop, demo từ các công ty tech hàng đầu. Nơi gặp gỡ, học hỏi và networking với các bạn cùng đam mê công nghệ.',
- 'Tầng 10-12, Tòa nhà Bitexco Financial Tower, Quận 1, TP.HCM',
+(1, 'HUTECH IT Open Day 2026: Kỷ Nguyên AI',
+ 'Lễ hội công nghệ thường niên khoa CNTT HUTECH với các gian hàng demo AI, thi lập trình và talkshow với các công ty công nghệ lớn.',
+ 'Hội trường A - Trụ sở chính HUTECH (Điện Biên Phủ)', '/images/events/event1.jpg',
  '2026-04-20 08:00:00', '2026-04-20 17:00:00', 'PUBLISHED', 1, NOW(), NOW()),
 
-(2, 'Concert Mỹ Tâm - Liveshow "Đêm Nhạc Xuân"',
- 'Liveshow nhạc trực tiếp từ nữ ca sĩ nổi tiếng Mỹ Tâm. Những bài hát hit được biểu diễn lại với khung nhạc mới lạ. Tham dự để có một đêm âm nhạc tuyệt vời!',
- 'Nhà hát Hòa Bình, 240 Đường 3 Tháng 2, Quận 10, TP.HCM',
+(2, 'Đêm Nhạc "Sắc Màu HUTECH"',
+ 'Đêm nhạc liveshow bùng nổ chào đón Tân sinh viên với sự góp mặt của các ca sĩ khách mời và các CLB Nghệ thuật HUTECH.',
+ 'Sân trường HUTECH (Cơ sở khu Công nghệ cao E3)', '/images/events/event2.jpg',
  '2026-05-10 19:00:00', '2026-05-10 22:00:00', 'PUBLISHED', 2, NOW(), NOW()),
 
-(3, 'Music Festival - Fest Chào Hè 2026',
- 'Festival âm nhạc multi-genre với sự tham gia của hơn 20 ban nhạc/artist. Từ nhạc Pop, Rock, Indie đến Trap. Cơ hội tuyệt vời để khám phá âm nhạc.',
- 'Phú Mỹ Hưng, Quận 7, TP.HCM',
- '2026-05-20 13:00:00', '2026-05-21 23:59:00', 'PUBLISHED', 2, NOW(), NOW()),
+(3, 'HUTECH Running Challenge 2026',
+ 'Giải chạy bộ trực tuyến lớn nhất năm dành cho sinh viên HUTECH. Rèn luyện sức khỏe và nhận những phần quà hấp dẫn.',
+ 'Nhà thi đấu Thể chất HUTECH & Công viên phần mềm Quang Trung', '/images/events/event3.jpg',
+ '2026-05-25 06:00:00', '2026-05-25 11:00:00', 'PUBLISHED', 3, NOW(), NOW()),
 
-(4, 'Marathon 2026 - Chạy Vì Sứ Mệnh',
- 'Giải chạy marathon từ thiện. Tham dự để rèn luyện bản thân đồng thời đóng góp cho cộng đồng. Có khoảng cách 5K, 10K, 21K và 42K.',
- 'Công viên Tao Đàn, Quận 1, TP.HCM',
- '2026-06-01 05:30:00', '2026-06-01 12:00:00', 'PUBLISHED', 3, NOW(), NOW()),
-
-(5, 'Basketball Championship - SV TP.HCM 2026',
- 'Giải bóng rổ sinh viên toàn thành phố. Các đội từ các trường đại học sẽ tranh tài trong những trận đấu kịch tính. Đến cổ vũ đội bạn!',
- 'Nhà thi đấu Phú Thọ, Quận 11, TP.HCM',
- '2026-05-25 16:00:00', '2026-05-25 21:00:00', 'PUBLISHED', 3, NOW(), NOW()),
-
-(6, 'Triển Lãm Nghệ Thuật Đương Đại 2026',
- 'Triển lãm tranh sơn dầu, tranh tường, điêu khắc từ các nghệ sĩ trẻ TP.HCM. Tự do thưởng thức, đặc biệt có buổi ra mắt riêng cho artist.',
- 'Bảo tàng Mỹ thuật TP.HCM, 97A Phó Đức Chính, Quận 1',
- '2026-04-10 10:00:00', '2026-04-30 18:00:00', 'PUBLISHED', 4, NOW(), NOW()),
-
-(7, 'Culture Fest - Hội Tụ Các Nền Văn Hóa',
- 'Sự kiện giao lưu văn hóa quốc tế. Các quốc gia khác nhau sẽ giới thiệu ẩm thực, trang phục truyền thống, nhạc, múa đặc sắc của mình.',
- 'Công viên Tao Đàn, Quận 1, TP.HCM',
- '2026-05-15 14:00:00', '2026-05-15 20:00:00', 'PUBLISHED', 4, NOW(), NOW()),
-
-(8, 'Startup Summit 2026',
- 'Sự kiện dành cho các startup, nhà đầu tư, mentor trong lĩnh vực khởi nghiệp. Pitch idea, tìm kiếm vốn và đối tác kinh doanh.',
- 'GEM Center, 8 Nguyễn Bỉnh Khiêm, Quận 1, TP.HCM',
+(4, 'HUTECH Startup Wings: Khởi Nghiệp Sinh Viên',
+ 'Cuộc thi gọi vốn khởi nghiệp dành cho sinh viên Khối ngành Kinh tế với dàn Giám khảo "Shark" khách mời.',
+ 'Phòng Hội thảo B - HUTECH', '/images/events/event4.jpg',
  '2026-06-05 08:30:00', '2026-06-05 17:00:00', 'PUBLISHED', 5, NOW(), NOW()),
 
-(9, 'Hội Thảo Tuyển Dụng - Cơ Hội Việc Làm 2026',
- 'Hội thảo tuyển dụng có sự tham gia của hơn 50 công ty lớn. Cơ hội gặp gỡ HR trực tiếp, nộp CV và phỏng vấn. Dành cho SV năm 3, 4.',
- 'Hội trường Đại học Bách Khoa, Quận 10, TP.HCM',
- '2026-04-18 09:00:00', '2026-04-18 16:00:00', 'PUBLISHED', 6, NOW(), NOW()),
+(5, 'HUTECH E-Sports Championship: Liên Quân Mobile',
+ 'Giải đấu thể thao điện tử sinh viên HUTECH lớn nhất trong năm. Tổng giải thưởng lên đến 10 triệu đồng.',
+ 'Hội trường E1 - Cơ sở Công nghệ cao HUTECH', '/images/events/event5.jpg',
+ '2026-05-15 08:00:00', '2026-05-15 20:00:00', 'PUBLISHED', 8, NOW(), NOW());
 
-(10, 'Street Food Festival 2026',
- 'Tổng hợp các quán ăn, đồ ăn vặt ở khắp TP.HCM. Từ bánh mì, phở tới các đặc sản từ Bắc Trung Nam. Nhịp đập của thành phố qua ẩm thực!',
- 'Chợ Bến Thành, Quận 1, TP.HCM',
- '2026-05-05 11:00:00', '2026-05-05 22:00:00', 'PUBLISHED', 7, NOW(), NOW());
 
 -- =========== TICKET TYPES ===========
 INSERT IGNORE INTO ticket_types (id, event_id, name, price, total_quantity, available_quantity) VALUES
 -- Event 1: TechFest
-(1, 1, 'Early Bird', 150000, 200, 200),
-(2, 1, 'Standard', 200000, 300, 300),
-(3, 1, 'VIP', 350000, 100, 100),
-(4, 1, 'VIP Pro (Lunch + T-shirt)', 500000, 50, 50),
+(1, 1, 'Sinh viên HUTECH', 0, 500, 500),
+(2, 1, 'Khách mời ngoài trường', 50000, 200, 200),
 -- Event 2: Music Concert
-(5, 2, 'Standard', 250000, 500, 500),
-(6, 2, 'VIP Seat', 450000, 200, 200),
-(7, 2, 'VIP Pro + Meet & Greet', 750000, 50, 50),
--- Event 3: Music Festival
-(8, 3, '1 Day Pass', 180000, 1000, 1000),
-(9, 3, '2 Days Pass', 300000, 500, 500),
-(10, 3, 'VIP 2 Days', 600000, 100, 100),
--- Event 4: Marathon
-(11, 4, '5K Run', 100000, 300, 300),
-(12, 4, '10K Run', 150000, 300, 300),
-(13, 4, '21K Run', 250000, 200, 200),
-(14, 4, '42K Marathon', 350000, 100, 100),
--- Event 5: Basketball
-(15, 5, 'Standard', 100000, 1000, 1000),
-(16, 5, 'VIP', 250000, 200, 200),
--- Event 6: Art Exhibition
-(17, 6, 'Normal Entry', 50000, 500, 500),
-(18, 6, 'VIP + Catalog', 150000, 100, 100),
--- Event 7: Culture Fest
-(19, 7, 'General', 80000, 800, 800),
-(20, 7, 'VIP + Food Coupon', 200000, 150, 150),
--- Event 8: Startup Summit
-(21, 8, 'Startup Ticket', 300000, 300, 300),
-(22, 8, 'Investor Ticket', 700000, 100, 100),
-(23, 8, 'Mentor Ticket', 500000, 50, 50),
--- Event 9: Recruitment Fair
-(24, 9, 'Free Entry', 0, 1000, 1000),
--- Event 10: Street Food Festival
-(25, 10, 'General Entry', 70000, 2000, 2000),
-(26, 10, 'Food Lover Pass', 300000, 300, 300);
+(3, 2, 'Khu Vực Chung', 100000, 1000, 1000),
+(4, 2, 'Khu Vực VIP (Sát sân khấu)', 300000, 200, 200),
+-- Event 3: Basketball
+(5, 3, 'Khán đài A', 50000, 500, 500),
+(6, 3, 'Khán đài VIP', 150000, 100, 100),
+-- Event 4: Startup
+(7, 4, 'Vé Tham Dự Chung', 0, 300, 300),
+(8, 4, 'Vé Mentor/Nhà Đầu Tư', 500000, 50, 50),
+-- Event 5: E-Sports
+(9, 5, 'Vé Phổ Thông', 0, 800, 800),
+(10, 5, 'Khu Vực Fan Cứng', 100000, 150, 150);
 
 -- =========== VOUCHERS ===========
 INSERT IGNORE INTO vouchers (id, code, description, discount_percent, discount_amount, min_order_amount, max_uses, current_uses, expiry_date, is_active, created_at) VALUES

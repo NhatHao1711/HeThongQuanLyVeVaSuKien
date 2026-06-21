@@ -23,6 +23,7 @@ public class OrderController {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final com.ticketbox.repository.SeatRepository seatRepository;
 
     /**
      * GET /api/orders/my - Lấy danh sách đơn hàng của user
@@ -67,5 +68,37 @@ public class OrderController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách đơn hàng thành công", result));
+    }
+
+    /**
+     * POST /api/orders/{id}/confirm-transfer - Khách hàng xác nhận đã chuyển khoản
+     * Chuyển các ghế liên quan sang BOOKED
+     */
+    @PostMapping("/{id}/confirm-transfer")
+    public ResponseEntity<ApiResponse<String>> confirmTransfer(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new com.ticketbox.exception.ResourceNotFoundException("Order", "id", id));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền chỉnh sửa đơn hàng này.");
+        }
+
+        // Update seats associated with the order to BOOKED
+        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            com.ticketbox.entity.Seat seat = ticket.getSeat();
+            if (seat != null) {
+                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                seatRepository.save(seat);
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Xác nhận chuyển khoản thành công, ghế đã được chuyển sang trạng thái đã mua.", "OK"));
     }
 }

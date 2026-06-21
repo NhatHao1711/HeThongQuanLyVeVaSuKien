@@ -4,10 +4,12 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -40,7 +42,7 @@ export default function MyTicketsPage() {
 
   const printTicketPdf = (ticket) => {
     const win = window.open('', '_blank');
-    if (!win) { alert('Vui lòng cho phép popup để tải vé!'); return; }
+    if (!win) { alert(t('tickets.popup_warning')); return; }
     win.document.write(`
       <!DOCTYPE html>
       <html><head><title>Vé - ${ticket.eventTitle}</title>
@@ -63,19 +65,19 @@ export default function MyTicketsPage() {
       </style></head><body>
       <div class="ticket">
         <div class="ticket-header">
-          <h1>🎫 TRIVENT</h1>
-          <p>Vé điện tử</p>
+          <h1>TRIVENT</h1>
+          <p>${t('tickets.pdf_title')}</p>
         </div>
         <div class="ticket-body">
-          <div class="ticket-row"><span class="ticket-label">Sự kiện</span><span class="ticket-value">${ticket.eventTitle}</span></div>
-          <div class="ticket-row"><span class="ticket-label">Loại vé</span><span class="ticket-value">${ticket.ticketTypeName}</span></div>
-          <div class="ticket-row"><span class="ticket-label">Mã đơn</span><span class="ticket-value">${ticket.orderRef || 'N/A'}</span></div>
-          <div class="ticket-row"><span class="ticket-label">Ngày mua</span><span class="ticket-value">${formatDate(ticket.createdAt)}</span></div>
-          <div class="ticket-row"><span class="ticket-label">Trạng thái</span><span class="ticket-value">${ticket.checkinStatus === 'UNUSED' ? 'Chưa sử dụng ✅' : 'Đã sử dụng'}</span></div>
+          <div class="ticket-row"><span class="ticket-label">${t('events.category_all') === 'All' ? 'Event' : 'Sự kiện'}</span><span class="ticket-value">${ticket.eventTitle}</span></div>
+          <div class="ticket-row"><span class="ticket-label">${t('events.category_all') === 'All' ? 'Ticket Type' : 'Loại vé'}</span><span class="ticket-value">${ticket.ticketTypeName}</span></div>
+          <div class="ticket-row"><span class="ticket-label">${t('tickets.order_id')}</span><span class="ticket-value">${ticket.orderRef || 'N/A'}</span></div>
+          <div class="ticket-row"><span class="ticket-label">${t('tickets.date_purchased')}</span><span class="ticket-value">${formatDate(ticket.createdAt)}</span></div>
+          <div class="ticket-row"><span class="ticket-label">${t('tickets.status')}</span><span class="ticket-value">${ticket.checkinStatus === 'UNUSED' ? t('tickets.status_unused') + ' ✅' : t('tickets.status_used')}</span></div>
         </div>
-        ${ticket.qrCode ? `<div class="ticket-qr"><img src="data:image/png;base64,${ticket.qrCode}" alt="QR Code" /></div>` : ''}
+        ${ticket.qrCode ? `<div class="ticket-qr"><img src="data:image/png;base64,${ticket.qrCode}" alt="QR Code" /></div>` : `<div style="text-align:center; padding: 30px 20px; color: #ef4444; font-weight: bold; border: 2px dashed #ef4444; margin: 20px; border-radius: 8px;">${t('tickets.not_paid').toUpperCase()}<br/><span style="font-size: 12px; color: #6b7280; font-weight: normal;">${t('tickets.not_paid_desc')}</span></div>`}
         ${ticket.qrToken ? `<div class="ticket-code">${ticket.qrToken}</div>` : ''}
-        <div class="ticket-footer">© 2026 TRIVENT — Hệ thống quản lý sự kiện cho sinh viên</div>
+        <div class="ticket-footer">© 2026 TRIVENT — ${t('common.footer_desc')}</div>
       </div>
       <script>setTimeout(() => { window.print(); }, 300);</script>
       </body></html>
@@ -92,15 +94,26 @@ export default function MyTicketsPage() {
             {/* Breadcrumb and Back Button */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Trang chủ</Link>
-                <span> / Vé của tôi</span>
+                <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{t('nav.home')}</Link>
+                <span> / {t('tickets.title')}</span>
               </div>
-              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+              <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
             </div>
 
-            <div className="section-header">
-              <h2>Vé của tôi</h2>
-              <p>Quản lý vé sự kiện của bạn</p>
+            <div style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              padding: '2.5rem 2rem',
+              borderRadius: '20px',
+              color: 'white',
+              marginBottom: '2.5rem',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: '-50%', left: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(0,180,110,0.15) 0%, transparent 70%)', borderRadius: '50%' }}></div>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>🎟️ {t('tickets.title')}</h2>
+              <p style={{ color: '#94a3b8', fontSize: '1.05rem', position: 'relative', zIndex: 2 }}>{t('tickets.subtitle')}</p>
             </div>
 
             {loading ? (
@@ -108,58 +121,89 @@ export default function MyTicketsPage() {
                 <div className="spinner" style={{ width: 40, height: 40, margin: '0 auto' }}></div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {tickets.map((t) => (
-                  <div key={t.id} className="ticket-card" style={{ flexDirection: 'column', alignItems: 'center', padding: '1.5rem', gap: '1rem' }}>
-                    <div className="ticket-qr" style={{ width: 180, height: 180 }}>
-                      {t.qrCode ? (
-                        <img
-                          src={`data:image/png;base64,${t.qrCode}`}
-                          alt="QR Code"
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        />
-                      ) : (
-                        '🎫'
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem', alignItems: 'start' }}>
+                {tickets.map((tItem) => (
+                  <div key={tItem.id} style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '340px', margin: '0 auto', filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.08))', transition: 'transform 0.3s ease' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                    {/* Top Section: Event Info */}
+                    <div style={{ background: '#fff', padding: '2rem 1.5rem', borderRadius: '20px 20px 0 0', position: 'relative' }}>
+                      <div style={{ background: 'rgba(0,180,110,0.1)', color: '#00B46E', padding: '4px 12px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-block', marginBottom: '1rem', letterSpacing: '0.5px' }}>
+                        Trivent Ticket
+                      </div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem', lineHeight: 1.3 }}>{tItem.eventTitle}</h3>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem', fontWeight: 500 }}>{tItem.ticketTypeName}</p>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', fontSize: '0.85rem' }}>
+                        <span style={{ color: '#94a3b8' }}>{t('tickets.date_purchased')}</span>
+                        <span style={{ fontWeight: 600, color: '#334155' }}>{formatDate(tItem.createdAt)}</span>
+                      </div>
+                      {tItem.orderRef && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#94a3b8' }}>{t('tickets.order_id')}</span>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>{tItem.orderRef}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                        <span style={{ color: '#94a3b8' }}>{t('tickets.status')}</span>
+                        <span style={{ 
+                          padding: '4px 10px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700,
+                          background: tItem.checkinStatus === 'UNUSED' ? '#ecfdf5' : '#f1f5f9',
+                          color: tItem.checkinStatus === 'UNUSED' ? '#059669' : '#64748b'
+                        }}>
+                          {tItem.checkinStatus === 'UNUSED' ? t('tickets.status_unused') : t('tickets.status_used')}
+                        </span>
+                      </div>
+                      {tItem.checkinTime && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.8rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#94a3b8' }}>{t('tickets.checkin_time')}</span>
+                          <span style={{ fontWeight: 600, color: '#059669' }}>{formatDate(tItem.checkinTime)}</span>
+                        </div>
                       )}
                     </div>
-                    {t.qrToken && (
-                      <div style={{ width: '100%', textAlign: 'center' }}>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                          {t.qrToken}
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button
-                            onClick={() => { navigator.clipboard.writeText(t.qrToken); alert('Đã sao chép mã vé!'); }}
-                            style={{ fontSize: '0.75rem', padding: '4px 12px', border: '1px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            📋 Sao chép mã vé
-                          </button>
-                          <button
-                            onClick={() => printTicketPdf(t)}
-                            style={{ fontSize: '0.75rem', padding: '4px 12px', border: '1px solid #3b82f6', background: '#eff6ff', color: '#3b82f6', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            📄 Tải PDF
-                          </button>
-                        </div>
+
+                    {/* Divider Section with punches */}
+                    <div style={{ display: 'flex', alignItems: 'center', background: '#fff', position: 'relative', height: '32px' }}>
+                      <div style={{ width: '24px', height: '24px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', left: '-12px', boxShadow: 'inset -3px 0 5px rgba(0,0,0,0.04)' }}></div>
+                      <div style={{ flex: 1, borderTop: '2px dashed #cbd5e1', margin: '0 16px' }}></div>
+                      <div style={{ width: '24px', height: '24px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', right: '-12px', boxShadow: 'inset 3px 0 5px rgba(0,0,0,0.04)' }}></div>
+                    </div>
+
+                    {/* Bottom Section: QR Code */}
+                    <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '0 0 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ width: 160, height: 160, marginBottom: '1.2rem' }}>
+                        {tItem.qrCode ? (
+                          <img src={`data:image/png;base64,${tItem.qrCode}`} alt="QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#fef2f2', borderRadius: 12, border: '2px dashed #f87171' }}>
+                            <span style={{ fontSize: '2.5rem', marginBottom: '4px', color: '#ef4444', fontWeight: 'bold' }}>!</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444', textAlign: 'center' }}>{t('tickets.not_paid')}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="ticket-info" style={{ width: '100%', textAlign: 'center' }}>
-                      <h3>{t.eventTitle}</h3>
-                      <p>{t.ticketTypeName}</p>
-                      {t.orderRef && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Mã đơn: {t.orderRef}</p>}
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ngày mua: {formatDate(t.createdAt)}</p>
-                      <span className={`ticket-status ${t.checkinStatus === 'UNUSED' ? 'unused' : 'used'}`}>
-                        {t.checkinStatus === 'UNUSED' ? 'Chưa sử dụng' : 'Đã sử dụng'}
-                      </span>
-                      {t.checkinTime && <p style={{ fontSize: '0.78rem', color: 'var(--success)' }}>Check-in: {formatDate(t.checkinTime)}</p>}
+                      {tItem.qrToken && (
+                        <>
+                          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '1.2rem', fontFamily: 'monospace', letterSpacing: '2px', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px' }}>
+                            {tItem.qrToken}
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.8rem', width: '100%' }}>
+                            <button onClick={() => { navigator.clipboard.writeText(tItem.qrToken); alert(t('events.share_success')); }} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#e2e8f0'} onMouseLeave={(e) => e.target.style.background = '#f1f5f9'}>
+                              {t('tickets.copy_code')}
+                            </button>
+                            <button onClick={() => printTicketPdf(tItem)} style={{ flex: 1, padding: '10px', background: '#00B46E', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(0,180,110,0.3)' }} onMouseEnter={(e) => e.target.style.background = '#009458'} onMouseLeave={(e) => e.target.style.background = '#00B46E'}>
+                              {t('tickets.download_pdf')}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
 
                 {tickets.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎫</div>
-                    <p>Bạn chưa có vé nào. <Link href="/events" style={{ color: 'var(--primary)' }}>Khám phá sự kiện ngay!</Link></p>
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 2rem', background: '#fff', borderRadius: '24px', border: '1px dashed #cbd5e1' }}>
+                    <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎫</div>
+                    <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '0.5rem' }}>{t('tickets.no_tickets_title')}</h3>
+                    <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{t('tickets.no_tickets_desc')}</p>
+                    <Link href="/events" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '50px', fontWeight: 600 }}>{t('tickets.explore_btn')}</Link>
                   </div>
                 )}
               </div>

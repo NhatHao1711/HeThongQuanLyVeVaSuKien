@@ -8,9 +8,11 @@ import { apiRequest, isLoggedIn } from '@/lib/api';
 import { icons } from '@/components/Icons';
 import styles from './event-detail.module.css';
 import SeatMap from '@/components/SeatMap';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function EventDetailPage({ params }) {
   const { id } = React.use(params);
+  const { t } = useTranslation();
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,10 +85,10 @@ export default function EventDetailPage({ params }) {
           setActiveTicketTypeId(res.data.ticketTypes[0].id);
         }
       } else {
-        setError('Không tìm thấy sự kiện');
+        setError(t('events.no_events_found'));
       }
     } catch (err) {
-      setError('Lỗi kết nối server');
+      setError(t('common.error_connect'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +121,7 @@ export default function EventDetailPage({ params }) {
   };
 
   const submitReview = async () => {
-    if (myRating === 0) { setReviewMsg('Vui lòng chọn số sao!'); return; }
+    if (myRating === 0) { setReviewMsg(t('events.review_rating_label')); return; }
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     setReviewSubmitting(true);
     setReviewMsg('');
@@ -129,14 +131,14 @@ export default function EventDetailPage({ params }) {
         body: JSON.stringify({ rating: myRating, comment: myComment })
       });
       if (res.success) {
-        setReviewMsg('✅ Đánh giá thành công!');
+        setReviewMsg('✅ ' + t('events.review_success'));
         setMyRating(0);
         setMyComment('');
         loadReviews();
       } else {
-        setReviewMsg(res.message || 'Có lỗi xảy ra');
+        setReviewMsg(res.message || t('common.error_connect'));
       }
-    } catch (e) { setReviewMsg('Lỗi kết nối'); }
+    } catch (e) { setReviewMsg(t('common.error_connect')); }
     finally { setReviewSubmitting(false); }
   };
 
@@ -260,7 +262,19 @@ export default function EventDetailPage({ params }) {
     }
   };
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
+    if (booking) {
+      try {
+        const orderIds = booking.allOrderIds || [booking.orderId];
+        for (const orderId of orderIds) {
+          await apiRequest(`/orders/${orderId}/confirm-transfer`, {
+            method: 'POST'
+          });
+        }
+      } catch (err) {
+        console.error("Failed to confirm transfer:", err);
+      }
+    }
     setBookingStep('success');
   };
 
@@ -302,7 +316,30 @@ export default function EventDetailPage({ params }) {
     document.body.style.overflow = 'hidden';
   };
 
-  const closeBookingModal = () => {
+  const closeBookingModal = async () => {
+    if (bookingStep === 'select' || bookingStep === 'confirm') {
+      // Release locked seats
+      for (const [typeId, seatIds] of Object.entries(selectedSeatIds)) {
+        if (seatIds && seatIds.length > 0) {
+          try {
+            await apiRequest('/seats/unlock', {
+              method: 'POST',
+              body: JSON.stringify({ seatIds })
+            });
+          } catch (e) {
+            console.error("Failed to unlock seats on modal close:", e);
+          }
+        }
+      }
+    }
+
+    // Clear selection state
+    setSelectedTickets({});
+    setSelectedSeatIds({});
+    setSelectedSeatObjects({});
+    setVoucherResult(null);
+    setVoucherCode('');
+
     setShowBookingModal(false);
     document.body.style.overflow = '';
   };
@@ -314,7 +351,7 @@ export default function EventDetailPage({ params }) {
         <div className={styles.container}>
           <div className={styles.spinner}>
             <div className="spinner"></div>
-            <p>Đang tải thông tin sự kiện...</p>
+            <p>{t('common.loading')}</p>
           </div>
         </div>
         <Footer />
@@ -328,8 +365,8 @@ export default function EventDetailPage({ params }) {
         <Navbar />
         <div className={styles.container}>
           <div className={styles.notFound}>
-            <p>🎉 Sự kiện không tồn tại</p>
-            <Link href="/events" className="btn btn-primary">Quay lại danh sách sự kiện</Link>
+            <p>🎉 {t('events.no_events_found')}</p>
+            <Link href="/events" className="btn btn-primary">{t('common.back')}</Link>
           </div>
         </div>
         <Footer />
@@ -356,7 +393,7 @@ export default function EventDetailPage({ params }) {
             </div>
           )}
           <Link href="/events" className={styles.backBtn}>
-            ← Quay lại
+            ← {t('common.back')}
           </Link>
           <button onClick={toggleFavorite} style={{
             position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.95)',
@@ -377,7 +414,7 @@ export default function EventDetailPage({ params }) {
                 <h1 className={styles.title}>{event.title}</h1>
                 <div className={styles.metadata}>
                   <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                    {icons.mapPin(16, '#666')} {event.location || 'Địa điểm chưa xác định'}
+                    {icons.mapPin(16, '#666')} {event.location || t('common.contact')}
                   </span>
                   <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                     {icons.calendar(16, '#666')} {formatDate(event.startTime)} {formatTime(event.startTime)}
@@ -393,7 +430,7 @@ export default function EventDetailPage({ params }) {
                   style={{ padding: '0.4rem 0.75rem', borderRadius: 8, border: '1px solid #1da1f2', background: '#000', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
                   X
                 </button>
-                <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert('Đã sao chép link!'); }}
+                <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert(t('events.share_success')); }}
                   style={{ padding: '0.4rem 0.75rem', borderRadius: 8, border: '1px solid #ddd', background: '#f8f9fa', color: '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
                   Copy link
                 </button>
@@ -403,24 +440,24 @@ export default function EventDetailPage({ params }) {
             {/* Event Stats */}
             <div className={styles.stats}>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Nhà tổ chức</span>
+                <span className={styles.statLabel}>{t('events.detail_organizer')}</span>
                 <span className={styles.statValue}>{event.organizer || 'N/A'}</span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Danh mục</span>
-                <span className={styles.statValue}>{event.category?.name || 'Khác'}</span>
+                <span className={styles.statLabel}>{t('events.detail_category')}</span>
+                <span className={styles.statValue}>{event.category?.name || 'Other'}</span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Trạng thái</span>
+                <span className={styles.statLabel}>{t('events.detail_status')}</span>
                 <span className={styles.statValue}>
                   {(() => {
                     const now = new Date();
                     const start = new Date(event.startTime);
                     const end = new Date(event.endTime);
-                    if (event.status === 'CANCELLED') return '🔴 Đã hủy';
-                    if (now < start) return '🟡 Sắp diễn ra';
-                    if (now >= start && now <= end) return '🟢 Đang diễn ra';
-                    return '⚫ Đã kết thúc';
+                    if (event.status === 'CANCELLED') return t('events.status_cancelled');
+                    if (now < start) return t('events.status_upcoming');
+                    if (now >= start && now <= end) return t('events.status_ongoing');
+                    return t('events.status_completed');
                   })()}
                 </span>
               </div>
@@ -428,30 +465,30 @@ export default function EventDetailPage({ params }) {
 
             {/* Description */}
             <div className={styles.section}>
-              <h2>Mô tả sự kiện</h2>
+              <h2>{t('events.detail_desc_title')}</h2>
               <div className={styles.description}>
-                {event.description || 'Không có mô tả'}
+                {event.description || t('events.detail_no_desc')}
               </div>
             </div>
 
             {/* Event Details */}
             <div className={styles.section}>
-              <h2>Thông tin chi tiết</h2>
+              <h2>{t('events.detail_info_title')}</h2>
               <div className={styles.details}>
                 <div className={styles.detailItem}>
-                  <strong>Ngày bắt đầu:</strong>
+                  <strong>{t('events.detail_start')}:</strong>
                   <p>{new Date(event.startTime).toLocaleString('vi-VN')}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>Ngày kết thúc:</strong>
+                  <strong>{t('events.detail_end')}:</strong>
                   <p>{new Date(event.endTime).toLocaleString('vi-VN')}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>Số lượng vé:</strong>
-                  <p>{event.quantities || 'Không xác định'}</p>
+                  <strong>{t('events.detail_tickets')}:</strong>
+                  <p>{event.quantities || t('events.detail_no_desc')}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>Điểm xuất phát:</strong>
+                  <strong>{t('events.detail_start_point')}:</strong>
                   <p>{event.startPoint || 'N/A'}</p>
                 </div>
               </div>
@@ -464,15 +501,15 @@ export default function EventDetailPage({ params }) {
           <aside className={styles.sidebar}>
             {/* Book Now Card */}
             <div className={styles.bookingCard}>
-              <h2 className={styles.bookingTitle}>🎫 Đặt vé</h2>
+              <h2 className={styles.bookingTitle}>🎫 {t('events.booking_title')}</h2>
               <p style={{ fontSize: '0.88rem', color: '#4a5568', marginBottom: '1rem', lineHeight: 1.6 }}>
-                Chọn loại vé và vị trí ghế ngồi yêu thích của bạn.
+                {t('events.booking_desc')}
               </p>
               {ticketTypes.length > 0 && (
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#6b7280', marginBottom: '0.3rem' }}>
-                    <span>Giá từ</span>
-                    <span>đến</span>
+                    <span>{t('events.booking_price_from')}</span>
+                    <span>{t('events.booking_price_to')}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
@@ -488,16 +525,16 @@ export default function EventDetailPage({ params }) {
                 className={styles.bookNowBtn}
                 onClick={openBookingModal}
               >
-                🎟️ Đặt vé ngay
+                🎟️ {t('events.booking_btn')}
               </button>
             </div>
 
             {/* Countdown Timer */}
             {countdown.active && (
               <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', borderRadius: 14, padding: '1.25rem', marginBottom: '1rem', color: '#fff' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.75rem', opacity: 0.9, textAlign: 'center' }}>⏰ Bắt đầu sau</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.75rem', opacity: 0.9, textAlign: 'center' }}>⏰ {t('time.starts_in')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
-                  {[{ v: countdown.days, l: 'Ngày' }, { v: countdown.hours, l: 'Giờ' }, { v: countdown.minutes, l: 'Phút' }, { v: countdown.seconds, l: 'Giây' }].map((item, i) => (
+                  {[{ v: countdown.days, l: t('time.days') }, { v: countdown.hours, l: t('time.hours') }, { v: countdown.minutes, l: t('time.minutes') }, { v: countdown.seconds, l: t('time.seconds') }].map((item, i) => (
                     <div key={i} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '0.5rem' }}>
                       <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#4ade80' }}>{String(item.v).padStart(2, '0')}</div>
                       <div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: 2 }}>{item.l}</div>
@@ -509,7 +546,7 @@ export default function EventDetailPage({ params }) {
 
             {/* Share Section */}
             <div className={styles.shareSection}>
-              <p className={styles.shareLabel}>Chia sẻ sự kiện</p>
+              <p className={styles.shareLabel}>{t('events.share_title')}</p>
               <div className={styles.shareButtons}>
                 <button className={styles.shareBtn} title="Facebook">f</button>
                 <button className={styles.shareBtn} title="Twitter">𝕏</button>
@@ -527,7 +564,7 @@ export default function EventDetailPage({ params }) {
             {/* Modal Header */}
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>🎫 Đặt vé - {event.title}</h2>
+                <h2 className={styles.modalTitle}>🎫 {t('events.booking_modal_title').replace('{title}', event.title)}</h2>
                 <p className={styles.modalSubtitle}>
                   {icons.mapPin(14, '#94a3b8')} {event.location} • {icons.calendar(14, '#94a3b8')} {formatDate(event.startTime)}
                 </p>
@@ -574,15 +611,15 @@ export default function EventDetailPage({ params }) {
                   <div className={styles.bottomBarInfo}>
                     <div className={styles.bottomBarRow}>
                       <div className={styles.bottomBarStat}>
-                        <span className={styles.bottomBarLabel}>Tổng ghế đã chọn</span>
-                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} ghế</span>
+                        <span className={styles.bottomBarLabel}>{t('events.booking_total_selected_seats')}</span>
+                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'seats' : 'ghế'}</span>
                       </div>
                       <div className={styles.bottomBarStat}>
-                        <span className={styles.bottomBarLabel}>Vị trí đã chọn</span>
+                        <span className={styles.bottomBarLabel}>{t('events.booking_selected_positions')}</span>
                         <span className={styles.bottomBarValue}>
                           {getAllSelectedSeatNames().length > 0
                             ? getAllSelectedSeatNames().join(', ')
-                            : 'Chưa chọn ghế'}
+                            : t('events.booking_no_seats_selected')}
                         </span>
                       </div>
                     </div>
@@ -590,7 +627,7 @@ export default function EventDetailPage({ params }) {
 
                   <div className={styles.bottomBarPayment}>
                     <div className={styles.totalSection}>
-                      <span className={styles.totalLabel}>Tổng tiền</span>
+                      <span className={styles.totalLabel}>{t('events.booking_total_amount')}</span>
                       <span className={styles.totalAmount}>{formatPrice(calculateTotal())}</span>
                     </div>
                     <button
@@ -598,7 +635,7 @@ export default function EventDetailPage({ params }) {
                       onClick={() => { setError(''); setBookingStep('confirm'); }}
                       disabled={getTotalSeatsCount() === 0}
                     >
-                      Tiếp tục →
+                      {t('events.booking_next_step')} →
                     </button>
                   </div>
                 </div>
@@ -607,27 +644,27 @@ export default function EventDetailPage({ params }) {
 
             {bookingStep === 'confirm' && (
               <div className={styles.paymentContent}>
-                <h2 className={styles.bookingTitle}>📋 Xác nhận đơn hàng</h2>
+                <h2 className={styles.bookingTitle}>📋 {t('events.booking_confirm_order')}</h2>
 
                 {/* Event Info Summary */}
                 <div className={styles.confirmEventInfo}>
                   <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>🎪 Sự kiện</span>
+                    <span className={styles.confirmEventLabel}>🎪 {t('events.category_all') === 'All' ? 'Event' : 'Sự kiện'}</span>
                     <span className={styles.confirmEventValue}>{event.title}</span>
                   </div>
                   <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>📍 Địa điểm</span>
-                    <span className={styles.confirmEventValue}>{event.location || 'Chưa xác định'}</span>
+                    <span className={styles.confirmEventLabel}>📍 {t('home.search_placeholder_location')}</span>
+                    <span className={styles.confirmEventValue}>{event.location || 'N/A'}</span>
                   </div>
                   <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>📅 Thời gian</span>
+                    <span className={styles.confirmEventLabel}>📅 {t('events.time_label')}</span>
                     <span className={styles.confirmEventValue}>{formatDate(event.startTime)} - {formatTime(event.startTime)}</span>
                   </div>
                 </div>
 
                 {/* Ticket Details */}
                 <div className={styles.confirmOrderSummary}>
-                  <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>🎫 Chi tiết vé đã chọn</p>
+                  <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>🎫 {t('events.booking_detail_seats')}</p>
                   {Object.entries(selectedTickets).map(([typeId, qty]) => {
                     const ticket = ticketTypes.find(t => t.id == typeId);
                     const seatObjs = selectedSeatObjects[typeId] || [];
@@ -636,10 +673,10 @@ export default function EventDetailPage({ params }) {
                       <div key={typeId} className={styles.confirmOrderItem}>
                         <div style={{ flex: 1 }}>
                           <p className={styles.confirmItemName}>{ticket?.name || 'Vé'}</p>
-                          <p className={styles.confirmItemMeta}>Số lượng: {qty} ghế × {formatPrice(ticket?.price || 0)}</p>
+                          <p className={styles.confirmItemMeta}>{t('events.detail_tickets')}: {qty} × {formatPrice(ticket?.price || 0)}</p>
                           {seatNames.length > 0 && (
                             <div className={styles.confirmSeatTags}>
-                              <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '0.4rem' }}>Ghế:</span>
+                              <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '0.4rem' }}>{t('events.detail_tickets').toLowerCase().includes('tickets') ? 'Seats:' : 'Ghế:'}</span>
                               {seatNames.map(name => (
                                 <span key={name} className={styles.seatTag}>{name}</span>
                               ))}
@@ -654,11 +691,11 @@ export default function EventDetailPage({ params }) {
 
                 {/* Voucher Section */}
                 <div className={styles.confirmVoucherSection}>
-                  <p className={styles.confirmVoucherLabel}>🏷️ Mã giảm giá</p>
+                  <p className={styles.confirmVoucherLabel}>🏷   {t('events.voucher_label')}</p>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <input
                       type="text"
-                      placeholder="Nhập mã voucher..."
+                      placeholder={t('events.voucher_placeholder')}
                       value={voucherCode}
                       onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
                       className={styles.voucherInput}
@@ -669,7 +706,7 @@ export default function EventDetailPage({ params }) {
                         if (!voucherCode.trim()) return;
                         setVoucherLoading(true);
                         try {
-                          const res = await apiRequest('/vouchers/apply', {
+                           const res = await apiRequest('/vouchers/apply', {
                             method: 'POST',
                             body: JSON.stringify({ code: voucherCode.trim(), amount: calculateTotal() }),
                           });
@@ -678,13 +715,13 @@ export default function EventDetailPage({ params }) {
                           } else {
                             setVoucherResult({ success: false, message: res.message });
                           }
-                        } catch { setVoucherResult({ success: false, message: 'Lỗi kết nối' }); }
+                        } catch { setVoucherResult({ success: false, message: t('common.error_connect') }); }
                         finally { setVoucherLoading(false); }
                       }}
                       disabled={voucherLoading || !voucherCode.trim()}
                       className={styles.voucherApplyBtn}
                     >
-                      {voucherLoading ? '...' : 'Áp dụng'}
+                      {voucherLoading ? '...' : t('events.voucher_apply')}
                     </button>
                   </div>
                   {voucherResult && (
@@ -708,17 +745,17 @@ export default function EventDetailPage({ params }) {
                     );
                   })}
                   <div className={styles.confirmPriceRow} style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '0.6rem', marginTop: '0.3rem' }}>
-                    <span>Tạm tính:</span>
+                    <span>{t('events.booking_total_amount')}:</span>
                     <span style={{ fontWeight: 600 }}>{formatPrice(calculateTotal())}</span>
                   </div>
                   {voucherResult?.success && (
                     <div className={styles.confirmPriceRow} style={{ color: '#16a34a' }}>
-                      <span>Giảm giá:</span>
+                      <span>{t('events.voucher_label')}:</span>
                       <span style={{ fontWeight: 600 }}>-{formatPrice(voucherResult.discount)}</span>
                     </div>
                   )}
                   <div className={styles.confirmPriceTotal}>
-                    <span>Tổng thanh toán:</span>
+                    <span>{t('events.booking_final_total')}:</span>
                     <span className={styles.totalAmount}>
                       {voucherResult?.success ? formatPrice(voucherResult.finalAmount) : formatPrice(calculateTotal())}
                     </span>
@@ -737,38 +774,38 @@ export default function EventDetailPage({ params }) {
                     // handleBooking tự set bookingStep sang 'payment' nếu thành công
                   }}
                 >
-                  Xác nhận & Thanh toán
+                  {t('events.booking_confirm_pay')}
                 </button>
                 <button
                   className={styles.backBtnSmall}
                   onClick={() => setBookingStep('select')}
                 >
-                  ← Quay lại chọn ghế
+                  ← {t('events.booking_back_select_seats')}
                 </button>
               </div>
             )}
 
             {bookingStep === 'payment' && (
               <div className={styles.paymentContent}>
-                <h2 className={styles.bookingTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>{icons.creditCard(22)} Chuyển khoản ngân hàng</h2>
+                <h2 className={styles.bookingTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>{icons.creditCard(22)} {t('events.booking_bank_transfer')}</h2>
                 
                 {/* Bank Info */}
                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>Ngân hàng:</span>
+                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_name')}:</span>
                       <span style={{ fontWeight: 700, color: '#1a1a2e' }}>Vietcombank</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>Số tài khoản:</span>
+                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_account')}:</span>
                       <span style={{ fontWeight: 700, color: '#1a1a2e', fontFamily: 'monospace', letterSpacing: 1 }}>1030490936</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>Chủ TK:</span>
+                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_owner')}:</span>
                       <span style={{ fontWeight: 700, color: '#1a1a2e' }}>TRUONG HUY NHAT HAO</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>Nội dung CK:</span>
+                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_info')}:</span>
                       <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {booking?.orderId || ''}</span>
                     </div>
                   </div>
@@ -776,7 +813,7 @@ export default function EventDetailPage({ params }) {
 
                 {/* QR Code */}
                 <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '8px' }}>Quét mã QR để chuyển khoản nhanh:</p>
+                  <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '8px' }}>{t('events.booking_bank_qr_scan')}:</p>
                   <img 
                     src={getBankQRUrl(booking?.totalAmount || calculateTotal())} 
                     alt="QR Chuyển khoản" 
@@ -786,7 +823,7 @@ export default function EventDetailPage({ params }) {
 
                 <div className={styles.summary} style={{ marginBottom: '16px' }}>
                   <div className={styles.summaryRow}>
-                    <span>Tổng thanh toán:</span>
+                    <span>{t('events.booking_final_total')}:</span>
                     <span className={styles.totalPrice}>
                       {formatPrice(booking?.totalAmount || calculateTotal())}
                     </span>
@@ -797,7 +834,7 @@ export default function EventDetailPage({ params }) {
                   className={styles.bookBtn}
                   onClick={handleConfirmPayment}
                 >
-                  {icons.check(16, '#fff')} Tôi đã chuyển khoản
+                  {icons.check(16, '#fff')} {t('events.booking_bank_confirm_btn')}
                 </button>
                 <div style={{
                   marginTop: '0.75rem',
@@ -810,7 +847,10 @@ export default function EventDetailPage({ params }) {
                   lineHeight: 1.5,
                   textAlign: 'center'
                 }}>
-                  ⚠️ Đơn hàng <strong>#{booking?.orderId}</strong> đã được tạo và đang chờ xác nhận thanh toán. Vui lòng hoàn tất chuyển khoản trước khi đóng cửa sổ này.
+                  ⚠️ {t('events.category_all') === 'All'
+                    ? `Order #${booking?.orderId} has been created and is awaiting payment verification. Please complete the transfer before closing this window.`
+                    : `Đơn hàng #${booking?.orderId} đã được tạo và đang chờ xác nhận thanh toán. Vui lòng hoàn tất chuyển khoản trước khi đóng cửa sổ này.`
+                  }
                 </div>
               </div>
             )}
@@ -819,11 +859,11 @@ export default function EventDetailPage({ params }) {
               <div className={styles.paymentContent}>
                 <div className={styles.successMessage}>
                   <div className={styles.successIcon}>✓</div>
-                  <h3>Đặt vé thành công!</h3>
-                  <p>Vé của bạn đã được gửi đến email. Hãy kiểm tra để nhận thông tin chi tiết.</p>
+                  <h3>{t('events.booking_success_title')}</h3>
+                  <p>{t('events.booking_success_desc')}</p>
                 </div>
                 <Link href="/my-tickets" className={styles.bookBtn} onClick={closeBookingModal}>
-                  Xem vé của tôi
+                  {t('events.booking_view_tickets_btn')}
                 </Link>
               </div>
             )}
@@ -835,12 +875,12 @@ export default function EventDetailPage({ params }) {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>⭐ Đánh giá sự kiện</h2>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>⭐ {t('events.review_title')}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b' }}>{reviewStats.averageRating}</span>
               <div>
                 <StarRating rating={Math.round(reviewStats.averageRating)} />
-                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{reviewStats.totalCount} đánh giá</span>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{reviewStats.totalCount} {t('events.category_all') === 'All' ? 'reviews' : 'đánh giá'}</span>
               </div>
             </div>
           </div>
@@ -848,15 +888,15 @@ export default function EventDetailPage({ params }) {
           {/* Review Form */}
           {isLoggedIn() && (
             <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Viết đánh giá của bạn</p>
+              <p style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>{t('events.review_write_title')}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Đánh giá:</span>
+                <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>{t('events.review_rating_label')}</span>
                 <StarRating rating={myRating} interactive onRate={setMyRating} />
                 {myRating > 0 && <span style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600 }}>{myRating}/5</span>}
               </div>
               <textarea
                 value={myComment} onChange={e => setMyComment(e.target.value)}
-                placeholder="Chia sẻ cảm nhận của bạn về sự kiện..."
+                placeholder={t('events.review_comment_placeholder')}
                 rows={3}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
               />
@@ -867,7 +907,7 @@ export default function EventDetailPage({ params }) {
                   borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', marginLeft: 'auto',
                   opacity: reviewSubmitting ? 0.6 : 1
                 }}>
-                  {reviewSubmitting ? 'Đang gửi...' : '📝 Gửi đánh giá'}
+                  {reviewSubmitting ? t('events.review_submitting') : '📝 ' + t('events.review_submit_btn')}
                 </button>
               </div>
             </div>
@@ -875,7 +915,7 @@ export default function EventDetailPage({ params }) {
 
           {/* Review List */}
           {reviews.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#9ca3af', padding: '1rem' }}>Chưa có đánh giá nào. Hãy là người đầu tiên! 🎉</p>
+            <p style={{ textAlign: 'center', color: '#9ca3af', padding: '1rem' }}>{t('events.review_no_reviews')}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {reviews.map(r => (
@@ -905,7 +945,7 @@ export default function EventDetailPage({ params }) {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
           <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>🗺️ Bản đồ địa điểm</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>🗺️ {t('events.category_all') === 'All' ? 'Location Map' : 'Bản đồ địa điểm'}</h3>
             </div>
             <iframe
               width="100%" height="300" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
@@ -919,7 +959,7 @@ export default function EventDetailPage({ params }) {
       {relatedEvents.length > 0 && (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>🔗 Sự kiện liên quan</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>🔗 {t('events.category_all') === 'All' ? 'Related Events' : 'Sự kiện liên quan'}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
               {relatedEvents.map(re => (
                 <Link key={re.id} href={`/events/${re.id}`} style={{ textDecoration: 'none' }}>

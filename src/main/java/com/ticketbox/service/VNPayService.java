@@ -35,6 +35,9 @@ public class VNPayService {
 
     private final OrderRepository orderRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final com.ticketbox.repository.SeatRepository seatRepository;
+    private final com.ticketbox.repository.TicketTypeRepository ticketTypeRepository;
+    private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
     @Value("${vnpay.tmn-code}")
     private String vnpTmnCode;
@@ -174,6 +177,15 @@ public class VNPayService {
             order.setPaymentStatus(PaymentStatus.PAID);
             orderRepository.save(order);
 
+            // Mark seats associated with order as BOOKED
+            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                com.ticketbox.entity.Seat seat = ticket.getSeat();
+                if (seat != null) {
+                    seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                    seatRepository.save(seat);
+                }
+            }
+
             log.info("✅ Payment SUCCESS for Order #{}, txnRef={}", order.getId(), txnRef);
 
             // 6. Publish message to RabbitMQ
@@ -194,6 +206,24 @@ public class VNPayService {
             // Thanh toán thất bại
             order.setPaymentStatus(PaymentStatus.FAILED);
             orderRepository.save(order);
+
+            // Hoàn trả vé và ghế khi VNPay thanh toán thất bại
+            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                // Hoàn vé
+                com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+                ticketType.setAvailableQuantity(ticketType.getAvailableQuantity() + 1);
+                ticketTypeRepository.save(ticketType);
+
+                // Hoàn ghế
+                com.ticketbox.entity.Seat seat = ticket.getSeat();
+                if (seat != null) {
+                    seat.setStatus(com.ticketbox.enums.SeatStatus.AVAILABLE);
+                    seatRepository.save(seat);
+                    ticket.setSeat(null); // Gỡ liên kết ghế (chống Unique Constraint)
+                    userTicketRepository.save(ticket);
+                }
+            }
+
             log.warn("❌ Payment FAILED for Order #{}, responseCode={}", order.getId(),
                     responseCode);
             return false;

@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,12 +23,12 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMsg({ type: 'success', text: '✅ Nếu email tồn tại, bạn sẽ nhận được hướng dẫn qua email. Hãy kiểm tra hòm thư!' });
+        setMsg({ type: 'success', text: t('auth.forgot_success_msg') });
       } else {
-        setMsg({ type: 'error', text: data.message || 'Có lỗi xảy ra' });
+        setMsg({ type: 'error', text: data.message || t('common.error_connect') });
       }
     } catch {
-      setMsg({ type: 'error', text: 'Lỗi kết nối server' });
+      setMsg({ type: 'error', text: t('common.error_connect') });
     } finally {
       setLoading(false);
     }
@@ -42,9 +44,9 @@ export default function ForgotPasswordPage() {
         }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔑</div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>Quên mật khẩu</h1>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>{t('auth.forgot_title')}</h1>
             <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Nhập email để nhận link đặt lại mật khẩu
+              {t('auth.forgot_subtitle')}
             </p>
           </div>
 
@@ -62,7 +64,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: '#374151' }}>
-                Email
+                {t('auth.email')}
               </label>
               <input
                 type="email" required value={email} onChange={e => setEmail(e.target.value)}
@@ -85,13 +87,13 @@ export default function ForgotPasswordPage() {
                 transition: 'all 0.2s'
               }}
             >
-              {loading ? '⏳ Đang gửi...' : '📧 Gửi link đặt lại mật khẩu'}
+              {loading ? '⏳ ...' : '📧 ' + t('auth.forgot_send_btn')}
             </button>
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
             <Link href="/login" style={{ color: '#00B46E', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>
-              ← Quay lại đăng nhập
+              ← {t('common.back')}
             </Link>
           </div>
         </div>

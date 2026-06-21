@@ -4,8 +4,10 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api';
+import { useTranslation } from '@/context/TranslationContext';
 
 export default function CalendarPage() {
+  const { lang, t } = useTranslation();
   const [events, setEvents] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -72,11 +74,11 @@ export default function CalendarPage() {
     });
   };
 
-  const monthNames = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
-  ];
-  const dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const monthKeys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+  const monthNames = monthKeys.map(k => t(`calendar.${k}`));
+  const dayNames = dayKeys.map(k => t(`calendar.${k}`));
 
   return (
     <>
@@ -86,8 +88,8 @@ export default function CalendarPage() {
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <div>
-              <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>Lịch Sự Kiện</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Theo dõi tất cả sự kiện trong tháng</p>
+              <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t('calendar.title')}</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.subtitle')}</p>
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-card)', padding: '0.5rem', borderRadius: 12, border: '1px solid var(--border)' }}>
@@ -146,7 +148,7 @@ export default function CalendarPage() {
                               color: 'var(--primary-dark)', fontSize: '0.75rem', fontWeight: 600, borderRadius: 4,
                               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: 'none'
                             }} title={e.title}>
-                              {new Date(e.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} - {e.title}
+                              {new Date(e.startTime).toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US', {hour: '2-digit', minute:'2-digit'})} - {e.title}
                             </Link>
                           ))}
                         </div>
