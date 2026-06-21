@@ -20,13 +20,27 @@ public class TicketService {
 
     private final UserTicketRepository userTicketRepository;
     private final QRCodeService qrCodeService;
+    private final PaymentService paymentService;
 
     /**
      * Lấy danh sách vé của user
      */
     public List<TicketResponse> getUserTickets(Long userId) {
-        return userTicketRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
+        List<UserTicket> tickets = userTicketRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        
+        // Auto-sync pending orders before mapping
+        tickets.stream()
+               .map(UserTicket::getOrder)
+               .distinct()
+               .filter(order -> order.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PENDING 
+                             && order.getPaymentMethod() == com.ticketbox.enums.PaymentMethod.BANK_TRANSFER)
+               .forEach(order -> {
+                   try {
+                       paymentService.checkAndUpdateOrderStatus(order);
+                   } catch (Exception e) {}
+               });
+
+        return tickets.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }

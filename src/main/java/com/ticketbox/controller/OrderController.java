@@ -25,6 +25,9 @@ public class OrderController {
     private final UserRepository userRepository;
     private final com.ticketbox.repository.SeatRepository seatRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ticketbox.service.PaymentService paymentService;
+
     /**
      * GET /api/orders/my - Lấy danh sách đơn hàng của user
      */
@@ -38,6 +41,16 @@ public class OrderController {
         List<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user);
 
         List<Map<String, Object>> result = orders.stream().map(order -> {
+            // Auto-sync pending bank transfers
+            if (order.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PENDING 
+                && order.getPaymentMethod() == com.ticketbox.enums.PaymentMethod.BANK_TRANSFER) {
+                try {
+                    paymentService.checkAndUpdateOrderStatus(order);
+                } catch (Exception e) {
+                    // Ignore error if PayOS check fails, keep as pending
+                }
+            }
+
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
             map.put("transactionRef", order.getTransactionRef());
@@ -100,5 +113,32 @@ public class OrderController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 "Xác nhận chuyển khoản thành công, ghế đã được chuyển sang trạng thái đã mua.", "OK"));
+    }
+
+    /**
+     * GET /api/orders/{id}/status - Lấy trạng thái thanh toán của đơn hàng (dùng cho polling)
+     */
+    @GetMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getOrderStatus(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new com.ticketbox.exception.ResourceNotFoundException("Order", "id", id));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền xem trạng thái đơn hàng này.");
+        }
+
+        com.ticketbox.enums.PaymentStatus currentStatus = order.getPaymentStatus();
+        if (currentStatus == com.ticketbox.enums.PaymentStatus.PENDING && order.getPaymentMethod() == com.ticketbox.enums.PaymentMethod.BANK_TRANSFER) {
+            currentStatus = paymentService.checkAndUpdateOrderStatus(order);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy trạng thái đơn hàng thành công", Map.of("status", currentStatus.name())));
     }
 }

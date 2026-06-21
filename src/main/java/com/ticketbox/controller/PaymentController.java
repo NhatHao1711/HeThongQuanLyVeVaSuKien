@@ -8,14 +8,20 @@ import com.ticketbox.service.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import vn.payos.type.Webhook;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentController {
 
     private final VNPayService vnPayService;
@@ -64,6 +70,41 @@ public class PaymentController {
         } else {
             return ResponseEntity.ok(
                     ApiResponse.error("Thanh toán thất bại. Vui lòng thử lại."));
+        }
+    }
+
+    /**
+     * POST /api/payments/create-payos-link - Tạo liên kết thanh toán PayOS (VietQR)
+     * Yêu cầu JWT authentication.
+     */
+    @PostMapping("/payments/create-payos-link")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createPayOSLink(
+            @Valid @RequestBody PaymentRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            Map<String, Object> response = paymentService.createPayOSPaymentLink(
+                    request.getOrderId(), userDetails.getUsername());
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("Tạo liên kết thanh toán PayOS thành công", response));
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo PayOS link", e);
+            return ResponseEntity.status(500).body(ApiResponse.error(e.getMessage() != null ? e.getMessage() : "Lỗi server"));
+        }
+    }
+
+    /**
+     * POST /api/payment/payos-webhook - Tiếp nhận Webhook từ PayOS (Public endpoint)
+     */
+    @PostMapping("/payment/payos-webhook")
+    public ResponseEntity<Map<String, Object>> payosWebhook(@RequestBody Webhook body) {
+        try {
+            paymentService.processPayOSWebhook(body);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Webhook processed successfully"));
+        } catch (Exception e) {
+            log.error("❌ Lỗi xử lý Webhook PayOS: ", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 

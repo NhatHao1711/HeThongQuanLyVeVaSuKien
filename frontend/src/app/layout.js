@@ -21,8 +21,8 @@ import { TranslationProvider } from '@/context/TranslationContext';
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="vi">
-      <body className={beVietnamPro.className}>
+    <html lang="vi" suppressHydrationWarning>
+      <body className={beVietnamPro.className} suppressHydrationWarning>
         <TranslationProvider>
           {children}
         </TranslationProvider>

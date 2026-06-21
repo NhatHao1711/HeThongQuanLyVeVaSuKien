@@ -15,11 +15,65 @@ export default function MyOrdersPage() {
   const [repayMethod, setRepayMethod] = useState('bank'); // 'bank' | 'vnpay'
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [paymentError, setPaymentError] = useState('');
+  const [payOSData, setPayOSData] = useState(null);
+  const [payOSLoading, setPayOSLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     loadOrders();
   }, []);
+
+  // Fetch PayOS payment link when selectedOrder or repayMethod changes
+  useEffect(() => {
+    if (selectedOrder && repayMethod === 'bank') {
+      fetchPayOSLink(selectedOrder.id);
+    } else {
+      setPayOSData(null);
+    }
+  }, [selectedOrder, repayMethod]);
+
+  // Polling order status
+  useEffect(() => {
+    let intervalId = null;
+    if (selectedOrder && selectedOrder.paymentStatus === 'PENDING') {
+      intervalId = setInterval(async () => {
+        try {
+          const res = await apiRequest(`/orders/${selectedOrder.id}/status`);
+          if (res.success && res.data && res.data.status === 'PAID') {
+            clearInterval(intervalId);
+            setSelectedOrder(null);
+            alert('Thanh toán thành công!');
+            loadOrders();
+          }
+        } catch (err) {
+          console.error('Polling status error:', err);
+        }
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [selectedOrder]);
+
+  const fetchPayOSLink = async (orderId) => {
+    setPayOSLoading(true);
+    setPaymentError('');
+    try {
+      const res = await apiRequest('/payments/create-payos-link', {
+        method: 'POST',
+        body: JSON.stringify({ orderId })
+      });
+      if (res.success && res.data) {
+        setPayOSData(res.data);
+      } else {
+        setPaymentError(res.message || 'Không thể tạo liên kết thanh toán PayOS');
+      }
+    } catch (err) {
+      setPaymentError('Lỗi kết nối server.');
+    } finally {
+      setPayOSLoading(false);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -284,83 +338,79 @@ export default function MyOrdersPage() {
 
                 {repayMethod === 'bank' ? (
                   <div>
-                    {/* Bank Details */}
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#64748b' }}>Ngân hàng:</span>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>Vietcombank</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#64748b' }}>Số tài khoản:</span>
-                          <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>1030490936</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#64748b' }}>Chủ tài khoản:</span>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>TRUONG HUY NHAT HAO</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#64748b' }}>Nội dung chuyển khoản:</span>
-                          <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {selectedOrder.id}</span>
-                        </div>
+                    {payOSLoading ? (
+                      <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <div className="spinner" style={{ width: 35, height: 35, margin: '0 auto' }}></div>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '10px' }}>Đang khởi tạo mã QR thanh toán...</p>
                       </div>
-                    </div>
+                    ) : payOSData ? (
+                      <div>
+                        {/* Bank Details */}
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: '#64748b' }}>Ngân hàng:</span>
+                              <span style={{ fontWeight: 700, color: '#0f172a' }}>Vietcombank</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: '#64748b' }}>Số tài khoản:</span>
+                              <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{payOSData.accountNumber}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: '#64748b' }}>Chủ tài khoản:</span>
+                              <span style={{ fontWeight: 700, color: '#0f172a' }}>{payOSData.accountName}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: '#64748b' }}>Nội dung chuyển khoản:</span>
+                              <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>{payOSData.description}</span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* QR Code */}
-                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>Quét mã QR để thanh toán nhanh:</p>
-                      <img 
-                        src={`https://img.vietqr.io/image/VCB-1030490936-compact2.png?amount=${selectedOrder.totalAmount}&addInfo=${encodeURIComponent("TRIVENT " + selectedOrder.id)}&accountName=${encodeURIComponent('TRUONG HUY NHAT HAO')}`} 
-                        alt="Mã QR VietQR" 
-                        style={{ width: '100%', maxWidth: '240px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'inline-block' }}
-                      />
-                    </div>
+                        {/* QR Code */}
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>Quét mã QR để thanh toán nhanh:</p>
+                          <img 
+                            src={`https://img.vietqr.io/image/${payOSData.bin}-${payOSData.accountNumber}-compact2.png?amount=${payOSData.amount}&addInfo=${encodeURIComponent(payOSData.description)}&accountName=${encodeURIComponent(payOSData.accountName)}`} 
+                            alt="Mã QR VietQR" 
+                            style={{ width: '100%', maxWidth: '240px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'inline-block' }}
+                          />
+                        </div>
 
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '12px 16px', background: '#f0fdf4', borderRadius: '12px', marginBottom: '16px'
-                    }}>
-                      <span style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 600 }}>Tổng tiền:</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#166534' }}>{formatPrice(selectedOrder.totalAmount)}</span>
-                    </div>
+                        <div style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          padding: '12px 16px', background: '#f0fdf4', borderRadius: '12px', marginBottom: '16px'
+                        }}>
+                          <span style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 600 }}>Tổng tiền:</span>
+                          <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#166534' }}>{formatPrice(payOSData.amount)}</span>
+                        </div>
 
-                    {paymentError && (
-                      <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
-                        ❌ {paymentError}
+                        {paymentError && (
+                          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
+                            ❌ {paymentError}
+                          </div>
+                        )}
+
+                        <a
+                          href={payOSData.checkoutUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            width: '100%', padding: '12px', borderRadius: '12px',
+                            background: '#00B46E', borderColor: '#00B46E',
+                            fontWeight: 700, fontSize: '0.9rem', color: '#fff', cursor: 'pointer',
+                            display: 'block', textAlign: 'center', textDecoration: 'none',
+                            boxShadow: '0 4px 12px rgba(0,180,110,0.2)'
+                          }}
+                        >
+                          🔗 Mở cổng thanh toán PayOS (Tab mới)
+                        </a>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#ef4444' }}>
+                        ❌ Không thể tải thông tin thanh toán. Vui lòng thử lại.
                       </div>
                     )}
-
-                    <button
-                      onClick={async () => {
-                        setConfirmLoading(true);
-                        setPaymentError('');
-                        try {
-                          const res = await apiRequest(`/orders/${selectedOrder.id}/confirm-transfer`, {
-                            method: 'POST'
-                          });
-                          if (res.success) {
-                            alert("Xác nhận đã chuyển khoản thành công! Đang chờ admin phê duyệt.");
-                            setSelectedOrder(null);
-                            loadOrders();
-                          } else {
-                            setPaymentError(res.message || "Xác nhận chuyển khoản thất bại.");
-                          }
-                        } catch {
-                          setPaymentError("Lỗi kết nối server.");
-                        } finally {
-                          setConfirmLoading(false);
-                        }
-                      }}
-                      disabled={confirmLoading}
-                      className="btn btn-primary"
-                      style={{
-                        width: '100%', padding: '12px', borderRadius: '12px',
-                        background: '#00B46E', borderColor: '#00B46E',
-                        fontWeight: 700, fontSize: '0.9rem', color: '#fff', cursor: 'pointer'
-                      }}
-                    >
-                      {confirmLoading ? 'Đang xử lý...' : '✓ Xác nhận đã chuyển khoản'}
-                    </button>
                   </div>
                 ) : (
                   <div>

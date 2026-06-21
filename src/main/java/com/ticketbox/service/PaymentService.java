@@ -1,16 +1,45 @@
 package com.ticketbox.service;
 
+import com.ticketbox.entity.Order;
+import com.ticketbox.entity.User;
+import com.ticketbox.enums.PaymentMethod;
+import com.ticketbox.enums.PaymentStatus;
+import com.ticketbox.repository.OrderRepository;
+import com.ticketbox.repository.UserRepository;
+import com.ticketbox.repository.SeatRepository;
+import com.ticketbox.dto.PaymentCompletedMessage;
+import com.ticketbox.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.PaymentData;
+import vn.payos.type.Webhook;
+import vn.payos.type.WebhookData;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
     private final PayOS payOS;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final SeatRepository seatRepository;
+    private final RabbitTemplate rabbitTemplate;
+
+    @Value("${rabbitmq.exchange.ticket}")
+    private String ticketExchange;
+
+    @Value("${rabbitmq.routing-key.payment-completed}")
+    private String paymentCompletedRoutingKey;
 
     public String createPaymentLink() throws Exception {
         try {
@@ -41,5 +70,205 @@ public class PaymentService {
             e.printStackTrace();
             throw e;
         }
+    }
+
+    @Value("${payos.client-id}")
+    private String clientId;
+
+    @Value("${payos.api-key}")
+    private String apiKey;
+
+    @Value("${payos.checksum-key}")
+    private String checksumKey;
+
+    @Transactional
+    public Map<String, Object> createPayOSPaymentLink(Long orderId, String userEmail) throws Exception {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền thanh toán cho đơn hàng này.");
+        }
+
+        order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+        orderRepository.save(order);
+
+        long orderCode = order.getId();
+        int amount = order.getTotalAmount().intValue();
+        String description = "TRIVENT " + order.getId();
+
+        if (description.length() > 25) {
+            description = description.substring(0, 25);
+        }
+
+        String returnUrl = "http://localhost:3000/payment-redirect?status=success";
+        String cancelUrl = "http://localhost:3000/payment-redirect?status=cancel";
+
+        // Create request manually to bypass buggy PayOS SDK 1.0.3 response verification
+        Map<String, Object> body = new HashMap<>();
+        body.put("orderCode", orderCode);
+        body.put("amount", amount);
+        body.put("description", description);
+        body.put("returnUrl", returnUrl);
+        body.put("cancelUrl", cancelUrl);
+
+        // Generate signature
+        String sortedData = String.format("amount=%s&cancelUrl=%s&description=%s&orderCode=%s&returnUrl=%s",
+                amount, cancelUrl, description, orderCode, returnUrl);
+        
+        javax.crypto.Mac sha256_HMAC = javax.crypto.Mac.getInstance("HmacSHA256");
+        javax.crypto.spec.SecretKeySpec secret_key = new javax.crypto.spec.SecretKeySpec(checksumKey.getBytes("UTF-8"), "HmacSHA256");
+        sha256_HMAC.init(secret_key);
+        byte[] hash = sha256_HMAC.doFinal(sortedData.getBytes("UTF-8"));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if(hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        body.put("signature", hexString.toString());
+
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.set("x-client-id", clientId);
+        headers.set("x-api-key", apiKey);
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+
+        org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
+        
+        org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.postForEntity("https://api-merchant.payos.vn/v2/payment-requests", entity, Map.class);
+        
+        Map resBody = apiRes.getBody();
+        if (resBody != null && "00".equals(resBody.get("code"))) {
+            Map<String, Object> data = (Map<String, Object>) resBody.get("data");
+            Map<String, Object> result = new HashMap<>();
+            result.put("checkoutUrl", data.get("checkoutUrl"));
+            result.put("accountNumber", data.get("accountNumber"));
+            result.put("accountName", data.get("accountName"));
+            result.put("amount", data.get("amount"));
+            result.put("description", data.get("description"));
+            result.put("bin", data.get("bin"));
+            result.put("qrCode", data.get("qrCode"));
+            result.put("paymentLinkId", data.get("paymentLinkId"));
+            return result;
+        } else {
+            throw new RuntimeException("Lỗi từ PayOS: " + (resBody != null ? resBody.get("desc") : "Unknown"));
+        }
+    }
+
+    @Transactional
+    public PaymentStatus checkAndUpdateOrderStatus(Order order) {
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return PaymentStatus.PAID;
+        }
+
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.set("x-client-id", clientId);
+            headers.set("x-api-key", apiKey);
+
+            org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+
+            org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
+                    "https://api-merchant.payos.vn/v2/payment-requests/" + order.getId(),
+                    org.springframework.http.HttpMethod.GET,
+                    entity,
+                    Map.class
+            );
+
+            Map resBody = apiRes.getBody();
+            if (resBody != null && "00".equals(resBody.get("code"))) {
+                Map<String, Object> data = (Map<String, Object>) resBody.get("data");
+                if ("PAID".equals(data.get("status"))) {
+                    order.setPaymentStatus(PaymentStatus.PAID);
+                    order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+                    orderRepository.save(order);
+
+                    for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                        com.ticketbox.entity.Seat seat = ticket.getSeat();
+                        if (seat != null) {
+                            seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                            seatRepository.save(seat);
+                        }
+                    }
+
+                    PaymentCompletedMessage message = PaymentCompletedMessage.builder()
+                            .orderId(order.getId())
+                            .userId(order.getUser().getId())
+                            .transactionRef(order.getTransactionRef())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
+                    log.info("✅ Đã đồng bộ trạng thái PAID từ PayOS cho đơn hàng #{}", order.getId());
+
+                    return PaymentStatus.PAID;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi kiểm tra trạng thái PayOS cho đơn hàng " + order.getId(), e);
+        }
+
+        return order.getPaymentStatus();
+    }
+
+    @Transactional
+    public void processPayOSWebhook(Webhook body) throws Exception {
+        log.info("📥 Nhận webhook từ PayOS");
+        
+        // 1. Xác thực chữ ký webhook từ PayOS
+        WebhookData webhookData = payOS.verifyPaymentWebhookData(body);
+        if (webhookData == null) {
+            throw new IllegalArgumentException("Xác thực chữ ký PayOS thất bại");
+        }
+
+        long orderCode = webhookData.getOrderCode();
+        int amountPaid = webhookData.getAmount();
+
+        // 2. Tìm kiếm đơn hàng
+        Order order = orderRepository.findById(orderCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderCode));
+
+        // 3. Lũy đẳng (Idempotency check)
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            log.info("⚡ Idempotency: Đơn hàng #{} đã ở trạng thái PAID. Bỏ qua.", order.getId());
+            return;
+        }
+
+        // 4. Đối chiếu kép (Amount matching check)
+        int expectedAmount = order.getTotalAmount().intValue();
+        if (amountPaid != expectedAmount) {
+            log.error("❌ Số tiền thanh toán không khớp! Thực tế: {}, Kì vọng: {}", amountPaid, expectedAmount);
+            throw new IllegalArgumentException("Số tiền thanh toán không khớp");
+        }
+
+        // 5. Cập nhật trạng thái đơn hàng
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+        orderRepository.save(order);
+
+        // 6. Cập nhật các ghế liên quan sang BOOKED
+        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            com.ticketbox.entity.Seat seat = ticket.getSeat();
+            if (seat != null) {
+                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                seatRepository.save(seat);
+            }
+        }
+
+        log.info("✅ Cập nhật thanh toán thành công cho đơn hàng #{}", order.getId());
+
+        // 7. Gửi message đến RabbitMQ để hoàn tất vé
+        PaymentCompletedMessage message = PaymentCompletedMessage.builder()
+                .orderId(order.getId())
+                .userId(order.getUser().getId())
+                .transactionRef(order.getTransactionRef())
+                .build();
+
+        rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
+        log.info("📨 Đã gửi message hoàn tất thanh toán đến RabbitMQ cho đơn hàng #{}", order.getId());
     }
 }

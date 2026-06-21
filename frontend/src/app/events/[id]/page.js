@@ -36,11 +36,26 @@ export default function EventDetailPage({ params }) {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, active: false });
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [payOSData, setPayOSData] = useState(null);
+  const [payOSLoading, setPayOSLoading] = useState(false);
 
   useEffect(() => {
     loadEvent();
     loadReviews();
     loadRelatedEvents();
+
+    const handleMessage = (event) => {
+      if (event.data?.type === 'PAYOS_REDIRECT') {
+        if (event.data.status === 'success') {
+          setBookingStep('success');
+        } else if (event.data.status === 'cancel') {
+          setError('Thanh toán đã bị hủy hoặc chưa hoàn tất.');
+          setBookingStep('select');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, [id]);
 
   // Countdown timer
@@ -63,6 +78,27 @@ export default function EventDetailPage({ params }) {
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
   }, [event?.startTime]);
+
+  // Poll payment status automatically
+  useEffect(() => {
+    let intervalId;
+    if (bookingStep === 'payment' && booking?.allOrderIds?.length > 0) {
+      // We poll the last order ID since that's the one PayOS uses
+      const lastOrderId = booking.allOrderIds[booking.allOrderIds.length - 1];
+      intervalId = setInterval(async () => {
+        try {
+          const res = await apiRequest(`/orders/${lastOrderId}/status`);
+          if (res.success && res.data?.status === 'PAID') {
+            setBookingStep('success');
+            clearInterval(intervalId);
+          }
+        } catch (e) {}
+      }, 2000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [bookingStep, booking]);
 
   const loadRelatedEvents = async () => {
     try {
@@ -256,6 +292,24 @@ export default function EventDetailPage({ params }) {
           orderId: allOrderIds.join(', ')
         });
         setBookingStep('payment');
+
+        // Gọi API tạo link thanh toán PayOS
+        setPayOSLoading(true);
+        try {
+          const payOSRes = await apiRequest('/payments/create-payos-link', {
+            method: 'POST',
+            body: JSON.stringify({ orderId: lastResponse.orderId }),
+          });
+          if (payOSRes.success && payOSRes.data) {
+            setPayOSData(payOSRes.data);
+          } else {
+            setError(payOSRes.message || 'Không thể tạo liên kết thanh toán PayOS');
+          }
+        } catch (err) {
+          setError('Lỗi kết nối khi khởi tạo thanh toán PayOS');
+        } finally {
+          setPayOSLoading(false);
+        }
       }
     } catch {
       setError('Lỗi kết nối server');
@@ -307,6 +361,21 @@ export default function EventDetailPage({ params }) {
       currency: 'VND',
       minimumFractionDigits: 0
     }).format(price);
+  };
+
+  const getBankNameByBin = (bin) => {
+    const binMap = {
+      '970422': 'MB Bank',
+      '970415': 'VietinBank',
+      '970436': 'Vietcombank',
+      '970418': 'BIDV',
+      '970407': 'Techcombank',
+      '970405': 'Agribank',
+      '970423': 'TPBank',
+      '970432': 'VPBank',
+      '970416': 'ACB',
+    };
+    return binMap[bin] || 'VietQR Partner Bank';
   };
 
   const openBookingModal = () => {
@@ -786,85 +855,140 @@ export default function EventDetailPage({ params }) {
             )}
 
             {bookingStep === 'payment' && (
-              <div className={styles.paymentContent}>
-                <h2 className={styles.bookingTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>{icons.creditCard(22)} {t('events.booking_bank_transfer')}</h2>
-                
-                {/* Bank Info */}
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_name')}:</span>
-                      <span style={{ fontWeight: 700, color: '#1a1a2e' }}>Vietcombank</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_account')}:</span>
-                      <span style={{ fontWeight: 700, color: '#1a1a2e', fontFamily: 'monospace', letterSpacing: 1 }}>1030490936</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_owner')}:</span>
-                      <span style={{ fontWeight: 700, color: '#1a1a2e' }}>TRUONG HUY NHAT HAO</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                      <span style={{ color: '#6b7280' }}>{t('events.booking_bank_info')}:</span>
-                      <span style={{ fontWeight: 700, color: '#00B46E', fontFamily: 'monospace' }}>TRIVENT {booking?.orderId || ''}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* QR Code */}
-                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '8px' }}>{t('events.booking_bank_qr_scan')}:</p>
-                  <img 
-                    src={getBankQRUrl(booking?.totalAmount || calculateTotal())} 
-                    alt="QR Chuyển khoản" 
-                    style={{ width: '100%', maxWidth: 260, borderRadius: 12, border: '1px solid #e2e8f0' }}
-                  />
-                </div>
-
-                <div className={styles.summary} style={{ marginBottom: '16px' }}>
-                  <div className={styles.summaryRow}>
-                    <span>{t('events.booking_final_total')}:</span>
-                    <span className={styles.totalPrice}>
-                      {formatPrice(booking?.totalAmount || calculateTotal())}
-                    </span>
-                  </div>
-                </div>
-
-                <button 
-                  className={styles.bookBtn}
-                  onClick={handleConfirmPayment}
-                >
-                  {icons.check(16, '#fff')} {t('events.booking_bank_confirm_btn')}
-                </button>
-                <div style={{
-                  marginTop: '0.75rem',
-                  padding: '0.65rem 1rem',
-                  background: '#fffbeb',
-                  border: '1px solid #fde68a',
-                  borderRadius: 10,
-                  fontSize: '0.8rem',
-                  color: '#92400e',
-                  lineHeight: 1.5,
-                  textAlign: 'center'
-                }}>
-                  ⚠️ {t('events.category_all') === 'All'
-                    ? `Order #${booking?.orderId} has been created and is awaiting payment verification. Please complete the transfer before closing this window.`
-                    : `Đơn hàng #${booking?.orderId} đã được tạo và đang chờ xác nhận thanh toán. Vui lòng hoàn tất chuyển khoản trước khi đóng cửa sổ này.`
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0, minHeight: '650px' }}>
+                <style>{`
+                  @media (min-width: 768px) {
+                    .paymentGrid { grid-template-columns: 1.2fr 420px !important; }
                   }
+                `}</style>
+                <div className="paymentGrid" style={{ display: 'grid', gridTemplateColumns: '1fr', background: '#fff' }}>
+                  
+                  {/* Left Column: Order Summary */}
+                  <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', borderRight: '1px solid #f1f5f9' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ background: '#e0e7ff', color: '#4f46e5', width: 32, height: 32, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>✓</span>
+                        {t('events.category_all') === 'All' ? 'Order Confirmed' : 'Đơn hàng đã tạo'}
+                      </h3>
+                      <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                        {t('events.category_all') === 'All' 
+                          ? 'Please complete the payment using the QR code. The system will automatically confirm your tickets.'
+                          : 'Vui lòng hoàn tất thanh toán qua mã QR. Hệ thống sẽ tự động xác nhận và gửi vé cho bạn.'}
+                      </p>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '1.5rem', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px dashed #cbd5e1' }}>
+                        <span style={{ color: '#64748b', fontWeight: 500 }}>Mã đơn hàng</span>
+                        <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '1.1rem' }}>#{booking?.orderId}</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Sự kiện</span>
+                          <span style={{ fontWeight: 600, color: '#334155', fontSize: '0.9rem', textAlign: 'right', maxWidth: '60%' }}>{event.title}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Số lượng vé</span>
+                          <span style={{ fontWeight: 600, color: '#334155', fontSize: '0.9rem' }}>{getTotalSeatsCount()} vé</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '2px solid #e2e8f0', alignItems: 'flex-end' }}>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Tổng thanh toán</span>
+                        <span style={{ fontWeight: 800, color: '#10b981', fontSize: '1.6rem', lineHeight: 1 }}>{formatPrice(calculateTotal())}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ 
+                      marginTop: 'auto', 
+                      background: 'linear-gradient(to right, #ecfdf5, #f0fdf4)', 
+                      borderRadius: '12px', 
+                      padding: '1.25rem', 
+                      border: '1px solid #a7f3d0',
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'flex-start'
+                    }}>
+                      <div style={{ background: '#10b981', color: '#fff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '12px', fontWeight: 'bold' }}>i</div>
+                      <p style={{ color: '#065f46', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
+                        Trang web đang chờ tín hiệu thanh toán. Vui lòng giữ nguyên màn hình này sau khi quét QR, màn hình sẽ tự động chuyển khi nhận được tiền.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: PayOS iframe */}
+                  <div style={{ background: '#f8fafc', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                    {payOSLoading ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '3rem' }}>
+                        <div className="spinner" style={{ width: 40, height: 40 }}></div>
+                        <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '15px' }}>Đang kết nối cổng thanh toán...</p>
+                      </div>
+                    ) : payOSData ? (
+                      <iframe
+                        src={payOSData.checkoutUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 'none', minHeight: '650px', display: 'block' }}
+                        title="PayOS Checkout"
+                        allow="clipboard-write"
+                      />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444', padding: '2rem', textAlign: 'center' }}>
+                        ❌ Không thể tải thông tin thanh toán. Vui lòng thử lại.
+                      </div>
+                    )}
+                    
+                    {error && (
+                      <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: '#fee2e2', color: '#dc2626', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', textAlign: 'center', border: '1px solid #fca5a5', zIndex: 10 }}>
+                        {error}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
             )}
 
             {bookingStep === 'success' && (
-              <div className={styles.paymentContent}>
-                <div className={styles.successMessage}>
-                  <div className={styles.successIcon}>✓</div>
-                  <h3>{t('events.booking_success_title')}</h3>
-                  <p>{t('events.booking_success_desc')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', background: '#fff', textAlign: 'center', minHeight: '500px' }}>
+                
+                {/* CSS Confetti Effect built-in */}
+                <style>{`
+                  @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+                  @keyframes floatUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+                `}</style>
+                
+                <div style={{ 
+                  width: 90, height: 90, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '3rem', 
+                  boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)', marginBottom: '2rem', animation: 'popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' 
+                }}>
+                  ✓
                 </div>
-                <Link href="/my-tickets" className={styles.bookBtn} onClick={closeBookingModal}>
-                  {t('events.booking_view_tickets_btn')}
-                </Link>
+                
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', animation: 'floatUp 0.6s ease forwards 0.2s', opacity: 0 }}>
+                  Thanh toán thành công!
+                </h2>
+                
+                <p style={{ fontSize: '1rem', color: '#64748b', maxWidth: '400px', lineHeight: 1.6, marginBottom: '2.5rem', animation: 'floatUp 0.6s ease forwards 0.4s', opacity: 0 }}>
+                  Đơn hàng <strong>#{booking?.orderId}</strong> của bạn đã được xác nhận. Chúc bạn có một trải nghiệm tuyệt vời tại sự kiện!
+                </p>
+                
+                <div style={{ display: 'flex', gap: '1rem', animation: 'floatUp 0.6s ease forwards 0.6s', opacity: 0 }}>
+                  <Link href="/my-tickets" onClick={closeBookingModal} style={{ 
+                    padding: '14px 28px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', 
+                    borderRadius: '12px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 15px rgba(15, 23, 42, 0.3)', transition: 'transform 0.2s' 
+                  }}>
+                    🎟️ Xem vé của tôi
+                  </Link>
+                  <button onClick={closeBookingModal} style={{ 
+                    padding: '14px 28px', background: '#f1f5f9', color: '#334155', border: 'none', 
+                    borderRadius: '12px', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' 
+                  }}>
+                    Đóng
+                  </button>
+                </div>
               </div>
             )}
           </div>
