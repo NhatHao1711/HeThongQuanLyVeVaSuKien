@@ -22,6 +22,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <redisson.version>3.27.0</redisson.version>
         <zxing.version>3.5.3</zxing.version>
+        <lombok.version>1.18.46</lombok.version>
     </properties>
 
     <dependencies>
@@ -174,7 +175,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.30</version>
+                            <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
