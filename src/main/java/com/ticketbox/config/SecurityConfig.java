@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/payments/vnpay-return",
+                                "/api/payment/**",
+                                "/test-pay.html",
                                 "/api/vouchers/active",
                                 "/uploads/**"
                         ).permitAll()

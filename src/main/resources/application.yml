@@ -80,6 +80,12 @@ rabbitmq:
   routing-key:
     payment-completed: ticket.payment.completed.key
 
+# ======================== PAYOS ========================
+payos:
+  client-id: "da0b30a7-4928-4c11-a7e9-84fb990156e8"
+  api-key: "abd68ced-1a12-4207-8db5-1a80392f0f0d"
+  checksum-key: "35497e9f51af7dc9204ea5b198c26a379d6ce04aa8a8a54563d7309d779e1489"
+
 # ===================== LOGGING =====================
 logging:
   level:

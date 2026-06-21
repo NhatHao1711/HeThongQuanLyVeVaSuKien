@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thử Nghiệm Thanh Toán PayOS - TRIVENT</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #080c14;
+            --card-bg: rgba(15, 22, 42, 0.45);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-glow: linear-gradient(135deg, #6366f1, #a855f7);
+            --accent-cyan: #06b6d4;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(6, 182, 212, 0.05) 0px, transparent 60%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Ambient glowing dots */
+        .ambient-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+            top: 20%;
+            left: 10%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+            bottom: 10%;
+            right: 15%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 480px;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 150%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.06),
+                transparent
+            );
+            transform: skewX(-20deg);
+            transition: 0.75s;
+        }
+
+        .glass-card:hover::before {
+            left: 150%;
+            transition: 0.75s;
+        }
+
+        .logo-container {
+            margin-bottom: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 70px;
+            height: 70px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 20px;
+            color: #818cf8;
+            font-size: 28px;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(120deg, #f8fafc 40%, #c7d2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 30px;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        .payment-info {
+            background: rgba(8, 12, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-row:first-child {
+            padding-top: 0;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .info-value.amount {
+            color: var(--accent-cyan);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-pay {
+            width: 100%;
+            background: var(--primary-glow);
+            border: none;
+            color: white;
+            padding: 16px 28px;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 10px 25px rgba(168, 85, 247, 0.35);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-pay:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(168, 85, 247, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .btn-pay:active {
+            transform: translateY(1px);
+        }
+
+        .footer {
+            margin-top: 24px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer a:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 12, 20, 0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            border-top-color: #6366f1;
+            border-bottom-color: #a855f7;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .loading-text {
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-8px) rotate(3deg);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-2"></div>
+
+    <div class="container">
+        <div class="glass-card">
+            <div class="logo-container">
+                <i class="fa-solid fa-ticket-simple"></i>
+            </div>
+            <h1>TRIVENT Checkout</h1>
+            <p class="subtitle">Trang kiểm tra tích hợp cổng thanh toán trực tuyến PayOS</p>
+
+            <div class="payment-info">
+                <div class="info-row">
+                    <span class="info-label">Dự án</span>
+                    <span class="info-value">Đồ án Quản lý Vé Sự kiện</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Nội dung chuyển khoản</span>
+                    <span class="info-value">Thanh toan ve SK</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Cổng thanh toán</span>
+                    <span class="info-value">PayOS (VietQR)</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Trạng thái Sandbox</span>
+                    <span class="badge">Hoạt động</span>
+                </div>
+                <div class="info-row" style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
+                    <span class="info-label">Tổng số tiền thanh toán</span>
+                    <span class="info-value amount">100.000đ</span>
+                </div>
+            </div>
+
+            <button class="btn-pay" id="btn-submit">
+                <i class="fa-solid fa-qrcode" style="font-size: 18px;"></i>
+                Thanh toán qua mã QR (VietQR)
+            </button>
+
+            <div class="footer">
+                <p>Phát triển bởi <a href="#" target="_blank">TRIVENT Team</a> &copy; 2026</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div class="loading-overlay" id="loader">
+        <div class="spinner"></div>
+        <div class="loading-text">Đang khởi tạo mã QR thanh toán PayOS...</div>
+    </div>
+
+    <script>
+        document.getElementById('btn-submit').addEventListener('click', function() {
+            // Hiển thị màn hình loading
+            const loader = document.getElementById('loader');
+            loader.classList.add('active');
+
+            // Gọi API đến Spring Boot backend
+            fetch('/api/payment/test-checkout')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Lỗi máy chủ khi tạo giao dịch.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.checkoutUrl) {
+                        // Tự động chuyển hướng sang trang thanh toán của PayOS
+                        window.location.href = data.checkoutUrl;
+                    } else {
+                        alert('Không nhận được checkoutUrl từ máy chủ.');
+                        loader.classList.remove('active');
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi fetch checkout URL:', error);
+                    alert('Đã xảy ra lỗi kết nối: ' + error.message);
+                    loader.classList.remove('active');
+                });
+        });
+    </script>
+</body>
+</html>

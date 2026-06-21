@@ -3,6 +3,7 @@ package com.ticketbox.controller;
 import com.ticketbox.dto.request.PaymentRequest;
 import com.ticketbox.dto.response.ApiResponse;
 import com.ticketbox.dto.response.PaymentUrlResponse;
+import com.ticketbox.service.PaymentService;
 import com.ticketbox.service.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -13,17 +14,27 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/payments")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class PaymentController {
 
     private final VNPayService vnPayService;
+    private final PaymentService paymentService;
+
+    /**
+     * GET /api/payment/test-checkout - Tạo URL thanh toán PayOS để test
+     */
+    @GetMapping("/payment/test-checkout")
+    public ResponseEntity<Map<String, String>> testCheckout() throws Exception {
+        String checkoutUrl = paymentService.createPaymentLink();
+        return ResponseEntity.ok(Map.of("checkoutUrl", checkoutUrl));
+    }
 
     /**
      * POST /api/payments/create-url - Tạo URL thanh toán VNPay
      * Yêu cầu JWT authentication.
      */
-    @PostMapping("/create-url")
+    @PostMapping("/payments/create-url")
     public ResponseEntity<ApiResponse<PaymentUrlResponse>> createPaymentUrl(
             @Valid @RequestBody PaymentRequest request,
             HttpServletRequest httpRequest) {
@@ -40,7 +51,7 @@ public class PaymentController {
      * GET /api/payments/vnpay-return - VNPay callback/return (Public endpoint)
      * Xử lý Idempotency: nếu order đã PAID → trả success mà không xử lý lại.
      */
-    @GetMapping("/vnpay-return")
+    @GetMapping("/payments/vnpay-return")
     public ResponseEntity<ApiResponse<String>> vnpayReturn(
             @RequestParam Map<String, String> params) {
 
