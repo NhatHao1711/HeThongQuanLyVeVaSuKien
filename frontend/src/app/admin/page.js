@@ -37,7 +37,17 @@ export default function AdminDashboard() {
   // Stats & Voucher state
   const [revenueStats, setRevenueStats] = useState(null);
   const [vouchers, setVouchers] = useState([]);
+  const [payouts, setPayouts] = useState([]);
+  const [agencies, setAgencies] = useState([]);
+  const [agencyTab, setAgencyTab] = useState('pending');
+  const [agenciesLoading, setAgenciesLoading] = useState(false);
   const [voucherForm, setVoucherForm] = useState({ code: '', description: '', discountPercent: '', discountAmount: '', maxUses: '', expiryDate: '' });
+
+  // Event review/moderation states
+  const [rejectEventId, setRejectEventId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [eventTab, setEventTab] = useState('all');
 
   useEffect(() => {
     const user = getUser();
@@ -53,7 +63,19 @@ export default function AdminDashboard() {
     if (activeTab === 'vouchers' && vouchers.length === 0) {
       apiRequest('/vouchers/admin').then(res => { if (res.success) setVouchers(res.data); });
     }
+    if (activeTab === 'payouts') {
+      loadPayouts();
+    }
+    if (activeTab === 'agencies') {
+      loadAgencies();
+    }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'agencies') {
+      loadAgencies();
+    }
+  }, [agencyTab]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -68,6 +90,106 @@ export default function AdminDashboard() {
       if (o.success) setOrders(o.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const loadPayouts = async () => {
+    try {
+      const res = await apiRequest('/admin/payouts');
+      if (res.success) setPayouts(res.data || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleApprovePayout = async (id) => {
+    if (!confirm('Xác nhận đã chuyển khoản cho yêu cầu rút tiền này?')) return;
+    try {
+      const res = await apiRequest(`/admin/payouts/${id}/approve`, { method: 'POST' });
+      if (res.success) { showMsg('success', 'Đã duyệt yêu cầu rút tiền thành công!'); loadPayouts(); }
+      else showMsg('error', res.message);
+    } catch (e) { showMsg('error', 'Lỗi kết nối'); }
+  };
+
+  const handleRejectPayout = async (id) => {
+    if (!confirm('Từ chối yêu cầu và hoàn trả lại tiền cho đại lý?')) return;
+    try {
+      const res = await apiRequest(`/admin/payouts/${id}/reject`, { method: 'POST' });
+      if (res.success) { showMsg('success', 'Đã từ chối và hoàn tiền thành công!'); loadPayouts(); }
+      else showMsg('error', res.message);
+    } catch (e) { showMsg('error', 'Lỗi kết nối'); }
+  };
+
+  const loadAgencies = async (tab = agencyTab) => {
+    setAgenciesLoading(true);
+    try {
+      const url = tab === 'pending' ? '/admin/organizers/requests' : '/admin/organizers/requests/approved';
+      const res = await apiRequest(url);
+      if (res.success) {
+        setAgencies(res.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAgenciesLoading(false);
+    }
+  };
+
+  const handleApproveAgency = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn duyệt yêu cầu đăng ký đại lý này?')) return;
+    try {
+      const res = await apiRequest(`/admin/organizers/requests/${id}/approve`, { method: 'POST' });
+      if (res.success) {
+        showMsg('success', 'Đã duyệt yêu cầu làm đại lý thành công!');
+        loadAgencies();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
+  const handleRejectAgency = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn từ chối yêu cầu đăng ký đại lý này?')) return;
+    try {
+      const res = await apiRequest(`/admin/organizers/requests/${id}/reject`, { method: 'POST' });
+      if (res.success) {
+        showMsg('success', 'Đã từ chối yêu cầu đăng ký đại lý.');
+        loadAgencies();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
+  const handleBlockAgency = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn khóa đại lý này?')) return;
+    try {
+      const res = await apiRequest(`/admin/organizers/requests/${id}/block`, { method: 'POST' });
+      if (res.success) {
+        showMsg('success', 'Đã khóa đại lý thành công!');
+        loadAgencies();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
+  const handleUnblockAgency = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn mở khóa đại lý này?')) return;
+    try {
+      const res = await apiRequest(`/admin/organizers/requests/${id}/unblock`, { method: 'POST' });
+      if (res.success) {
+        showMsg('success', 'Đã mở khóa đại lý thành công!');
+        loadAgencies();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
   };
 
   const confirmPayment = async (orderId) => {
@@ -215,7 +337,7 @@ export default function AdminDashboard() {
   const deleteEvent = (id) => {
     setConfirmDialog({
       show: true,
-      title: '🗑️ Xóa sự kiện',
+      title: 'Xóa sự kiện',
       message: 'Bạn có chắc chắn muốn xóa sự kiện này? Hành động này không thể hoàn tác.',
       onConfirm: async () => {
         setConfirmDialog(prev => ({ ...prev, show: false }));
@@ -228,10 +350,74 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleApproveEvent = async (id) => {
+    if (!confirm('Duyệt sự kiện này để cho phép bán vé?')) return;
+    try {
+      const res = await apiRequest(`/admin/events/${id}/approve`, { method: 'POST' });
+      if (res.success) {
+        showMsg('success', 'Đã duyệt và xuất bản sự kiện thành công!');
+        await loadAll();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
+  const handleRejectEvent = (id) => {
+    setRejectEventId(id);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const submitRejectEvent = async (e) => {
+    e.preventDefault();
+    if (!rejectReason.trim()) {
+      alert('Vui lòng nhập lý do từ chối');
+      return;
+    }
+    try {
+      const res = await apiRequest(`/admin/events/${rejectEventId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ rejectReason })
+      });
+      if (res.success) {
+        showMsg('success', 'Đã từ chối duyệt sự kiện');
+        setShowRejectModal(false);
+        await loadAll();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
+  const handleUpdateFeatured = async (id, tag) => {
+    try {
+      const res = await apiRequest(`/admin/events/${id}/featured`, {
+        method: 'POST',
+        body: JSON.stringify({
+          featuredTag: tag || null,
+          isFeatured: !!tag
+        })
+      });
+      if (res.success) {
+        showMsg('success', 'Đã cập nhật nhãn ưu tiên');
+        await loadAll();
+      } else {
+        showMsg('error', res.message);
+      }
+    } catch (e) {
+      showMsg('error', 'Lỗi kết nối');
+    }
+  };
+
   const sendMarketingEmail = (id) => {
     setConfirmDialog({
       show: true,
-      title: '✉️ Gửi email quảng bá',
+      title: 'Gửi email quảng bá',
       message: 'Gửi email quảng bá sự kiện này đến TẤT CẢ người dùng? Email sẽ được gửi ngay lập tức.',
       onConfirm: async () => {
         setConfirmDialog(prev => ({ ...prev, show: false }));
@@ -269,7 +455,7 @@ export default function AdminDashboard() {
   const deleteTicketType = (id) => {
     setConfirmDialog({
       show: true,
-      title: '🗑️ Xóa loại vé',
+      title: 'Xóa loại vé',
       message: 'Bạn có chắc chắn muốn xóa loại vé này?',
       onConfirm: async () => {
         setConfirmDialog(prev => ({ ...prev, show: false }));
@@ -330,7 +516,7 @@ export default function AdminDashboard() {
   const deleteUser = (id) => {
     setConfirmDialog({
       show: true,
-      title: '🗑️ Xóa người dùng',
+      title: 'Xóa người dùng',
       message: 'Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.',
       onConfirm: async () => {
         setConfirmDialog(prev => ({ ...prev, show: false }));
@@ -369,15 +555,21 @@ export default function AdminDashboard() {
     input: { width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', fontFamily: 'inherit', outline: 'none' },
     label: { display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#4a5568', marginBottom: 4 },
     ticketRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' },
+    subTab: (active) => ({ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 600, border: 'none', background: active ? '#00B46E' : 'transparent', color: active ? '#fff' : '#4a5568', borderRadius: 20, cursor: 'pointer', transition: 'all 0.15s', marginRight: 8, fontFamily: 'inherit' }),
   };
 
-  const tabs = [
+  const systemTabs = [
     { id: 'dashboard', label: 'Tổng quan' },
-    { id: 'events', label: 'Sự kiện' },
     { id: 'users', label: 'Người dùng' },
     { id: 'orders', label: 'Đơn hàng' },
     { id: 'stats', label: 'Thống kê' },
     { id: 'vouchers', label: 'Voucher' },
+  ];
+
+  const agencyTabs = [
+    { id: 'agencies', label: 'Duyệt đại lý' },
+    { id: 'events', label: 'Duyệt sự kiện' },
+    { id: 'payouts', label: 'Yêu cầu rút tiền' },
   ];
 
   const checkinLink = (
@@ -415,13 +607,13 @@ export default function AdminDashboard() {
             <label style={s.label}>Hình ảnh sự kiện</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <label style={{ ...s.btn('#e0f2fe', '#0284c7'), cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px' }}>
-                📸 {imagePreview ? 'Đổi ảnh' : 'Chọn ảnh'}
+                {imagePreview ? 'Đổi ảnh' : 'Chọn ảnh'}
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageSelect} />
               </label>
               {imagePreview && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <img src={imagePreview} alt="Preview" style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 8, border: '2px solid #e2e8f0' }} />
-                  <button type="button" onClick={clearImageSelection} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>✕ Xoá ảnh</button>
+                  <button type="button" onClick={clearImageSelection} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Xoá ảnh</button>
                 </div>
               )}
               {!imagePreview && <span style={{ fontSize: '0.82rem', color: '#a0aec0' }}>PNG, JPG, WEBP (tối đa 5MB)</span>}
@@ -443,8 +635,15 @@ export default function AdminDashboard() {
       <div style={s.page}>
         {/* Sidebar */}
         <aside style={s.sidebar}>
-          <div style={s.sidebarTitle}>Quản trị</div>
-          {tabs.map(t => (
+          <div style={s.sidebarTitle}>Hệ thống</div>
+          {systemTabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={s.navItem(activeTab === t.id)}>
+              {t.label}
+            </button>
+          ))}
+          
+          <div style={{ ...s.sidebarTitle, marginTop: '1.5rem' }}>Đại lý</div>
+          {agencyTabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} style={s.navItem(activeTab === t.id)}>
               {t.label}
             </button>
@@ -494,12 +693,29 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              {/* Sub tabs for Events */}
+              <div style={{ display: 'flex', marginBottom: '1.5rem' }}>
+                <button
+                  onClick={() => setEventTab('all')}
+                  style={s.subTab(eventTab === 'all')}
+                >
+                  Tất cả sự kiện ({events.length})
+                </button>
+                <button
+                  onClick={() => setEventTab('pending')}
+                  style={s.subTab(eventTab === 'pending')}
+                >
+                  Đang chờ duyệt ({events.filter(e => e.status === 'PENDING').length})
+                </button>
+              </div>
+
               {showCreateEvent && renderEventForm(createEvent, false)}
               {editingEvent && !showCreateEvent && renderEventForm(saveEditEvent, true)}
 
-
-
-              {events.map(ev => (
+              {events.filter(ev => {
+                if (eventTab === 'pending') return ev.status === 'PENDING';
+                return true;
+              }).map(ev => (
                 <div key={ev.id} style={s.card}>
                   <div style={s.cardHeader}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
@@ -508,23 +724,50 @@ export default function AdminDashboard() {
                         {ev.imageUrl ? (
                           <img src={`http://localhost:8080${ev.imageUrl}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          <span style={{ fontSize: '1.5rem' }}>🎪</span>
+                          <span style={{ fontSize: '0.8rem', color: '#a0aec0' }}>TRIVENT</span>
                         )}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{ev.title}</span>
                           <span style={s.badge(
-                            ev.status === 'PUBLISHED' ? 'rgba(0,180,110,0.1)' : ev.status === 'DRAFT' ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)',
-                            ev.status === 'PUBLISHED' ? '#00B46E' : ev.status === 'DRAFT' ? '#3b82f6' : '#ef4444'
+                            ev.status === 'PUBLISHED' ? 'rgba(0,180,110,0.1)' : ev.status === 'DRAFT' ? 'rgba(59,130,246,0.1)' : ev.status === 'PENDING' ? 'rgba(245,158,11,0.1)' : ev.status === 'REJECTED' ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.1)',
+                            ev.status === 'PUBLISHED' ? '#00B46E' : ev.status === 'DRAFT' ? '#3b82f6' : ev.status === 'PENDING' ? '#f59e0b' : ev.status === 'REJECTED' ? '#ef4444' : '#ef4444'
                           )}>{ev.status}</span>
+                          {ev.featuredTag && (
+                            <span style={s.badge('rgba(139,92,246,0.1)', '#8b5cf6')}>{ev.featuredTag}</span>
+                          )}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#a0aec0' }}>📍 {ev.location}  ·  📅 {formatDate(ev.startTime)}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#a0aec0' }}>Địa điểm: {ev.location}  ·  Thời gian: {formatDate(ev.startTime)}</div>
+                        {ev.status === 'REJECTED' && ev.rejectReason && (
+                          <div style={{ fontSize: '0.78rem', color: '#ef4444', marginTop: 4 }}>Lý do từ chối: {ev.rejectReason}</div>
+                        )}
                       </div>
                     </div>
-                    <div style={s.btnGroup}>
+                    
+                    <div style={{ ...s.btnGroup, alignItems: 'center', gap: 8 }}>
+                      {/* Gắn nhãn Featured */}
+                      <select 
+                        value={ev.featuredTag || ''} 
+                        onChange={(e) => handleUpdateFeatured(ev.id, e.target.value)}
+                        style={{ padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.8rem', outline: 'none', background: '#fff', cursor: 'pointer' }}
+                      >
+                        <option value="">Không nổi bật</option>
+                        <option value="HOT">HOT</option>
+                        <option value="TRENDING">TRENDING</option>
+                        <option value="SPONSORED">SPONSORED</option>
+                      </select>
+
                       <button style={s.btn('#f5f7fa', '#4a5568')} onClick={() => setExpandedEvent(expandedEvent === ev.id ? null : ev.id)}>Vé ({ev.ticketTypes?.length || 0})</button>
                       <button style={s.btn('#f5f7fa', '#4a5568')} onClick={() => startEditEvent(ev)}>Sửa</button>
+                      
+                      {ev.status === 'PENDING' && (
+                        <>
+                          <button style={s.btn('#00B46E', '#fff')} onClick={() => handleApproveEvent(ev.id)}>Duyệt</button>
+                          <button style={s.btn('#ef4444', '#fff')} onClick={() => handleRejectEvent(ev.id)}>Từ chối</button>
+                        </>
+                      )}
+                      
                       {ev.status === 'DRAFT' && <button style={s.btn('#00B46E', '#fff')} onClick={() => publishEvent(ev.id)}>Publish</button>}
                       {(ev.status === 'PUBLISHED' || ev.status === 'ONGOING') && <button style={s.btn('#f59e0b', '#fff')} onClick={() => closeEvent(ev.id)}>Đóng</button>}
                       {(ev.status === 'PUBLISHED' || ev.status === 'ONGOING') && <button style={s.btn('#3b82f6', '#fff')} onClick={() => sendMarketingEmail(ev.id)} disabled={formLoading}>✉️ Gửi quảng bá</button>}
@@ -599,9 +842,9 @@ export default function AdminDashboard() {
                   )}
                 </div>
               ))}
-              {events.length === 0 && <div style={{ textAlign: 'center', padding: '3rem', color: '#a0aec0' }}>Chưa có sự kiện. Nhấn "+ Tạo sự kiện"</div>}
+              {events.length === 0 && <div style={{ textAlign: 'center', padding: '3rem', color: '#a0aec0' }}>Chưa có sự kiện. Nhấn &quot;+ Tạo sự kiện&quot;</div>}
             </>
-          )}
+          ) /* END EVENTS */}
 
           {/* USERS */}
           {activeTab === 'users' && (
@@ -669,7 +912,7 @@ export default function AdminDashboard() {
               <div style={{ ...s.header, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h1 style={s.headerTitle}>Đơn hàng ({orders.length})</h1>
                 <button onClick={exportOrdersCSV} style={s.btn('#00B46E', '#fff')}>
-                  📥 Xuất CSV
+                  Xuất CSV
                 </button>
               </div>
               <div className="table-responsive" style={{ ...s.card }}>
@@ -695,8 +938,8 @@ export default function AdminDashboard() {
                         <td style={s.td}>
                           {o.status === 'PENDING' ? (
                             <div style={s.btnGroup}>
-                              <button style={{ ...s.btn('#e8f5e9', '#00B46E'), display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => confirmPayment(o.id)}>{icons.check(14, '#00B46E')} Xác nhận</button>
-                              <button style={{ ...s.btn('#fee2e2', '#ef4444'), display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => rejectPayment(o.id)}>{icons.x(14, '#ef4444')} Từ chối</button>
+                              <button style={{ ...s.btn('#e8f5e9', '#00B46E'), display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => confirmPayment(o.id)}>Xác nhận</button>
+                              <button style={{ ...s.btn('#fee2e2', '#ef4444'), display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => rejectPayment(o.id)}>Từ chối</button>
                             </div>
                           ) : (
                             <span style={{ color: '#a0aec0', fontSize: '0.8rem' }}>—</span>
@@ -709,6 +952,149 @@ export default function AdminDashboard() {
               </div>
             </>
           )}
+          {/* ===== AGENCIES TAB ===== */}
+          {activeTab === 'agencies' && (
+            <>
+              <div style={{ ...s.header, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h1 style={s.headerTitle}>Quản lý đại lý ({agencies.length})</h1>
+                  <p style={s.headerDesc}>Phê duyệt yêu cầu làm đại lý và quản lý trạng thái hoạt động</p>
+                </div>
+                <button onClick={() => loadAgencies()} style={s.btn('#00B46E', '#fff')}>Làm mới</button>
+              </div>
+
+              {/* Sub tabs for Agencies */}
+              <div style={{ display: 'flex', marginBottom: '1.5rem' }}>
+                <button
+                  onClick={() => setAgencyTab('pending')}
+                  style={s.subTab(agencyTab === 'pending')}
+                >
+                  Yêu cầu chờ duyệt ({agencyTab === 'pending' ? agencies.length : '...'})
+                </button>
+                <button
+                  onClick={() => setAgencyTab('approved')}
+                  style={s.subTab(agencyTab === 'approved')}
+                >
+                  Đại lý hoạt động ({agencyTab === 'approved' ? agencies.length : '...'})
+                </button>
+              </div>
+
+              {agenciesLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <div className="spinner" style={{ width: 32, height: 32, margin: '0 auto' }}></div>
+                </div>
+              ) : (
+                <div className="table-responsive" style={{ ...s.card }}>
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        {['ID', 'Tên tổ chức', 'Đại diện', 'Liên hệ', 'Thời gian', 'Trạng thái', 'Thao tác'].map(h => <th key={h} style={s.th}>{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agencies.length === 0 ? (
+                        <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#a0aec0' }}>Không có đại lý nào</td></tr>
+                      ) : agencies.map(a => (
+                        <tr key={a.id}>
+                          <td style={s.td}>#{a.id}</td>
+                          <td style={{ ...s.td, fontWeight: 700, color: '#1a1a2e' }}>{a.organizationName}</td>
+                          <td style={s.td}>
+                            <div style={{ fontWeight: 600 }}>{a.user?.fullName || '-'}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#a0aec0' }}>ID: {a.user?.id}</div>
+                          </td>
+                          <td style={s.td}>
+                            <div>Email: {a.contactEmail}</div>
+                            <div>SĐT: {a.contactPhone}</div>
+                          </td>
+                          <td style={{ ...s.td, color: '#a0aec0', fontSize: '0.8rem' }}>{formatDate(a.createdAt)}</td>
+                          <td style={s.td}>
+                            <span style={s.badge(
+                              a.status === 'APPROVED' ? 'rgba(0,180,110,0.1)' : a.status === 'PENDING' ? 'rgba(245,158,11,0.1)' : a.status === 'BLOCKED' ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.1)',
+                              a.status === 'APPROVED' ? '#00B46E' : a.status === 'PENDING' ? '#f59e0b' : a.status === 'BLOCKED' ? '#ef4444' : '#ef4444'
+                            )}>{a.status}</span>
+                          </td>
+                          <td style={s.td}>
+                            {a.status === 'PENDING' && (
+                              <div style={s.btnGroup}>
+                                <button style={s.btn('#00B46E', '#fff')} onClick={() => handleApproveAgency(a.id)}>Duyệt</button>
+                                <button style={s.btn('#ef4444', '#fff')} onClick={() => handleRejectAgency(a.id)}>Từ chối</button>
+                              </div>
+                            )}
+                            {a.status === 'APPROVED' && (
+                              <button style={s.btn('#fee2e2', '#ef4444')} onClick={() => handleBlockAgency(a.id)}>Khóa</button>
+                            )}
+                            {a.status === 'BLOCKED' && (
+                              <button style={s.btn('#e0f2fe', '#0284c7')} onClick={() => handleUnblockAgency(a.id)}>Mở khóa</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ===== PAYOUTS TAB ===== */}
+          {activeTab === 'payouts' && (
+            <>
+              <div style={{ ...s.header, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h1 style={s.headerTitle}>Yêu cầu rút tiền ({payouts.length})</h1>
+                  <p style={s.headerDesc}>Duyệt và xác nhận chuyển khoản cho đại lý</p>
+                </div>
+                <button onClick={loadPayouts} style={s.btn('#00B46E', '#fff')}>Làm mới</button>
+              </div>
+
+              <div className="table-responsive" style={{ ...s.card }}>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      {['Mã', 'Đại lý', 'Số tiền', 'Tài khoản ngân hàng', 'Thời gian', 'Trạng thái', 'Thao tác'].map(h => <th key={h} style={s.th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payouts.length === 0 ? (
+                      <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#a0aec0' }}>Chưa có yêu cầu rút tiền nào</td></tr>
+                    ) : payouts.map(p => (
+                      <tr key={p.id}>
+                        <td style={s.td}>#{p.payoutRef || p.id}</td>
+                        <td style={s.td}>
+                          <div style={{ fontWeight: 600 }}>{p.agencyName}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#a0aec0' }}>{p.agencyEmail}</div>
+                        </td>
+                        <td style={{ ...s.td, fontWeight: 700, color: '#00B46E' }}>{formatMoney(p.netAmount)}</td>
+                        <td style={s.td}>
+                          <div><strong>{p.bankName}</strong></div>
+                          <div style={{ fontSize: '0.85rem' }}>STK: {p.bankAccountNumber}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Tên: {p.bankAccountName}</div>
+                        </td>
+                        <td style={{ ...s.td, color: '#a0aec0', fontSize: '0.8rem' }}>{formatDate(p.createdAt)}</td>
+                        <td style={s.td}>
+                          <span style={s.badge(
+                            p.status === 'COMPLETED' ? 'rgba(0,180,110,0.1)' : p.status === 'PENDING' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                            p.status === 'COMPLETED' ? '#00B46E' : p.status === 'PENDING' ? '#f59e0b' : '#ef4444'
+                          )}>{p.status}</span>
+                        </td>
+                        <td style={s.td}>
+                          {p.status === 'PENDING' ? (
+                            <div style={s.btnGroup}>
+                              <button style={s.btn('#00B46E', '#fff')} onClick={() => handleApprovePayout(p.id)}>Duyệt</button>
+                              <button style={s.btn('#ef4444', '#fff')} onClick={() => handleRejectPayout(p.id)}>Từ chối</button>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#a0aec0', fontSize: '0.8rem' }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
           {/* ===== STATS TAB ===== */}
           {activeTab === 'stats' && (
             <>
@@ -717,19 +1103,23 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: '2rem', color: '#a0aec0' }}><div className="spinner" style={{ width: 32, height: 32, margin: '0 auto 1rem' }}></div>Đang tải thống kê...</div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-                  {[{ label: 'Tổng doanh thu', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(revenueStats.totalRevenue || 0), color: '#00B46E' },
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                  {[
+                    { label: 'Tổng doanh thu', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(revenueStats.totalRevenue || 0), color: '#00B46E' },
+                    { label: 'Phí sàn thu về (20%)', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(revenueStats.platformFee || 0), color: '#8b5cf6' },
+                    { label: 'Nợ đại lý (80%)', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(revenueStats.totalOrganizerDebt || 0), color: '#ef4444' },
                     { label: 'Tổng đơn hàng', value: revenueStats.totalOrders, color: '#3b82f6' },
-                    { label: 'Vé đã bán', value: revenueStats.totalTicketsSold, color: '#f59e0b' }].map((s2, i) => (
+                    { label: 'Vé đã bán', value: revenueStats.totalTicketsSold, color: '#f59e0b' }
+                  ].map((s2, i) => (
                     <div key={i} style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 800, color: s2.color }}>{s2.value}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: 4 }}>{s2.label}</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s2.color }}>{s2.value}</div>
+                      <div style={{ fontSize: '0.82rem', color: '#718096', marginTop: 4, fontWeight: 500 }}>{s2.label}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* 📊 Canvas Bar Chart */}
-                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>📊 Biểu đồ doanh thu theo sự kiện</h3>
+                {/* Canvas Bar Chart */}
+                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>Biểu đồ doanh thu theo sự kiện</h3>
                 <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', marginBottom: '2rem' }}>
                   <canvas ref={el => {
                     if (!el || !revenueStats?.eventStats?.length) return;
@@ -842,7 +1232,7 @@ export default function AdminDashboard() {
                 }}>Làm mới</button>
               </div>
               {vouchers.length === 0 ? (
-                <p style={{ color: '#a0aec0', textAlign: 'center', padding: '1rem' }}>Chưa có voucher. Bấm "Làm mới" để tải.</p>
+                <p style={{ color: '#a0aec0', textAlign: 'center', padding: '1rem' }}>Chưa có voucher. Bấm &quot;Làm mới&quot; để tải.</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -953,7 +1343,7 @@ export default function AdminDashboard() {
                 disabled={seatLoading}
                 style={{ ...s.btn('#00B46E', '#fff'), flex: 1, padding: '0.8rem', fontSize: '0.92rem', fontWeight: 700, borderRadius: 10 }}
               >
-                {seatLoading ? 'Đang tạo...' : seatManagerTicket.seatCount > 0 ? '🔄 Tạo lại (Reset)' : '✨ Tạo sơ đồ ghế'}
+                {seatLoading ? 'Đang tạo...' : seatManagerTicket.seatCount > 0 ? 'Tạo lại (Reset)' : 'Tạo sơ đồ ghế'}
               </button>
               <button onClick={() => setSeatManagerTicket(null)}
                 style={{ ...s.btn('#f1f5f9', '#475569'), padding: '0.8rem 1.2rem', borderRadius: 10 }}
@@ -989,6 +1379,54 @@ export default function AdminDashboard() {
                   background: 'var(--primary, #00B46E)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem'
                 }}>Xác nhận</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Event Modal */}
+      {showRejectModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 440, width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>❌ Từ chối duyệt sự kiện</h3>
+            <form onSubmit={submitRejectEvent}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4b5563', marginBottom: '0.5rem' }}>Lý do từ chối</label>
+                <textarea 
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', minHeight: '100px', resize: 'vertical', outline: 'none' }}
+                  placeholder="Nhập lý do từ chối cụ thể..."
+                  required
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowRejectModal(false)}
+                  style={{
+                    padding: '0.6rem 1.25rem', borderRadius: 10, border: '1px solid #e2e8f0',
+                    background: '#f8fafc', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.6rem 1.25rem', borderRadius: 10, border: 'none',
+                    background: '#ef4444', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem'
+                  }}
+                >
+                  Từ chối duyệt
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

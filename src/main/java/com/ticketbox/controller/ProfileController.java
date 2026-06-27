@@ -42,6 +42,9 @@ public class ProfileController {
         profile.put("role", user.getRole().name());
         profile.put("universityId", user.getUniversity() != null ? user.getUniversity().getId() : null);
         profile.put("universityName", user.getUniversity() != null ? user.getUniversity().getName() : null);
+        profile.put("balance", user.getBalance());
+        profile.put("holdingBalance", user.getHoldingBalance());
+        profile.put("agencyStatus", user.getAgencyStatus() != null ? user.getAgencyStatus().name() : null);
         profile.put("createdAt", user.getCreatedAt());
 
         return ResponseEntity.ok(ApiResponse.success("Thông tin cá nhân", profile));

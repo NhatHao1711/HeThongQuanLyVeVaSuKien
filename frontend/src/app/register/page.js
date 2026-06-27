@@ -41,6 +41,7 @@ export default function RegisterPage() {
           fullName: res.data.fullName,
           email: res.data.email,
           role: res.data.role,
+          agencyStatus: res.data.agencyStatus,
         });
         window.location.href = '/';
       } else {

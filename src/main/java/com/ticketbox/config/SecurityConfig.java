@@ -45,7 +45,7 @@ public class SecurityConfig {
                                 "/api/vouchers/active",
                                 "/uploads/**"
                         ).permitAll()
-                        .requestMatchers("GET", "/api/events", "/api/events/**", "/api/seats")
+                        .requestMatchers("GET", "/api/events", "/api/events/**", "/api/seats", "/api/categories")
                         .permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**")
                         .permitAll()

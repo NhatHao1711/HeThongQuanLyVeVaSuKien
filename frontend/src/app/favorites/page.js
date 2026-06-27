@@ -45,7 +45,7 @@ export default function FavoritesPage() {
           <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← {t('common.back')}</Link>
 
           <h1 style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-            {icons.heart(24, '#e91e63', true)} {t('favorites.title')}
+            {t('favorites.title')}
           </h1>
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>{t('favorites.subtitle')}</p>
 
@@ -55,7 +55,6 @@ export default function FavoritesPage() {
             </div>
           ) : favorites.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>{icons.heartBroken(48, '#ccc')}</div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>{t('favorites.no_favorites')}</p>
               <Link href="/events" className="btn btn-primary">{t('favorites.explore_btn')}</Link>
             </div>
@@ -71,7 +70,7 @@ export default function FavoritesPage() {
                     background: fav.imageUrl ? `url(${API_BASE}${fav.imageUrl}) center/cover` : 'linear-gradient(135deg, #667eea, #764ba2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                   }}>
-                    {!fav.imageUrl && <span style={{ color: 'rgba(255,255,255,0.4)' }}>{icons.calendar(40, 'rgba(255,255,255,0.4)')}</span>}
+                    {!fav.imageUrl && <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>TRIVENT</span>}
                   </div>
                   <div style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
@@ -84,14 +83,14 @@ export default function FavoritesPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>{icons.mapPin(14, '#888')} {fav.location}</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>{icons.calendar(14, '#888')} {formatDate(fav.startTime)}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>Địa điểm: {fav.location}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>Thời gian: {formatDate(fav.startTime)}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <Link href={`/events/${fav.eventId}`} className="btn btn-primary btn-sm">{t('favorites.view_detail')}</Link>
                         <button onClick={() => removeFavorite(fav.eventId)} 
                           style={{ background: 'none', border: '1px solid #e57373', color: '#e57373', borderRadius: 8, padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                          {icons.heartBroken(14, '#e57373')} {t('favorites.remove_btn')}
+                          {t('favorites.remove_btn')}
                         </button>
                       </div>
                     </div>

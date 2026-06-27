@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { icons } from './Icons';
 
 export default function EventCard({ event }) {
   const formatPrice = (ticketTypes) => {
@@ -32,7 +31,7 @@ export default function EventCard({ event }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           position: 'relative'
         }}>
-          {!event.imageUrl && <span style={{ opacity: 0.4 }}>{icons.calendar(48, '#fff')}</span>}
+          {!event.imageUrl && <span style={{ opacity: 0.5, fontWeight: 700, color: '#fff', fontSize: '1.2rem' }}>TRIVENT</span>}
           {/* Dynamic status badge */}
           {(() => {
             const now = new Date();
@@ -65,12 +64,12 @@ export default function EventCard({ event }) {
             {event.description?.substring(0, 80)}{event.description?.length > 80 ? '...' : ''}
           </p>
           <div style={{ fontSize: '0.8rem', color: '#a0aec0', marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: 2 }}>{icons.mapPin(13, '#a0aec0')} {event.location || 'Chưa xác định'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>{icons.calendar(13, '#a0aec0')} {formatDate(event.startTime || event.fromDate)}</div>
+            <div style={{ marginBottom: 2 }}>Địa điểm: {event.location || 'Chưa xác định'}</div>
+            <div>Thời gian: {formatDate(event.startTime || event.fromDate)}</div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #e2e8f0' }}>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: '#00B46E' }}>{formatPrice(event.ticketTypes)}</span>
-            <span style={{ padding: '6px 14px', background: '#00B46E', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600 }}>Đặt vé →</span>
+            <span style={{ padding: '6px 14px', background: '#00B46E', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600 }}>Đặt vé</span>
           </div>
         </div>
       </div>

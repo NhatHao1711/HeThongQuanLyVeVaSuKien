@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class TicketResponse {
     private Long id;
     private String orderRef;
+    private Long eventId;
     private String eventTitle;
     private String ticketTypeName;
     private String checkinStatus;

@@ -27,6 +27,7 @@ public class ReviewController {
     private final EventReviewRepository reviewRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
     /**
      * GET /api/events/{eventId}/reviews — Public: lấy danh sách đánh giá
@@ -69,6 +70,20 @@ public class ReviewController {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // Kiểm tra sự kiện đã kết thúc chưa
+        if (event.getEndTime() == null || java.time.LocalDateTime.now().isBefore(event.getEndTime())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Bạn chỉ có thể đánh giá sau khi sự kiện kết thúc"));
+        }
+
+        // Kiểm tra sinh viên có vé và đã check-in thành công chưa
+        boolean hasCheckedIn = userTicketRepository.existsByUserIdAndEventIdAndCheckinStatus(
+                user.getId(), eventId, com.ticketbox.enums.CheckinStatus.USED);
+        if (!hasCheckedIn) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Bạn chỉ có thể đánh giá sự kiện khi đã mua vé và check-in tham gia thành công"));
+        }
 
         // Check duplicate
         if (reviewRepository.findByEventIdAndUserId(eventId, user.getId()).isPresent()) {

@@ -38,6 +38,8 @@ public class VNPayService {
     private final com.ticketbox.repository.SeatRepository seatRepository;
     private final com.ticketbox.repository.TicketTypeRepository ticketTypeRepository;
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
+    private final com.ticketbox.repository.LedgerEntryRepository ledgerEntryRepository;
+    private final com.ticketbox.repository.UserRepository userRepository;
 
     @Value("${vnpay.tmn-code}")
     private String vnpTmnCode;
@@ -183,6 +185,29 @@ public class VNPayService {
                 if (seat != null) {
                     seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
                     seatRepository.save(seat);
+                }
+            }
+
+            // Chia tiền hoa hồng nếu có organizer
+            com.ticketbox.entity.Event event = order.getEvent();
+            if (event != null && event.getOrganizer() != null) {
+                com.ticketbox.entity.User organizer = event.getOrganizer();
+                java.math.BigDecimal total = order.getTotalAmount();
+                if (total != null && total.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
+                    organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
+                    userRepository.save(organizer);
+                    
+                    com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
+                            .order(order)
+                            .agency(organizer)
+                            .entryType("CREDIT_TICKET_SALE")
+                            .amount(organizerShare)
+                            .status("HOLDING")
+                            .build();
+                    ledgerEntryRepository.save(ledgerEntry);
+                    
+                    log.info("💰 Đã cộng {} VND vào tài khoản TẠM GIỮ đại lý: {}", organizerShare, organizer.getEmail());
                 }
             }
 

@@ -142,7 +142,7 @@ export default function BuddiesPage() {
                 </div>
 
                 {/* My Buddies */}
-                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>✅ {t('buddies.tab_my_buddies')}</h3>
+                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{t('buddies.tab_my_buddies')}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '2.5rem' }}>
                   {buddies.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)' }}>
@@ -164,7 +164,7 @@ export default function BuddiesPage() {
                             <div style={{ fontWeight: 600 }}>
                               {b.senderId === user?.userId ? b.receiverName : b.senderName}
                             </div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>🎫 {b.eventTitle}</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sự kiện: {b.eventTitle}</div>
                           </div>
                           <span className={`badge ${b.status === 'ACCEPTED' ? 'badge-free' : b.status === 'PENDING' ? 'badge-upcoming' : 'badge-live'}`}>
                             {b.status === 'ACCEPTED' ? t('buddies.status_accepted') : b.status === 'PENDING' ? t('buddies.status_pending') : b.status}
@@ -190,7 +190,7 @@ export default function BuddiesPage() {
                 </div>
 
                 {/* Suggestions */}
-                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>💡 {t('buddies.potential_buddies_title').replace('{count}', suggestions.length)}</h3>
+                <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{t('buddies.potential_buddies_title').replace('{count}', suggestions.length)}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   {suggestions.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)' }}>
@@ -216,7 +216,7 @@ export default function BuddiesPage() {
                             className="btn btn-primary btn-sm"
                             onClick={() => sendBuddyRequest(userId)}
                             disabled={sendingTo === userId}>
-                            {sendingTo === userId ? '...' : `🤝 ${t('buddies.connect_btn')}`}
+                            {sendingTo === userId ? '...' : t('buddies.connect_btn')}
                           </button>
                         </div>
                       </div>
@@ -226,7 +226,6 @@ export default function BuddiesPage() {
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
                 <p>{t('buddies.no_events')} <Link href="/events" style={{ color: 'var(--primary)' }}>{t('tickets.explore_btn')}!</Link></p>
               </div>
             )}
@@ -245,7 +244,7 @@ export default function BuddiesPage() {
               width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
             }}>
               <h3 style={{ marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                📞 {t('buddies.contact_modal_title')}
+                {t('buddies.contact_modal_title')}
               </h3>
               
               <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px' }}>
@@ -253,7 +252,7 @@ export default function BuddiesPage() {
                   {contactBuddy.senderId === user?.userId ? contactBuddy.receiverName : contactBuddy.senderName}
                 </div>
                 <div style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}>
-                  ✉️ {contactBuddy.senderId === user?.userId ? contactBuddy.receiverEmail : contactBuddy.senderEmail}
+                  Email: {contactBuddy.senderId === user?.userId ? contactBuddy.receiverEmail : contactBuddy.senderEmail}
                 </div>
               </div>
 

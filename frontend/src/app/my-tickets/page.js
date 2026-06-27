@@ -112,7 +112,7 @@ export default function MyTicketsPage() {
               overflow: 'hidden'
             }}>
               <div style={{ position: 'absolute', top: '-50%', left: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(0,180,110,0.15) 0%, transparent 70%)', borderRadius: '50%' }}></div>
-              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>🎟️ {t('tickets.title')}</h2>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>{t('tickets.title')}</h2>
               <p style={{ color: '#94a3b8', fontSize: '1.05rem', position: 'relative', zIndex: 2 }}>{t('tickets.subtitle')}</p>
             </div>
 
@@ -200,7 +200,6 @@ export default function MyTicketsPage() {
 
                 {tickets.length === 0 && (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 2rem', background: '#fff', borderRadius: '24px', border: '1px dashed #cbd5e1' }}>
-                    <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎫</div>
                     <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '0.5rem' }}>{t('tickets.no_tickets_title')}</h3>
                     <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{t('tickets.no_tickets_desc')}</p>
                     <Link href="/events" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '50px', fontWeight: 600 }}>{t('tickets.explore_btn')}</Link>

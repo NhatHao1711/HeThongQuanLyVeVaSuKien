@@ -1,4 +1,4 @@
-{
+export default {
   "nav": {
     "home": "Home",
     "events": "Events",
@@ -13,7 +13,16 @@
     "register": "Register",
     "notifications": "Notifications",
     "read_all": "Mark all read",
-    "no_notifications": "No notifications"
+    "no_notifications": "No notifications",
+    "search_placeholder": "What are you looking for today?",
+    "create_event": "Create Event",
+    "no_new_notifications": "No new notifications",
+    "account": "Account",
+    "admin_channel": "Admin Portal",
+    "agency_channel": "Agency Portal",
+    "register_agency": "Register Agency",
+    "profile": "My Profile",
+    "explore": "Explore Events"
   },
   "home": {
     "hero_badge": "Discover amazing events",
@@ -32,7 +41,7 @@
     "hot_events_desc": "Don't miss out — the most highly sought-after events",
     "book_now": "Book Now",
     "no_events": "No events available. Please log in as Admin to create and publish events!",
-    "view_all": "View All Events →",
+    "view_all": "View All Events",
     "super_deal": "SUPER DEALS",
     "vouchers_title": "Student Discount Codes",
     "vouchers_desc": "Save discount codes and apply them during event checkout",
@@ -56,7 +65,23 @@
     "why_item5_desc": "Get premium tickets at student-friendly prices. Dozens of exclusive deals for student ID card holders.",
     "search": "Search",
     "search_placeholder_title": "Event title...",
-    "search_placeholder_location": "Location"
+    "search_placeholder_location": "Location",
+    "explore_section_title": "Explore Events",
+    "explore_section_subtitle": "Register to join the most exciting activities and events now",
+    "loading_events": "Loading events list...",
+    "no_events_announced": "No events available",
+    "no_events_announced_desc": "There are no events announced in this category yet. You can register an Agency account to create and manage events yourself.",
+    "register_agency_create": "Register Agency & Create Event",
+    "time_prefix": "Time",
+    "location_prefix": "Location",
+    "become_agency_title": "Become a Ticket Agent",
+    "become_agency_desc": "Register now as a ticket agent to publish your events on TRIVENT completely free!",
+    "register_now": "Register Now",
+    "welcome_title": "Welcome to TRIVENT",
+    "welcome_desc": "Discover thousands of amazing events organized by university students.",
+    "welcome_agency_title": "Create & Promote Events",
+    "welcome_agency_desc": "Register as a ticket agent to publish your events and reach thousands of students.",
+    "welcome_start_now": "Start Now"
   },
   "common": {
     "buy_ticket": "Get Tickets",
@@ -99,13 +124,13 @@
     "forgot_title": "Forgot Password",
     "forgot_subtitle": "Enter your email to receive a password reset link",
     "forgot_send_btn": "Send Reset Link",
-    "forgot_success_msg": "✅ If the email exists, you will receive instructions shortly. Please check your inbox!",
+    "forgot_success_msg": "If the email exists, you will receive instructions shortly. Please check your inbox!",
     "reset_title": "Reset Password",
     "reset_subtitle": "Enter a new password for your account",
     "reset_new_pwd": "New Password",
     "reset_confirm_pwd": "Confirm Password",
     "reset_btn": "Reset Password",
-    "reset_success_msg": "✅ Password reset successful! Please log in again.",
+    "reset_success_msg": "Password reset successful! Please log in again.",
     "pwd_not_match": "Confirm password does not match!",
     "register_fail": "Registration failed!",
     "login_fail": "Login failed!",
@@ -150,10 +175,10 @@
     "detail_no_desc": "No description available",
     "share_title": "Share Event",
     "share_success": "Link copied to clipboard!",
-    "status_cancelled": "🔴 Cancelled",
-    "status_upcoming": "🟡 Upcoming",
-    "status_ongoing": "🟢 Ongoing",
-    "status_completed": "⚫ Ended",
+    "status_cancelled": "Cancelled",
+    "status_upcoming": "Upcoming",
+    "status_ongoing": "Ongoing",
+    "status_completed": "Ended",
     "booking_title": "Book Tickets",
     "booking_desc": "Select your ticket type and preferred seats.",
     "booking_price_from": "Price from",
@@ -181,7 +206,7 @@
     "booking_bank_info": "Transfer Content",
     "booking_bank_qr_scan": "Scan QR Code for fast transfer",
     "booking_bank_confirm_btn": "I have transferred the money",
-    "booking_success_title": "🎉 Ticket Booked Successfully!",
+    "booking_success_title": "Ticket Booked Successfully!",
     "booking_success_desc": "Your order has been recorded. Please wait for the Admin to verify your bank transfer. Your tickets and check-in QR codes will be sent via email once confirmed.",
     "booking_view_tickets_btn": "View My Tickets",
     "booking_select_at_least_one": "Please select at least one ticket",
@@ -254,7 +279,7 @@
     "tab_my_buddies": "My Buddies",
     "event_label": "Select Event:",
     "event_placeholder": "Select an event to find buddies...",
-    "no_tickets_warning": "⚠️ You need to purchase a ticket for this event before finding a companion!",
+    "no_tickets_warning": "You need to purchase a ticket for this event before finding a companion!",
     "buy_ticket_btn": "Book Tickets for this event now",
     "potential_buddies_title": "Students attending this event ({count})",
     "no_potentials": "No students have registered to find buddies for this event yet.",
@@ -268,7 +293,7 @@
     "no_outgoing": "You haven't sent any requests.",
     "accept_btn": "Accept",
     "decline_btn": "Decline",
-    "status_accepted": "Matched 🎉",
+    "status_accepted": "Matched",
     "status_declined": "Declined",
     "status_pending": "Pending",
     "my_buddies_list": "Companions List ({count})",
@@ -279,7 +304,7 @@
     "no_suggestions": "No suggestions available. Invite your friends to join the event!",
     "connect_btn": "Connect",
     "contact_modal_title": "Contact Information",
-    "contact_modal_desc": "Please contact each other via email to arrange meeting times and locations. Wish you both a great event experience! 🎉",
+    "contact_modal_desc": "Please contact each other via email to arrange meeting times and locations. Wish you both a great event experience!",
     "close_btn": "Close",
     "no_events": "No events available."
   },
@@ -335,7 +360,10 @@
     "unupdated": "Not updated",
     "unlinked": "Not linked",
     "joined_date": "Joined Date",
-    "edit_btn": "Edit"
+    "edit_btn": "Edit",
+    "role_admin": "Administrator",
+    "role_organizer": "Organizer",
+    "role_user": "Student"
   },
   "favorites": {
     "title": "Favorite Events",
@@ -383,4 +411,4 @@
     "submit_btn": "Submit Event Proposal",
     "submitting_btn": "Submitting proposal..."
   }
-}
+};

@@ -43,7 +43,6 @@ export default function ForgotPasswordPage() {
           padding: '2.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
         }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔑</div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>{t('auth.forgot_title')}</h1>
             <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '0.5rem' }}>
               {t('auth.forgot_subtitle')}
@@ -87,7 +86,7 @@ export default function ForgotPasswordPage() {
                 transition: 'all 0.2s'
               }}
             >
-              {loading ? '⏳ ...' : '📧 ' + t('auth.forgot_send_btn')}
+              {loading ? 'Đang gửi...' : t('auth.forgot_send_btn')}
             </button>
           </form>
 

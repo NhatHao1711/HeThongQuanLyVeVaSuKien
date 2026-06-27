@@ -69,6 +69,7 @@ public class TicketService {
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .orderRef(ticket.getOrder().getTransactionRef())
+                .eventId(ticket.getTicketType().getEvent().getId())
                 .eventTitle(ticket.getTicketType().getEvent().getTitle())
                 .ticketTypeName(ticket.getTicketType().getName())
                 .checkinStatus(ticket.getCheckinStatus().toString())

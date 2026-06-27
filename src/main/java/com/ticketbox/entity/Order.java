@@ -67,4 +67,11 @@ public class Order {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public Event getEvent() {
+        if (userTickets != null && !userTickets.isEmpty() && userTickets.get(0).getTicketType() != null) {
+            return userTickets.get(0).getTicketType().getEvent();
+        }
+        return null;
+    }
 }

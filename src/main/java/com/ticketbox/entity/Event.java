@@ -31,6 +31,24 @@ public class Event {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizer_id")
+    private User organizer;
+
+    @Column(name = "is_featured", columnDefinition = "BIT DEFAULT 0")
+    @Builder.Default
+    private Boolean isFeatured = false;
+
+    @Column(name = "reject_reason", length = 500)
+    private String rejectReason;
+
+    @Column(name = "views", nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    @Builder.Default
+    private Long views = 0L;
+
+    @Column(name = "featured_tag", length = 50)
+    private String featuredTag;
+
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 
@@ -49,6 +67,9 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TicketType> ticketTypes = new ArrayList<>();
+
+    @Column(name = "holding_until")
+    private LocalDateTime holdingUntil;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

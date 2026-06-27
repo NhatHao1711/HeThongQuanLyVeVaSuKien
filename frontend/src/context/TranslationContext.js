@@ -1,7 +1,7 @@
 'use client';
-import { createContext, useContext, useState, useEffect } from 'react';
-import vi from '../locales/vi.json';
-import en from '../locales/en.json';
+import { createContext, useContext, useEffect, useState } from 'react';
+import vi from '../locales/vi';
+import en from '../locales/en';
 
 const translations = { vi, en };
 
@@ -9,14 +9,13 @@ const TranslationContext = createContext();
 
 export function TranslationProvider({ children }) {
   const [lang, setLang] = useState('vi');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('lang');
     if (savedLang && translations[savedLang]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLang(savedLang);
     }
-    setMounted(true);
   }, []);
 
   const changeLang = (newLang) => {
@@ -25,9 +24,9 @@ export function TranslationProvider({ children }) {
   };
 
   const t = (key) => {
-    const activeLang = mounted ? lang : 'vi';
+    if (typeof key !== 'string') return '';
     const keys = key.split('.');
-    let value = translations[activeLang];
+    let value = translations[lang];
     for (const k of keys) {
       if (value === undefined) break;
       value = value[k];

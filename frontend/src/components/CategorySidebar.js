@@ -2,13 +2,13 @@
 
 export default function CategorySidebar({ selected, onSelect }) {
   const categories = [
-    { id: null, name: 'Tất cả', icon: '🎪' },
-    { id: 1, name: 'Âm nhạc', icon: '🎵' },
-    { id: 2, name: 'Sân khấu', icon: '🎭' },
-    { id: 3, name: 'Thể thao', icon: '⚽' },
-    { id: 4, name: 'Hội thảo', icon: '🎓' },
-    { id: 5, name: 'Tham quan', icon: '🌍' },
-    { id: 6, name: 'Khác', icon: '📌' },
+    { id: null, name: 'Tất cả' },
+    { id: 1, name: 'Âm nhạc' },
+    { id: 2, name: 'Sân khấu' },
+    { id: 3, name: 'Thể thao' },
+    { id: 4, name: 'Hội thảo' },
+    { id: 5, name: 'Tham quan' },
+    { id: 6, name: 'Khác' },
   ];
 
   return (
@@ -31,7 +31,6 @@ export default function CategorySidebar({ selected, onSelect }) {
             textAlign: 'left',
           }}
         >
-          <span style={{ fontSize: '1.1rem' }}>{cat.icon}</span>
           {cat.name}
         </button>
       ))}

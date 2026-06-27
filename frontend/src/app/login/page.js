@@ -30,6 +30,7 @@ export default function LoginPage() {
           fullName: res.data.fullName,
           email: res.data.email,
           role: res.data.role,
+          agencyStatus: res.data.agencyStatus,
         });
         window.location.href = res.data.role === 'ROLE_ADMIN' ? '/admin' : '/';
       } else {

@@ -12,9 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import com.ticketbox.security.CustomUserDetails;
 
 /**
  * CheckinService - Nhiệm vụ C: QR Check-in bảo mật
@@ -35,18 +37,12 @@ public class CheckinService {
     private final AESUtil aesUtil;
 
     @Transactional
-    public String processCheckin(String qrToken) {
+    public String processCheckin(String qrToken, CustomUserDetails scanner) {
         if (qrToken == null || qrToken.trim().isEmpty()) {
             throw new InvalidQRTokenException("QR Token không được để trống");
         }
 
-        // Clean token: trim whitespace and try URL decode
-        String cleanToken = qrToken.trim();
-        try {
-            cleanToken = URLDecoder.decode(cleanToken, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // ignore, use original
-        }
+        String cleanToken = normalizeQrToken(qrToken);
 
         log.info("🔍 Processing QR token (length={}): {}...", cleanToken.length(),
                 cleanToken.substring(0, Math.min(20, cleanToken.length())));
@@ -95,6 +91,17 @@ public class CheckinService {
                     "Vé chưa được thanh toán, không thể check-in!");
         }
 
+        // 4.8. Validate Scanner Permission
+        com.ticketbox.entity.Event event = ticket.getOrder().getEvent();
+        boolean isAdmin = scanner.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        
+        if (!isAdmin) {
+            if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(scanner.getId())) {
+                throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền check-in vé của sự kiện này");
+            }
+        }
+
         // 5. Check duplicate scan (BLOCK trùng lặp)
         if (ticket.getCheckinStatus() == CheckinStatus.USED) {
             throw new BadRequestException(
@@ -106,9 +113,50 @@ public class CheckinService {
         ticket.setCheckinTime(LocalDateTime.now());
         userTicketRepository.save(ticket);
 
-        log.info("✅ Check-in SUCCESS: ticketId={}, userId={}", ticketId, userId);
+        log.info("✅ Check-in SUCCESS: ticketId={}, userId={}, scannerId={}", ticketId, userId, scanner.getId());
 
         return String.format("Check-in thành công! Vé #%d - %s",
                 ticketId, ticket.getTicketType().getName());
+    }
+
+    private String normalizeQrToken(String rawToken) {
+        String token = rawToken.trim();
+
+        for (int i = 0; i < 2; i++) {
+            try {
+                String decoded = URLDecoder.decode(token, StandardCharsets.UTF_8);
+                if (decoded.equals(token)) break;
+                token = decoded.trim();
+            } catch (Exception e) {
+                break;
+            }
+        }
+
+        if ((token.startsWith("\"") && token.endsWith("\"")) ||
+                (token.startsWith("'") && token.endsWith("'"))) {
+            token = token.substring(1, token.length() - 1).trim();
+        }
+
+        if (token.startsWith("http://") || token.startsWith("https://")) {
+            try {
+                URI uri = URI.create(token);
+                String query = uri.getRawQuery();
+                if (query != null) {
+                    for (String pair : query.split("&")) {
+                        String[] parts = pair.split("=", 2);
+                        if (parts.length == 2 && (
+                                "qrToken".equalsIgnoreCase(parts[0]) ||
+                                "token".equalsIgnoreCase(parts[0]) ||
+                                "qr".equalsIgnoreCase(parts[0]))) {
+                            return URLDecoder.decode(parts[1], StandardCharsets.UTF_8).trim();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Cannot parse QR URL, using raw token: {}", e.getMessage());
+            }
+        }
+
+        return token.replaceAll("\\s+", "");
     }
 }

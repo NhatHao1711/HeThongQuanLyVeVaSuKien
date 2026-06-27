@@ -12,4 +12,5 @@ import java.util.List;
 public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByStatus(EventStatus status);
     List<Event> findByStartTimeBetween(LocalDateTime from, LocalDateTime to);
+    List<Event> findByOrganizerId(Long organizerId);
 }

@@ -31,9 +31,10 @@ public class PaymentService {
 
     private final PayOS payOS;
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
     private final SeatRepository seatRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final UserRepository userRepository;
+    private final com.ticketbox.repository.LedgerEntryRepository ledgerEntryRepository;
 
     @Value("${rabbitmq.exchange.ticket}")
     private String ticketExchange;
@@ -82,32 +83,36 @@ public class PaymentService {
     private String checksumKey;
 
     @Transactional
-    public Map<String, Object> createPayOSPaymentLink(Long orderId, String userEmail) throws Exception {
+    public Map<String, Object> createPayOSPaymentLink(java.util.List<Long> orderIds, String userEmail) throws Exception {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
-
-        if (!order.getUser().getId().equals(user.getId())) {
-            throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền thanh toán cho đơn hàng này.");
+        java.util.List<Order> orders = orderRepository.findAllById(orderIds);
+        if (orders.isEmpty()) {
+            throw new ResourceNotFoundException("Orders", "ids", orderIds.toString());
         }
 
-        order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-        orderRepository.save(order);
+        int amount = 0;
+        String firstOrderId = String.valueOf(orders.get(0).getId());
 
-        long orderCode;
-        if (order.getTransactionRef() != null && order.getTransactionRef().matches("\\d+")) {
-            orderCode = Long.parseLong(order.getTransactionRef());
-        } else {
-            long unixSeconds = System.currentTimeMillis() / 1000L;
-            orderCode = Long.parseLong(unixSeconds + String.format("%04d", order.getId()));
-            order.setTransactionRef(String.valueOf(orderCode));
-            orderRepository.save(order);
+        for (Order order : orders) {
+            if (!order.getUser().getId().equals(user.getId())) {
+                throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền thanh toán cho đơn hàng này.");
+            }
+            amount += order.getTotalAmount().intValue();
         }
 
-        int amount = order.getTotalAmount().intValue();
-        String description = "TRIVENT " + order.getId();
+        String newTransactionRef = String.valueOf(System.currentTimeMillis()) + String.format("%03d", (int)(Math.random() * 1000));
+        
+        for (Order order : orders) {
+            order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+            order.setTransactionRef(newTransactionRef);
+        }
+        orderRepository.saveAll(orders);
+
+        long orderCode = Long.parseLong(newTransactionRef);
+        String description = "TRIVENT " + firstOrderId;
+
 
         if (description.length() > 25) {
             description = description.substring(0, 25);
@@ -190,7 +195,7 @@ public class PaymentService {
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
             org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
-                    "https://api-merchant.payos.vn/v2/payment-requests/" + orderCode,
+                    "https://api-merchant.payos.vn/v2/payment-requests/" + order.getTransactionRef(),
                     org.springframework.http.HttpMethod.GET,
                     entity,
                     Map.class
@@ -249,12 +254,12 @@ public class PaymentService {
                 .orElseGet(() -> orderRepository.findById(orderCode).orElse(null));
                 
         if (order == null) {
-            throw new ResourceNotFoundException("Order", "transactionRef/id", orderCode);
+            throw new ResourceNotFoundException("Orders", "transactionRef/id", orderCode);
         }
 
         // 3. Lũy đẳng (Idempotency check)
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            log.info("⚡ Idempotency: Đơn hàng #{} đã ở trạng thái PAID. Bỏ qua.", order.getId());
+            log.info("⚡ Idempotency: Giao dịch {} đã ở trạng thái PAID. Bỏ qua.", orderCode);
             return;
         }
 
@@ -265,10 +270,36 @@ public class PaymentService {
             throw new IllegalArgumentException("Số tiền thanh toán không khớp");
         }
 
-        // 5. Cập nhật trạng thái đơn hàng
+        // 5. Cập nhật trạng thái đơn hàng và chia sẻ doanh thu 80%
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
         orderRepository.save(order);
+
+        // Chia tiền hoa hồng nếu có organizer
+        com.ticketbox.entity.Event event = order.getEvent();
+        if (event != null && event.getOrganizer() != null) {
+            com.ticketbox.entity.User organizer = event.getOrganizer();
+            java.math.BigDecimal total = order.getTotalAmount();
+            if (total != null && total.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
+                
+                // Cập nhật holdingBalance
+                organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
+                userRepository.save(organizer);
+                
+                // Tạo Ledger Entry
+                com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
+                        .order(order)
+                        .agency(organizer)
+                        .entryType("CREDIT_TICKET_SALE")
+                        .amount(organizerShare)
+                        .status("HOLDING")
+                        .build();
+                ledgerEntryRepository.save(ledgerEntry);
+                
+                log.info("💰 Đã cộng {} VND vào tài khoản TẠM GIỮ đại lý: {}", organizerShare, organizer.getEmail());
+            }
+        }
 
         // 6. Cập nhật các ghế liên quan sang BOOKED
         for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
@@ -282,11 +313,11 @@ public class PaymentService {
         log.info("✅ Cập nhật thanh toán thành công cho đơn hàng #{}", order.getId());
 
         // 7. Gửi message đến RabbitMQ để hoàn tất vé
-        PaymentCompletedMessage message = PaymentCompletedMessage.builder()
-                .orderId(order.getId())
-                .userId(order.getUser().getId())
-                .transactionRef(order.getTransactionRef())
-                .build();
+            PaymentCompletedMessage message = PaymentCompletedMessage.builder()
+                    .orderId(order.getId())
+                    .userId(order.getUser().getId())
+                    .transactionRef(order.getTransactionRef())
+                    .build();
 
         rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
         log.info("📨 Đã gửi message hoàn tất thanh toán đến RabbitMQ cho đơn hàng #{}", order.getId());
