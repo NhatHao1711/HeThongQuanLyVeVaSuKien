@@ -195,7 +195,7 @@ public class PaymentService {
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
             org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
-                    "https://api-merchant.payos.vn/v2/payment-requests/" + order.getTransactionRef(),
+                    "https://api-merchant.payos.vn/v2/payment-requests/" + orderCode,
                     org.springframework.http.HttpMethod.GET,
                     entity,
                     Map.class
@@ -205,27 +205,33 @@ public class PaymentService {
             if (resBody != null && "00".equals(resBody.get("code"))) {
                 Map<String, Object> data = (Map<String, Object>) resBody.get("data");
                 if ("PAID".equals(data.get("status"))) {
-                    order.setPaymentStatus(PaymentStatus.PAID);
-                    order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-                    orderRepository.save(order);
-
-                    for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
-                        com.ticketbox.entity.Seat seat = ticket.getSeat();
-                        if (seat != null) {
-                            seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
-                            seatRepository.save(seat);
-                        }
+                    java.util.List<Order> orders = orderRepository.findByTransactionRef(order.getTransactionRef());
+                    if (orders.isEmpty()) {
+                        orders = java.util.List.of(order);
                     }
 
-                    PaymentCompletedMessage message = PaymentCompletedMessage.builder()
-                            .orderId(order.getId())
-                            .userId(order.getUser().getId())
-                            .transactionRef(order.getTransactionRef())
-                            .build();
+                    for (Order o : orders) {
+                        o.setPaymentStatus(PaymentStatus.PAID);
+                        o.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+                        orderRepository.save(o);
 
-                    rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
-                    log.info("✅ Đã đồng bộ trạng thái PAID từ PayOS cho đơn hàng #{}", order.getId());
+                        for (com.ticketbox.entity.UserTicket ticket : o.getUserTickets()) {
+                            com.ticketbox.entity.Seat seat = ticket.getSeat();
+                            if (seat != null) {
+                                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                                seatRepository.save(seat);
+                            }
+                        }
 
+                        PaymentCompletedMessage message = PaymentCompletedMessage.builder()
+                                .orderId(o.getId())
+                                .userId(o.getUser().getId())
+                                .transactionRef(o.getTransactionRef())
+                                .build();
+
+                        rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
+                        log.info("✅ Đã đồng bộ trạng thái PAID từ PayOS cho đơn hàng #{}", o.getId());
+                    }
                     return PaymentStatus.PAID;
                 }
             }
@@ -250,76 +256,83 @@ public class PaymentService {
         int amountPaid = webhookData.getAmount();
 
         // 2. Tìm kiếm đơn hàng
-        Order order = orderRepository.findByTransactionRef(String.valueOf(orderCode))
-                .orElseGet(() -> orderRepository.findById(orderCode).orElse(null));
+        java.util.List<Order> orders = orderRepository.findByTransactionRef(String.valueOf(orderCode));
+        if (orders.isEmpty()) {
+            Order singleOrder = orderRepository.findById(orderCode).orElse(null);
+            if (singleOrder != null) {
+                orders = java.util.List.of(singleOrder);
+            }
+        }
                 
-        if (order == null) {
+        if (orders.isEmpty()) {
             throw new ResourceNotFoundException("Orders", "transactionRef/id", orderCode);
         }
 
-        // 3. Lũy đẳng (Idempotency check)
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            log.info("⚡ Idempotency: Giao dịch {} đã ở trạng thái PAID. Bỏ qua.", orderCode);
-            return;
-        }
-
-        // 4. Đối chiếu kép (Amount matching check)
-        int expectedAmount = order.getTotalAmount().intValue();
+        // 3. Đối chiếu kép (Amount matching check) tổng các đơn
+        int expectedAmount = orders.stream().mapToInt(o -> o.getTotalAmount().intValue()).sum();
         if (amountPaid != expectedAmount) {
             log.error("❌ Số tiền thanh toán không khớp! Thực tế: {}, Kì vọng: {}", amountPaid, expectedAmount);
             throw new IllegalArgumentException("Số tiền thanh toán không khớp");
         }
 
-        // 5. Cập nhật trạng thái đơn hàng và chia sẻ doanh thu 80%
-        order.setPaymentStatus(PaymentStatus.PAID);
-        order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-        orderRepository.save(order);
-
-        // Chia tiền hoa hồng nếu có organizer
-        com.ticketbox.entity.Event event = order.getEvent();
-        if (event != null && event.getOrganizer() != null) {
-            com.ticketbox.entity.User organizer = event.getOrganizer();
-            java.math.BigDecimal total = order.getTotalAmount();
-            if (total != null && total.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
-                
-                // Cập nhật holdingBalance
-                organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
-                userRepository.save(organizer);
-                
-                // Tạo Ledger Entry
-                com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
-                        .order(order)
-                        .agency(organizer)
-                        .entryType("CREDIT_TICKET_SALE")
-                        .amount(organizerShare)
-                        .status("HOLDING")
-                        .build();
-                ledgerEntryRepository.save(ledgerEntry);
-                
-                log.info("💰 Đã cộng {} VND vào tài khoản TẠM GIỮ đại lý: {}", organizerShare, organizer.getEmail());
+        for (Order order : orders) {
+            // Lũy đẳng (Idempotency check)
+            if (order.getPaymentStatus() == PaymentStatus.PAID) {
+                log.info("⚡ Idempotency: Giao dịch đơn hàng {} đã ở trạng thái PAID. Bỏ qua.", order.getId());
+                continue;
             }
-        }
 
-        // 6. Cập nhật các ghế liên quan sang BOOKED
-        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
-            com.ticketbox.entity.Seat seat = ticket.getSeat();
-            if (seat != null) {
-                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
-                seatRepository.save(seat);
+            // 5. Cập nhật trạng thái đơn hàng và chia sẻ doanh thu 80%
+            order.setPaymentStatus(PaymentStatus.PAID);
+            order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+            orderRepository.save(order);
+
+            // Chia tiền hoa hồng nếu có organizer
+            com.ticketbox.entity.Event event = order.getEvent();
+            if (event != null && event.getOrganizer() != null) {
+                com.ticketbox.entity.User organizer = event.getOrganizer();
+                java.math.BigDecimal total = order.getTotalAmount();
+                if (total != null && total.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
+                    
+                    // Cập nhật holdingBalance
+                    organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
+                    userRepository.save(organizer);
+                    
+                    // Tạo Ledger Entry
+                    com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
+                            .order(order)
+                            .agency(organizer)
+                            .entryType("CREDIT_TICKET_SALE")
+                            .amount(organizerShare)
+                            .status("HOLDING")
+                            .build();
+                    ledgerEntryRepository.save(ledgerEntry);
+                    
+                    log.info("💰 Đã cộng {} VND vào tài khoản TẠM GIỮ đại lý: {}", organizerShare, organizer.getEmail());
+                }
             }
-        }
 
-        log.info("✅ Cập nhật thanh toán thành công cho đơn hàng #{}", order.getId());
+            // 6. Cập nhật các ghế liên quan sang BOOKED
+            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                com.ticketbox.entity.Seat seat = ticket.getSeat();
+                if (seat != null) {
+                    seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                    seatRepository.save(seat);
+                }
+            }
 
-        // 7. Gửi message đến RabbitMQ để hoàn tất vé
+            log.info("✅ Cập nhật thanh toán thành công cho đơn hàng #{}", order.getId());
+
+            // 7. Gửi message đến RabbitMQ để hoàn tất vé
             PaymentCompletedMessage message = PaymentCompletedMessage.builder()
                     .orderId(order.getId())
                     .userId(order.getUser().getId())
                     .transactionRef(order.getTransactionRef())
                     .build();
 
-        rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
-        log.info("📨 Đã gửi message hoàn tất thanh toán đến RabbitMQ cho đơn hàng #{}", order.getId());
+            rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
+            log.info("📨 Đã gửi message hoàn tất thanh toán đến RabbitMQ cho đơn hàng #{}", order.getId());
+        }
     }
 }

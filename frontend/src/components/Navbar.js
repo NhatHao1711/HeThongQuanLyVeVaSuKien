@@ -262,6 +262,15 @@ export default function Navbar() {
                          onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                         {t('nav.profile')}
                       </Link>
+                      <Link href="/my-tickets" onClick={() => setShowUserMenu(false)} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem',
+                        borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
+                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        Đơn hàng của tôi
+                      </Link>
                       <button onClick={handleLogout} style={{
                         display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%',
                         padding: '0.7rem 1rem', border: 'none', background: 'transparent', textAlign: 'left',

@@ -163,9 +163,11 @@ public class VNPayService {
         String transactionStatus = params.get("vnp_TransactionStatus");
 
         // 3. Find order by transaction reference
-        Order order = orderRepository.findByTransactionRef(txnRef)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Order", "transactionRef", txnRef));
+        java.util.List<Order> orders = orderRepository.findByTransactionRef(txnRef);
+        if (orders.isEmpty()) {
+            throw new ResourceNotFoundException("Order", "transactionRef", txnRef);
+        }
+        Order order = orders.get(0);
 
         // 4. IDEMPOTENCY CHECK: Nếu order đã PAID rồi → return true, không xử lý lại
         if (order.getPaymentStatus() == PaymentStatus.PAID) {

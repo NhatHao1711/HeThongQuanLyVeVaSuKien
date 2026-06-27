@@ -16,7 +16,10 @@ public class TicketResponse {
     private String orderRef;
     private Long eventId;
     private String eventTitle;
+    private LocalDateTime startDate;
     private String ticketTypeName;
+    private String seatName;
+    private java.math.BigDecimal price;
     private String checkinStatus;
     private LocalDateTime checkinTime;
     private byte[] qrCode;

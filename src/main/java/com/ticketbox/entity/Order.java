@@ -38,7 +38,7 @@ public class Order {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
-    @Column(name = "transaction_ref", unique = true, length = 100)
+    @Column(name = "transaction_ref", length = 100)
     private String transactionRef;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)

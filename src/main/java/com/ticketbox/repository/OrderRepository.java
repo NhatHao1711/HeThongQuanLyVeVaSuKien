@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    Optional<Order> findByTransactionRef(String transactionRef);
+    List<Order> findByTransactionRef(String transactionRef);
     List<Order> findByUserId(Long userId);
     List<Order> findByUserOrderByCreatedAtDesc(com.ticketbox.entity.User user);
     List<Order> findByPaymentStatusAndCreatedAtBefore(com.ticketbox.enums.PaymentStatus status, java.time.LocalDateTime time);

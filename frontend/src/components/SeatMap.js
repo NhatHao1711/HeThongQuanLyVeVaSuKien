@@ -7,12 +7,14 @@ import { apiRequest } from "@/lib/api";
 const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeats = [] }, ref) => {
   const [seats, setSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState(initialSelectedSeats);
+  const selectedSeatsRef = React.useRef(initialSelectedSeats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
   
   // This helps UI handle optimistic lock/unlock transitions
   const [processingSeats, setProcessingSeats] = useState([]);
+  const processingSeatsRef = React.useRef([]);
 
   useEffect(() => {
     if (ticketTypeId) {
@@ -37,17 +39,20 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   };
 
   const toggleSeat = async (seat) => {
-    // Cannot interact with booked or seats currently processing or locked by others
-    if (seat.status === "BOOKED" || processingSeats.includes(seat.id)) return;
+    const currentProcessing = processingSeatsRef.current;
+    if (seat.status === "BOOKED" || currentProcessing.includes(seat.id)) return;
     
-    // If it's locked and we haven't selected it, it's locked by someone else
-    if (seat.status === "LOCKED" && !selectedSeats.includes(seat.id)) {
+    const currentSelected = selectedSeatsRef.current;
+    const isSelected = currentSelected.includes(seat.id);
+    
+    if (seat.status === "LOCKED" && !isSelected) {
         alert("Ghế này đang được người khác giữ. Vui lòng chọn ghế khác.");
         return;
     }
 
-    const isSelected = selectedSeats.includes(seat.id);
-    setProcessingSeats([...processingSeats, seat.id]);
+    const newProcessing = [...currentProcessing, seat.id];
+    processingSeatsRef.current = newProcessing;
+    setProcessingSeats(newProcessing);
 
     try {
       const endpoint = isSelected ? "/seats/unlock" : "/seats/lock";
@@ -59,35 +64,45 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
       
       if (!res.success) {
         alert(res.message || "Có lỗi xảy ra khi thao tác ghế");
-        setProcessingSeats(prev => prev.filter(id => id !== seat.id));
+        const revertedProcessing = processingSeatsRef.current.filter(id => id !== seat.id);
+        processingSeatsRef.current = revertedProcessing;
+        setProcessingSeats(revertedProcessing);
         return;
       }
 
-      // Update local state
+      const latestSelected = selectedSeatsRef.current;
+      const actuallySelected = latestSelected.includes(seat.id);
       let newSelected;
-      if (isSelected) {
-        newSelected = selectedSeats.filter(id => id !== seat.id);
+      if (actuallySelected) {
+        newSelected = latestSelected.filter(id => id !== seat.id);
       } else {
-        newSelected = [...selectedSeats, seat.id];
+        newSelected = [...latestSelected, seat.id];
       }
+      
+      selectedSeatsRef.current = newSelected;
       setSelectedSeats(newSelected);
       
-      // Update seat status locally so it renders correctly if unselected after a tab switch
       setSeats(prevSeats => prevSeats.map(s => 
         s.id === seat.id 
-          ? { ...s, status: isSelected ? "AVAILABLE" : "LOCKED" } 
+          ? { ...s, status: actuallySelected ? "AVAILABLE" : "LOCKED" } 
           : s
       ));
 
-      // Pass both IDs and seat info (names) to parent
-      const selectedSeatObjects = seats.filter(s => newSelected.includes(s.id));
+      // Use functional state updater for seats if we need to get latest, but seats state might not be fully updated here.
+      // We can just find the seat from current seats array
+      const selectedSeatObjects = seats
+        .filter(s => newSelected.includes(s.id))
+        .map(s => s.id === seat.id ? { ...s, status: actuallySelected ? "AVAILABLE" : "LOCKED" } : s);
+        
       onSeatsSelected(newSelected, selectedSeatObjects);
       
     } catch (error) {
       console.error("Error toggling seat:", error);
       alert("Lỗi kết nối khi chọn ghế");
     } finally {
-      setProcessingSeats(prev => prev.filter(id => id !== seat.id));
+      const remainingProcessing = processingSeatsRef.current.filter(id => id !== seat.id);
+      processingSeatsRef.current = remainingProcessing;
+      setProcessingSeats(remainingProcessing);
     }
   };
 

@@ -45,6 +45,8 @@ export default function EventDetailPage({ params }) {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [payOSData, setPayOSData] = useState(null);
   const [payOSLoading, setPayOSLoading] = useState(false);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600); // 10 phút
+  const [seatLockStartTime, setSeatLockStartTime] = useState(null);
 
   useEffect(() => {
     loadEvent();
@@ -123,6 +125,23 @@ export default function EventDetailPage({ params }) {
       setFollowLoading(false);
     }
   };
+
+  useEffect(() => {
+    let timer;
+    if (bookingStep === 'payment' && seatLockStartTime) {
+      timer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - seatLockStartTime) / 1000);
+        const remaining = Math.max(0, 600 - elapsed);
+        setPaymentTimeLeft(remaining);
+        
+        if (remaining === 0) {
+          clearInterval(timer);
+          setError('Đã hết thời gian thanh toán (10 phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.');
+        }
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [bookingStep, seatLockStartTime]);
 
   // Countdown timer
   useEffect(() => {
@@ -446,6 +465,7 @@ export default function EventDetailPage({ params }) {
   const openBookingModal = () => {
     setShowBookingModal(true);
     setBookingStep('select');
+    setSeatLockStartTime(null);
     setError('');
     document.body.style.overflow = 'hidden';
   };
@@ -856,7 +876,11 @@ export default function EventDetailPage({ params }) {
                     <button
                       className={styles.paymentBtn}
                       style={{ width: '100%' }}
-                      onClick={() => { setError(''); setBookingStep('confirm'); }}
+                      onClick={() => { 
+                        setError(''); 
+                        setBookingStep('confirm'); 
+                        setSeatLockStartTime(Date.now());
+                      }}
                       disabled={getTotalSeatsCount() === 0}
                     >
                       {t('events.booking_next_step')} →
@@ -1002,7 +1026,10 @@ export default function EventDetailPage({ params }) {
                 </button>
                 <button
                   className={styles.backBtnSmall}
-                  onClick={() => setBookingStep('select')}
+                  onClick={() => {
+                    setBookingStep('select');
+                    setSeatLockStartTime(null);
+                  }}
                 >
                   ← {t('events.booking_back_select_seats')}
                 </button>
@@ -1032,6 +1059,8 @@ export default function EventDetailPage({ params }) {
                       </p>
                     </div>
 
+
+
                     <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '1.5rem', border: '1px solid #e2e8f0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px dashed #cbd5e1' }}>
                         <span style={{ color: '#64748b', fontWeight: 500 }}>Mã đơn hàng</span>
@@ -1053,6 +1082,17 @@ export default function EventDetailPage({ params }) {
                         <span style={{ color: '#64748b', fontWeight: 600 }}>Tổng thanh toán</span>
                         <span style={{ fontWeight: 800, color: '#10b981', fontSize: '1.6rem', lineHeight: 1 }}>{formatPrice(calculateTotal())}</span>
                       </div>
+                    </div>
+
+                    {/* Hiển thị thời gian đếm ngược (Màu cam, Nằm ngoài hộp xám) */}
+                    <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#fffbeb', borderRadius: '12px', border: '2px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 2px 4px rgba(251, 191, 36, 0.1)' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                      <span style={{ color: '#b45309', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.5px' }}>
+                        Thời gian thanh toán còn lại: <span style={{ fontSize: '1.2rem', color: '#ea580c' }}>{Math.floor(paymentTimeLeft / 60).toString().padStart(2, '0')}:{(paymentTimeLeft % 60).toString().padStart(2, '0')}</span>
+                      </span>
                     </div>
 
                     <div style={{ 
