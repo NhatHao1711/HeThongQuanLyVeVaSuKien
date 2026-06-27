@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
+import { apiRequest, getUser, isLoggedIn } from '@/lib/api';
 
 export default function CheckinPage() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -13,20 +13,30 @@ export default function CheckinPage() {
   const [scanning, setScanning] = useState(false);
   const [manualToken, setManualToken] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
+
   const html5QrCodeRef = useRef(null);
   const processingRef = useRef(false);
+  const selectedCameraIdRef = useRef('');
 
-  // Cleanup on unmount
+  useEffect(() => {
+    selectedCameraIdRef.current = selectedCameraId;
+  }, [selectedCameraId]);
+
   useEffect(() => {
     if (!isLoggedIn()) {
       window.location.href = '/login';
       return undefined;
     }
+
     const user = getUser();
     if (user?.role !== 'ROLE_ADMIN' && user?.role !== 'ROLE_ORGANIZER') {
       window.location.href = '/';
       return undefined;
     }
+
     setCurrentUser(user);
     return () => {
       stopCamera();
@@ -36,75 +46,50 @@ export default function CheckinPage() {
   const backHref = currentUser?.role === 'ROLE_ADMIN' ? '/admin' : '/agency';
   const backLabel = currentUser?.role === 'ROLE_ADMIN' ? 'Quản trị' : 'Kênh đại lý';
 
-  const startCamera = async () => {
-    try {
-      // Dynamic import to avoid SSR issues
-      const { Html5Qrcode } = await import('html5-qrcode');
-      
-      if (html5QrCodeRef.current) {
-        await stopCamera();
-      }
+  const getQrConfig = () => ({
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1,
+  });
 
-      setResult(null);
-      setScanning(true);
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      const html5QrCode = new Html5Qrcode("qr-reader");
-      html5QrCodeRef.current = html5QrCode;
-
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1,
-        },
-        async (decodedText) => {
-          // QR code scanned successfully
-          await handleScan(decodedText);
-        },
-        (errorMessage) => {
-          // parse error, ignore
-        }
-      ).catch(async () => {
-        // If back camera not available, try front camera
-        console.log("Trying front camera...");
-        await html5QrCode.start(
-          { facingMode: "user" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1,
-          },
-          async (decodedText) => {
-            await handleScan(decodedText);
-          },
-          (errorMessage) => {}
-        );
-      });
-    } catch (err) {
-      console.error("Camera error:", err);
-      setResult({
-        time: new Date().toLocaleTimeString('vi-VN'),
-        message: 'Không thể mở camera. Hãy cho phép trình duyệt truy cập camera.',
-        success: false,
-      });
-      setScanning(false);
+  const getCameraErrorMessage = (err) => {
+    const raw = String(err?.message || err || '');
+    if (raw.includes('NotAllowedError') || raw.includes('Permission denied')) {
+      return 'Trình duyệt hoặc Windows đang chặn camera. Hãy bấm biểu tượng camera trên thanh địa chỉ, cho phép Camera, rồi thử lại.';
     }
+    if (raw.includes('NotFoundError') || raw.includes('Requested device not found')) {
+      return 'Không tìm thấy camera trên máy này. Bạn có thể tải ảnh QR lên hoặc dán mã thủ công bên dưới.';
+    }
+    if (raw.includes('NotReadableError') || raw.includes('Could not start video source')) {
+      return 'Camera đang bị ứng dụng khác sử dụng hoặc Windows chưa cấp quyền. Hãy đóng app camera/meeting rồi thử lại.';
+    }
+    return `Không thể mở camera. ${raw || 'Hãy cho phép trình duyệt truy cập camera.'}`;
+  };
+
+  const waitForQrReader = async () => {
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (!document.getElementById('qr-reader')) {
+      throw new Error('QR reader element is not ready');
+    }
+  };
+
+  const addHistoryEntry = (entry) => {
+    setResult(entry);
+    setHistory(prev => [entry, ...prev.slice(0, 49)]);
   };
 
   const stopCamera = async () => {
     try {
       if (html5QrCodeRef.current) {
-        const state = html5QrCodeRef.current.getState();
-        if (state === 2) { // SCANNING
+        const state = html5QrCodeRef.current.getState?.();
+        if (state === 2) {
           await html5QrCodeRef.current.stop();
         }
         html5QrCodeRef.current.clear();
         html5QrCodeRef.current = null;
       }
     } catch (err) {
-      console.log("Camera stop error (safe to ignore):", err);
+      console.log('Camera stop error (safe to ignore):', err);
     }
     setScanning(false);
   };
@@ -114,52 +99,143 @@ export default function CheckinPage() {
     processingRef.current = true;
     setProcessing(true);
 
-    // Pause camera while processing
     try {
-      if (html5QrCodeRef.current) {
+      if (html5QrCodeRef.current?.pause) {
         await html5QrCodeRef.current.pause(true);
       }
     } catch {}
 
     try {
+      const trimmedToken = token.trim();
       const res = await apiRequest('/checkin/scan', {
         method: 'POST',
-        body: JSON.stringify({ qrToken: token.trim() }),
+        body: JSON.stringify({ qrToken: trimmedToken }),
       });
 
-      const entry = {
+      addHistoryEntry({
         time: new Date().toLocaleTimeString('vi-VN'),
         message: res.success ? (res.data || res.message || 'Check-in thành công!') : (res.message || 'Check-in thất bại'),
-        success: res.success || false,
-        token: token.trim().substring(0, 30) + '...',
-      };
-      setResult(entry);
-      setHistory(prev => [entry, ...prev.slice(0, 49)]);
-    } catch (err) {
-      const entry = {
+        success: !!res.success,
+        token: trimmedToken.substring(0, 30) + '...',
+      });
+    } catch {
+      addHistoryEntry({
         time: new Date().toLocaleTimeString('vi-VN'),
         message: 'Lỗi kết nối server',
         success: false,
         token: token.trim().substring(0, 30) + '...',
-      };
-      setResult(entry);
-      setHistory(prev => [entry, ...prev.slice(0, 49)]);
+      });
     } finally {
       processingRef.current = false;
       setProcessing(false);
-      // Resume camera after 2 seconds to avoid double-scan
       setTimeout(() => {
         try {
-          if (html5QrCodeRef.current) {
+          if (html5QrCodeRef.current?.resume) {
             html5QrCodeRef.current.resume();
           }
         } catch {}
-      }, 2000);
+      }, 1500);
     }
   };
 
-  const handleManualSubmit = (e) => {
-    e.preventDefault();
+  const startCamera = async (cameraId = selectedCameraIdRef.current) => {
+    setCameraLoading(true);
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode');
+
+      if (html5QrCodeRef.current) {
+        await stopCamera();
+      }
+
+      setResult(null);
+      setScanning(true);
+      await waitForQrReader();
+
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      html5QrCodeRef.current = html5QrCode;
+
+      const availableCameras = await Html5Qrcode.getCameras().catch(() => []);
+      setCameras(availableCameras);
+
+      const preferredCameraId =
+        cameraId ||
+        availableCameras.find(c => /back|rear|environment/i.test(c.label || ''))?.id ||
+        availableCameras[0]?.id;
+
+      if (preferredCameraId && preferredCameraId !== selectedCameraIdRef.current) {
+        setSelectedCameraId(preferredCameraId);
+      }
+
+      const cameraConfig = preferredCameraId || { facingMode: 'environment' };
+
+      await html5QrCode.start(
+        cameraConfig,
+        getQrConfig(),
+        decodedText => handleScan(decodedText),
+        () => {}
+      ).catch(async (err) => {
+        if (preferredCameraId) throw err;
+        await html5QrCode.start(
+          { facingMode: 'user' },
+          getQrConfig(),
+          decodedText => handleScan(decodedText),
+          () => {}
+        );
+      });
+    } catch (err) {
+      console.error('Camera error:', err);
+      await stopCamera();
+      setResult({
+        time: new Date().toLocaleTimeString('vi-VN'),
+        message: getCameraErrorMessage(err),
+        success: false,
+      });
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const handleCameraChange = async (event) => {
+    const cameraId = event.target.value;
+    setSelectedCameraId(cameraId);
+    selectedCameraIdRef.current = cameraId;
+    if (scanning) {
+      await startCamera(cameraId);
+    }
+  };
+
+  const handleImageQrScan = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || processingRef.current) return;
+
+    processingRef.current = true;
+    setProcessing(true);
+    setResult(null);
+
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode');
+      const fileScanner = new Html5Qrcode('qr-file-reader');
+      const decodedText = await fileScanner.scanFile(file, false);
+      await fileScanner.clear();
+      processingRef.current = false;
+      setProcessing(false);
+      await handleScan(decodedText);
+    } catch (err) {
+      console.error('QR image scan error:', err);
+      addHistoryEntry({
+        time: new Date().toLocaleTimeString('vi-VN'),
+        message: 'Không đọc được QR từ ảnh này. Hãy chọn ảnh QR rõ hơn hoặc dán mã thủ công.',
+        success: false,
+        token: file.name,
+      });
+      processingRef.current = false;
+      setProcessing(false);
+    }
+  };
+
+  const handleManualSubmit = (event) => {
+    event.preventDefault();
     handleScan(manualToken);
     setManualToken('');
   };
@@ -170,7 +246,6 @@ export default function CheckinPage() {
       <main style={{ paddingTop: '80px', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
         <section className="section">
           <div className="container" style={{ maxWidth: '700px' }}>
-            {/* Breadcrumb */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                 <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{backLabel}</Link>
@@ -181,10 +256,9 @@ export default function CheckinPage() {
 
             <div className="section-header">
               <h2>Quét QR Check-in</h2>
-              <p>Dùng camera để quét mã QR trên vé</p>
+              <p>Dùng camera, ảnh QR, hoặc mã token để xác nhận vé</p>
             </div>
 
-            {/* Camera Scanner */}
             <div style={{
               background: '#fff', borderRadius: 16, padding: '1.5rem',
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem',
@@ -198,14 +272,28 @@ export default function CheckinPage() {
                   </p>
                   <button
                     className="btn btn-primary"
-                    onClick={startCamera}
+                    onClick={() => startCamera()}
+                    disabled={cameraLoading}
                     style={{ padding: '14px 32px', fontSize: '1rem', fontWeight: 700 }}
                   >
-                    Mở Camera & Quét QR
+                    {cameraLoading ? 'Đang mở camera...' : 'Mở Camera & Quét QR'}
                   </button>
                 </div>
               ) : (
                 <div>
+                  {cameras.length > 1 && (
+                    <select
+                      value={selectedCameraId}
+                      onChange={handleCameraChange}
+                      style={{ marginBottom: '1rem', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}
+                    >
+                      {cameras.map((camera, index) => (
+                        <option key={camera.id} value={camera.id}>
+                          {camera.label || `Camera ${index + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <div style={{
                     position: 'relative',
                     width: '100%',
@@ -214,9 +302,10 @@ export default function CheckinPage() {
                     borderRadius: 16,
                     overflow: 'hidden',
                     border: '3px solid #00B46E',
-                    background: '#000'
+                    background: '#000',
+                    minHeight: 300,
                   }}>
-                    <div id="qr-reader" style={{ width: '100%' }}></div>
+                    <div id="qr-reader" style={{ width: '100%' }} />
                     {processing && (
                       <div style={{
                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -236,9 +325,9 @@ export default function CheckinPage() {
                   </button>
                 </div>
               )}
+              <div id="qr-file-reader" style={{ display: 'none' }} />
             </div>
 
-            {/* Current Result */}
             {result && (
               <div style={{
                 background: result.success ? '#f0fdf4' : '#fef2f2',
@@ -266,11 +355,16 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* Manual Input (backup) */}
             <div style={{
               background: '#fff', borderRadius: 16, padding: '1.5rem',
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem'
             }}>
+              <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.8rem' }}>Quét không cần camera</h3>
+              <label className="btn btn-outline" style={{ display: 'inline-block', marginBottom: '1rem', cursor: 'pointer' }}>
+                Tải ảnh QR lên
+                <input type="file" accept="image/*" onChange={handleImageQrScan} style={{ display: 'none' }} />
+              </label>
+
               <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.8rem' }}>
                 Nhập mã thủ công
               </h3>
@@ -294,7 +388,6 @@ export default function CheckinPage() {
               </form>
             </div>
 
-            {/* History */}
             {history.length > 0 && (
               <div style={{
                 background: '#fff', borderRadius: 16, padding: '1.5rem',
@@ -307,20 +400,22 @@ export default function CheckinPage() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflow: 'auto' }}>
-                  {history.map((h, i) => (
-                    <div key={i} style={{
+                  {history.map((item, index) => (
+                    <div key={index} style={{
                       display: 'flex', alignItems: 'center', gap: '0.8rem',
                       padding: '10px 14px', borderRadius: 10,
-                      background: h.success ? '#f0fdf4' : '#fef2f2',
-                      border: `1px solid ${h.success ? '#bbf7d0' : '#fecaca'}`
+                      background: item.success ? '#f0fdf4' : '#fef2f2',
+                      border: `1px solid ${item.success ? '#bbf7d0' : '#fecaca'}`
                     }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: h.success ? '#16a34a' : '#dc2626' }}>{h.success ? 'Thành công' : 'Thất bại'}</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: item.success ? '#16a34a' : '#dc2626' }}>
+                        {item.success ? 'Thành công' : 'Thất bại'}
+                      </span>
                       <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: h.success ? '#16a34a' : '#dc2626', margin: 0 }}>
-                          {h.message}
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: item.success ? '#16a34a' : '#dc2626', margin: 0 }}>
+                          {item.message}
                         </p>
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{h.time}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.time}</span>
                     </div>
                   ))}
                 </div>
