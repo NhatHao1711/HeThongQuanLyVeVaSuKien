@@ -120,7 +120,7 @@ export default function MyOrdersPage() {
               overflow: 'hidden'
             }}>
               <div style={{ position: 'absolute', top: '-50%', left: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(0,180,110,0.15) 0%, transparent 70%)', borderRadius: '50%' }}></div>
-              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>📦 {t('orders.title')}</h2>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: '0.5rem', position: 'relative', zIndex: 2 }}>{t('orders.title')}</h2>
               <p style={{ color: '#94a3b8', fontSize: '1.05rem', position: 'relative', zIndex: 2 }}>{t('orders.subtitle')}</p>
             </div>
 
@@ -130,7 +130,6 @@ export default function MyOrdersPage() {
               </div>
             ) : orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#fff', borderRadius: '24px', border: '1px dashed #cbd5e1' }}>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🛒</div>
                 <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '0.5rem' }}>{t('orders.no_orders_title')}</h3>
                 <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{t('orders.no_orders_desc')}</p>
                 <Link href="/events" className="btn btn-primary" style={{ padding: '10px 24px', borderRadius: '50px', fontWeight: 600 }}>{t('orders.explore_btn')}</Link>
@@ -209,7 +208,7 @@ export default function MyOrdersPage() {
                               <Link href={`/events/${ticket.eventId}`} style={{ color: '#1e293b', fontWeight: 700, textDecoration: 'none', fontSize: '0.95rem', display: 'block', marginBottom: '0.2rem' }}>
                                 {ticket.eventTitle}
                               </Link>
-                              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🎟️ {ticket.ticketTypeName}</span>
+                              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Loại vé: {ticket.ticketTypeName}</span>
                             </div>
                             <span style={{ fontWeight: 800, color: '#00B46E', fontSize: '0.95rem' }}>{formatPrice(ticket.price)}</span>
                           </div>
@@ -226,7 +225,7 @@ export default function MyOrdersPage() {
                       }}>
                         <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
                           <span style={{ fontWeight: 600, color: '#475569' }}>{order.ticketCount} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'tickets' : 'vé'}</span>
-                          {order.voucherCode && <span> • 🎁 Voucher: <strong style={{ color: '#f59e0b' }}>{order.voucherCode}</strong> (-{formatPrice(order.discountAmount)})</span>}
+                          {order.voucherCode && <span> • Voucher: <strong style={{ color: '#f59e0b' }}>{order.voucherCode}</strong> (-{formatPrice(order.discountAmount)})</span>}
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.2rem', fontWeight: 600 }}>{t('events.booking_final_total')}</div>
@@ -322,7 +321,7 @@ export default function MyOrdersPage() {
                       fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}
                   >
-                    🏦 Chuyển khoản
+                    Chuyển khoản
                   </button>
                   <button
                     onClick={() => setRepayMethod('vnpay')}
@@ -332,7 +331,7 @@ export default function MyOrdersPage() {
                       fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}
                   >
-                    💳 Cổng VNPay
+                    Cổng VNPay
                   </button>
                 </div>
 
@@ -387,7 +386,7 @@ export default function MyOrdersPage() {
 
                         {paymentError && (
                           <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
-                            ❌ {paymentError}
+                            {paymentError}
                           </div>
                         )}
 
@@ -403,19 +402,18 @@ export default function MyOrdersPage() {
                             boxShadow: '0 4px 12px rgba(0,180,110,0.2)'
                           }}
                         >
-                          🔗 Mở cổng thanh toán PayOS (Tab mới)
+                          Mở cổng thanh toán PayOS (Tab mới)
                         </a>
                       </div>
                     ) : (
                       <div style={{ textAlign: 'center', padding: '2rem', color: '#ef4444' }}>
-                        ❌ Không thể tải thông tin thanh toán. Vui lòng thử lại.
+                        Không thể tải thông tin thanh toán. Vui lòng thử lại.
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
                     <div style={{ textAlign: 'center', padding: '1.5rem 0 2rem' }}>
-                      <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💳</div>
                       <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.6, marginBottom: '20px' }}>
                         Hệ thống sẽ chuyển hướng bạn sang cổng thanh toán VNPay để hoàn tất giao dịch an toàn.
                       </p>
@@ -430,7 +428,7 @@ export default function MyOrdersPage() {
 
                       {paymentError && (
                         <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '12px' }}>
-                          ❌ {paymentError}
+                          {paymentError}
                         </div>
                       )}
 
@@ -462,7 +460,7 @@ export default function MyOrdersPage() {
                           fontWeight: 700, fontSize: '0.9rem', color: '#fff', cursor: 'pointer'
                         }}
                       >
-                        {confirmLoading ? 'Đang chuyển hướng...' : '💳 Đi đến thanh toán VNPay'}
+                        {confirmLoading ? 'Đang chuyển hướng...' : 'Đi đến thanh toán VNPay'}
                       </button>
                     </div>
                   </div>

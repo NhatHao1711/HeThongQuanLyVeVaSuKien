@@ -81,7 +81,6 @@ function ResetPasswordContent() {
           padding: '2.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
         }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔐</div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1a1a2e' }}>{t('auth.reset_title')}</h1>
             <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '0.5rem' }}>
               {t('auth.reset_subtitle')}
@@ -147,7 +146,7 @@ function ResetPasswordContent() {
                   fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? '⏳ ...' : '🔐 ' + t('auth.reset_btn')}
+                {loading ? 'Đang thực hiện...' : t('auth.reset_btn')}
               </button>
             </form>
           )}

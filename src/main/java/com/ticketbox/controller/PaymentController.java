@@ -82,8 +82,17 @@ public class PaymentController {
             @Valid @RequestBody PaymentRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
+            java.util.List<Long> orderIds = request.getOrderIds();
+            if (orderIds == null || orderIds.isEmpty()) {
+                if (request.getOrderId() != null) {
+                    orderIds = java.util.Collections.singletonList(request.getOrderId());
+                } else {
+                    throw new IllegalArgumentException("Không có Order ID nào được cung cấp");
+                }
+            }
+
             Map<String, Object> response = paymentService.createPayOSPaymentLink(
-                    request.getOrderId(), userDetails.getUsername());
+                    orderIds, userDetails.getUsername());
 
             return ResponseEntity.ok(
                     ApiResponse.success("Tạo liên kết thanh toán PayOS thành công", response));

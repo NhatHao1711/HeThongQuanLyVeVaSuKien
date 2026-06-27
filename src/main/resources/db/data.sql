@@ -43,7 +43,7 @@ INSERT IGNORE INTO users (id, university_id, full_name, email, password_hash,
 
 (3, 1, 'Trần Thị B', 'b.tran@student.hcmut.edu.vn',
  '$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O',
- '["art","fashion","music"]', true, 'ROLE_USER', NOW(), NOW()),
+ '["art","fashion","music"]', true, 'ROLE_ORGANIZER', NOW(), NOW()),
 
 (4, 2, 'Phạm Quốc C', 'c.pham@student.hcmus.edu.vn',
  '$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O',
@@ -83,27 +83,27 @@ INSERT IGNORE INTO events (id, title, description, location, image_url, start_ti
 (1, 'HUTECH IT Open Day 2026: Kỷ Nguyên AI',
  'Lễ hội công nghệ thường niên khoa CNTT HUTECH với các gian hàng demo AI, thi lập trình và talkshow với các công ty công nghệ lớn.',
  'Hội trường A - Trụ sở chính HUTECH (Điện Biên Phủ)', '/images/events/event1.jpg',
- '2026-04-20 08:00:00', '2026-04-20 17:00:00', 'PUBLISHED', 1, NOW(), NOW()),
+ '2026-07-20 08:00:00', '2026-07-20 17:00:00', 'PUBLISHED', 1, NOW(), NOW()),
 
 (2, 'Đêm Nhạc "Sắc Màu HUTECH"',
  'Đêm nhạc liveshow bùng nổ chào đón Tân sinh viên với sự góp mặt của các ca sĩ khách mời và các CLB Nghệ thuật HUTECH.',
  'Sân trường HUTECH (Cơ sở khu Công nghệ cao E3)', '/images/events/event2.jpg',
- '2026-05-10 19:00:00', '2026-05-10 22:00:00', 'PUBLISHED', 2, NOW(), NOW()),
+ '2026-07-25 19:00:00', '2026-07-25 22:00:00', 'PUBLISHED', 2, NOW(), NOW()),
 
 (3, 'HUTECH Running Challenge 2026',
  'Giải chạy bộ trực tuyến lớn nhất năm dành cho sinh viên HUTECH. Rèn luyện sức khỏe và nhận những phần quà hấp dẫn.',
  'Nhà thi đấu Thể chất HUTECH & Công viên phần mềm Quang Trung', '/images/events/event3.jpg',
- '2026-05-25 06:00:00', '2026-05-25 11:00:00', 'PUBLISHED', 3, NOW(), NOW()),
+ '2026-08-05 06:00:00', '2026-08-05 11:00:00', 'PUBLISHED', 3, NOW(), NOW()),
 
 (4, 'HUTECH Startup Wings: Khởi Nghiệp Sinh Viên',
  'Cuộc thi gọi vốn khởi nghiệp dành cho sinh viên Khối ngành Kinh tế với dàn Giám khảo "Shark" khách mời.',
  'Phòng Hội thảo B - HUTECH', '/images/events/event4.jpg',
- '2026-06-05 08:30:00', '2026-06-05 17:00:00', 'PUBLISHED', 5, NOW(), NOW()),
+ '2026-08-15 08:30:00', '2026-08-15 17:00:00', 'PUBLISHED', 5, NOW(), NOW()),
 
 (5, 'HUTECH E-Sports Championship: Liên Quân Mobile',
  'Giải đấu thể thao điện tử sinh viên HUTECH lớn nhất trong năm. Tổng giải thưởng lên đến 10 triệu đồng.',
  'Hội trường E1 - Cơ sở Công nghệ cao HUTECH', '/images/events/event5.jpg',
- '2026-05-15 08:00:00', '2026-05-15 20:00:00', 'PUBLISHED', 8, NOW(), NOW());
+ '2026-08-20 08:00:00', '2026-08-20 20:00:00', 'PUBLISHED', 8, NOW(), NOW());
 
 
 -- =========== TICKET TYPES ===========

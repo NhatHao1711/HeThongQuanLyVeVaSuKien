@@ -169,8 +169,8 @@ export default function CreateEventPage() {
           {/* Premium Form Card */}
           <div className="glass-dark animate-in" style={{ padding: '2.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', color: '#fff' }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(0,180,110,0.15)', color: 'var(--primary-light)', fontSize: '1.5rem', marginBottom: '1rem', border: '1px solid rgba(0,180,110,0.3)' }}>
-                📣
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(0,180,110,0.15)', color: 'var(--primary-light)', fontSize: '0.9rem', marginBottom: '1rem', border: '1px solid rgba(0,180,110,0.3)', fontWeight: 700 }}>
+                Event
               </div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>{t('create_event.title')}</h1>
               <p style={{ color: '#94a3b8', fontSize: '0.92rem', margin: 0 }}>{t('create_event.subtitle')}</p>
@@ -179,7 +179,7 @@ export default function CreateEventPage() {
             {/* Alert Messages */}
             {error && (
               <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', padding: '12px 16px', fontSize: '0.88rem', marginBottom: '1.5rem' }}>
-                <span>⚠️</span>
+                <span>Lỗi:</span>
                 <span>{error}</span>
               </div>
             )}
@@ -288,7 +288,7 @@ export default function CreateEventPage() {
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '12px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}>
-                    📸 {t('create_event.image_btn')}
+                    {t('create_event.image_btn')}
                     <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageSelect} />
                   </label>
                   
@@ -296,7 +296,7 @@ export default function CreateEventPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <img src={imagePreview} alt="Preview" style={{ width: '80px', height: '56px', objectFit: 'cover', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.2)' }} />
                       <button type="button" onClick={clearImageSelection} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        ✕ {t('create_event.image_delete')}
+                        {t('create_event.image_delete')}
                       </button>
                     </div>
                   )}

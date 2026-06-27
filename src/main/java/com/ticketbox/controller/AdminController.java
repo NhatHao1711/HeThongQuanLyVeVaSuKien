@@ -37,6 +37,7 @@ public class AdminController {
     private final EmailService emailService;
     private final com.ticketbox.service.SeatService seatService;
     private final com.ticketbox.repository.SeatRepository seatRepository;
+    private final com.ticketbox.service.EventService eventService;
 
     // ========== Dashboard Stats ==========
     @GetMapping("/stats")
@@ -60,6 +61,7 @@ public class AdminController {
             es.put("eventId", event.getId());
             es.put("title", event.getTitle());
             var orders = orderRepository.findAll().stream()
+                    .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
                     .filter(o -> o.getUserTickets().stream().anyMatch(ut -> 
                         ut.getTicketType().getEvent().getId().equals(event.getId())))
                     .collect(Collectors.toList());
@@ -76,10 +78,31 @@ public class AdminController {
         }).collect(Collectors.toList());
 
         BigDecimal totalRevenue = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
                 .map(Order::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // Tính tổng phí sàn (20%) thu về từ các đơn hàng của Đại lý (có organizer)
+        BigDecimal platformFee = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .filter(o -> o.getEvent() != null && o.getEvent().getOrganizer() != null)
+                .map(o -> {
+                    BigDecimal rate = o.getEvent().getOrganizer().getCommissionRate();
+                    if (rate == null) rate = new BigDecimal("0.20");
+                    return o.getTotalAmount().multiply(rate);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Tổng nợ chưa thanh toán cho đại lý = sum(balance + holdingBalance) của tất cả ROLE_ORGANIZER
+        BigDecimal totalOrganizerDebt = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == UserRole.ROLE_ORGANIZER)
+                .map(u -> (u.getBalance() != null ? u.getBalance() : BigDecimal.ZERO)
+                        .add(u.getHoldingBalance() != null ? u.getHoldingBalance() : BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         result.put("totalRevenue", totalRevenue);
+        result.put("platformFee", platformFee);
+        result.put("totalOrganizerDebt", totalOrganizerDebt);
         result.put("eventStats", eventStats);
         result.put("totalOrders", orderRepository.count());
         result.put("totalTicketsSold", userTicketRepository.count());
@@ -99,6 +122,7 @@ public class AdminController {
                     map.put("role", user.getRole().name());
                     map.put("isVerified", user.getIsVerified());
                     map.put("createdAt", user.getCreatedAt());
+                    map.put("balance", user.getBalance());
                     return map;
                 }).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success("Danh sách người dùng", users));
@@ -143,6 +167,18 @@ public class AdminController {
         map.put("role", user.getRole().name());
         map.put("isVerified", user.getIsVerified());
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", map));
+    }
+
+    @PutMapping("/users/{id}/payout")
+    public ResponseEntity<ApiResponse<String>> payoutAgency(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getRole() != UserRole.ROLE_ORGANIZER) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("User is not an organizer"));
+        }
+        user.setBalance(BigDecimal.ZERO);
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.success("Đã thanh toán toàn bộ số dư cho đại lý", "OK"));
     }
 
     @DeleteMapping("/users/{id}")
@@ -373,5 +409,34 @@ public class AdminController {
         }
 
         return ResponseEntity.ok(ApiResponse.success("Từ chối thanh toán và hoàn trả vé/ghế thành công", "OK"));
+    }
+
+    @PostMapping("/events/{id}/approve")
+    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> approveEvent(@PathVariable Long id) {
+        com.ticketbox.dto.response.EventResponse response = eventService.publishEvent(id);
+        return ResponseEntity.ok(ApiResponse.success("Phê duyệt sự kiện thành công và đã đăng tải", response));
+    }
+
+    @PostMapping("/events/{id}/reject")
+    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> rejectEvent(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        String reason = body.get("rejectReason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Lý do từ chối duyệt sự kiện không được để trống");
+        }
+        com.ticketbox.dto.response.EventResponse response = eventService.rejectEvent(id, reason);
+        return ResponseEntity.ok(ApiResponse.success("Từ chối duyệt sự kiện thành công", response));
+    }
+
+    @PostMapping("/events/{id}/featured")
+    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> setFeatured(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        String tag = body.containsKey("featuredTag") ? (String) body.get("featuredTag") : null;
+        Boolean isFeatured = body.containsKey("isFeatured") ? (Boolean) body.get("isFeatured") : null;
+        
+        com.ticketbox.dto.response.EventResponse response = eventService.updateFeaturedTag(id, tag, isFeatured);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật nhãn ưu tiên thành công", response));
     }
 }

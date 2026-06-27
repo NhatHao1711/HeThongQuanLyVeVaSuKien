@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
 
 export default function CheckinPage() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [scanning, setScanning] = useState(false);
@@ -17,10 +18,23 @@ export default function CheckinPage() {
 
   // Cleanup on unmount
   useEffect(() => {
+    if (!isLoggedIn()) {
+      window.location.href = '/login';
+      return undefined;
+    }
+    const user = getUser();
+    if (user?.role !== 'ROLE_ADMIN' && user?.role !== 'ROLE_ORGANIZER') {
+      window.location.href = '/';
+      return undefined;
+    }
+    setCurrentUser(user);
     return () => {
       stopCamera();
     };
   }, []);
+
+  const backHref = currentUser?.role === 'ROLE_ADMIN' ? '/admin' : '/agency';
+  const backLabel = currentUser?.role === 'ROLE_ADMIN' ? 'Quản trị' : 'Kênh đại lý';
 
   const startCamera = async () => {
     try {
@@ -154,14 +168,14 @@ export default function CheckinPage() {
             {/* Breadcrumb */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                <Link href="/admin" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Quản trị</Link>
+                <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{backLabel}</Link>
                 <span> / Quét QR Check-in</span>
               </div>
-              <Link href="/admin" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+              <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
             </div>
 
             <div className="section-header">
-              <h2>📱 Quét QR Check-in</h2>
+              <h2>Quét QR Check-in</h2>
               <p>Dùng camera để quét mã QR trên vé</p>
             </div>
 
@@ -173,7 +187,7 @@ export default function CheckinPage() {
             }}>
               {!scanning ? (
                 <div>
-                  <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📷</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '1rem' }}>Camera</div>
                   <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
                     Nhấn nút bên dưới để mở camera và quét mã QR trên vé
                   </p>
@@ -182,7 +196,7 @@ export default function CheckinPage() {
                     onClick={startCamera}
                     style={{ padding: '14px 32px', fontSize: '1rem', fontWeight: 700 }}
                   >
-                    📷 Mở Camera & Quét QR
+                    Mở Camera & Quét QR
                   </button>
                 </div>
               ) : (
@@ -204,7 +218,7 @@ export default function CheckinPage() {
                         background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: '#fff', fontSize: '1.1rem', fontWeight: 700
                       }}>
-                        ⏳ Đang xử lý...
+                        Đang xử lý...
                       </div>
                     )}
                   </div>
@@ -213,7 +227,7 @@ export default function CheckinPage() {
                     onClick={stopCamera}
                     style={{ marginTop: '1rem', fontSize: '0.88rem' }}
                   >
-                    ⏹ Tắt Camera
+                    Tắt Camera
                   </button>
                 </div>
               )}
@@ -228,7 +242,7 @@ export default function CheckinPage() {
                 textAlign: 'center',
               }}>
                 <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
-                  {result.success ? '✅' : '❌'}
+                  {result.success ? '[Thành công]' : '[Thất bại]'}
                 </div>
                 <h3 style={{
                   color: result.success ? '#16a34a' : '#dc2626',
@@ -253,7 +267,7 @@ export default function CheckinPage() {
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem'
             }}>
               <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.8rem' }}>
-                ⌨️ Nhập mã thủ công
+                Nhập mã thủ công
               </h3>
               <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
@@ -282,7 +296,7 @@ export default function CheckinPage() {
                 boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>📋 Lịch sử check-in</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>Lịch sử check-in</h3>
                   <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                     {history.filter(h => h.success).length} / {history.length} thành công
                   </span>
@@ -295,7 +309,7 @@ export default function CheckinPage() {
                       background: h.success ? '#f0fdf4' : '#fef2f2',
                       border: `1px solid ${h.success ? '#bbf7d0' : '#fecaca'}`
                     }}>
-                      <span style={{ fontSize: '1.2rem' }}>{h.success ? '✅' : '❌'}</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: h.success ? '#16a34a' : '#dc2626' }}>{h.success ? 'Thành công' : 'Thất bại'}</span>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '0.85rem', fontWeight: 600, color: h.success ? '#16a34a' : '#dc2626', margin: 0 }}>
                           {h.message}

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import com.ticketbox.security.CustomUserDetails;
 
 /**
  * CheckinService - Nhiệm vụ C: QR Check-in bảo mật
@@ -35,7 +36,7 @@ public class CheckinService {
     private final AESUtil aesUtil;
 
     @Transactional
-    public String processCheckin(String qrToken) {
+    public String processCheckin(String qrToken, CustomUserDetails scanner) {
         if (qrToken == null || qrToken.trim().isEmpty()) {
             throw new InvalidQRTokenException("QR Token không được để trống");
         }
@@ -95,6 +96,17 @@ public class CheckinService {
                     "Vé chưa được thanh toán, không thể check-in!");
         }
 
+        // 4.8. Validate Scanner Permission
+        com.ticketbox.entity.Event event = ticket.getOrder().getEvent();
+        boolean isAdmin = scanner.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        
+        if (!isAdmin) {
+            if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(scanner.getId())) {
+                throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền check-in vé của sự kiện này");
+            }
+        }
+
         // 5. Check duplicate scan (BLOCK trùng lặp)
         if (ticket.getCheckinStatus() == CheckinStatus.USED) {
             throw new BadRequestException(
@@ -106,7 +118,7 @@ public class CheckinService {
         ticket.setCheckinTime(LocalDateTime.now());
         userTicketRepository.save(ticket);
 
-        log.info("✅ Check-in SUCCESS: ticketId={}, userId={}", ticketId, userId);
+        log.info("✅ Check-in SUCCESS: ticketId={}, userId={}, scannerId={}", ticketId, userId, scanner.getId());
 
         return String.format("Check-in thành công! Vé #%d - %s",
                 ticketId, ticket.getTicketType().getName());

@@ -60,6 +60,7 @@ public class AuthService {
                 .fullName(savedUser.getFullName())
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
+                .agencyStatus(savedUser.getAgencyStatus() != null ? savedUser.getAgencyStatus().name() : null)
                 .build();
     }
 
@@ -80,6 +81,7 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .role(user.getRole().name())
+                .agencyStatus(user.getAgencyStatus() != null ? user.getAgencyStatus().name() : null)
                 .build();
     }
 }

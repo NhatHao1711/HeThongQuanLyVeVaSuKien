@@ -33,6 +33,10 @@ export default function EventDetailPage({ params }) {
   const [myComment, setMyComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMsg, setReviewMsg] = useState('');
+  const [canReview, setCanReview] = useState(false);
+  const [reviewReasonMessage, setReviewReasonMessage] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, active: false });
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -57,6 +61,65 @@ export default function EventDetailPage({ params }) {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [id]);
+
+  useEffect(() => {
+    if (event?.organizerId && isLoggedIn()) {
+      apiRequest(`/organizers/${event.organizerId}/is-following`)
+        .then(res => { if (res.success) setIsFollowing(res.data.followed); })
+        .catch(err => console.error(err));
+    }
+  }, [event?.organizerId]);
+
+  useEffect(() => {
+    if (event) {
+      if (isLoggedIn()) {
+        apiRequest('/tickets')
+          .then(res => {
+            if (res.success) {
+              const tickets = res.data || [];
+              const now = new Date();
+              const endTime = new Date(event.endTime);
+              if (now < endTime) {
+                setCanReview(false);
+                setReviewReasonMessage('Bạn chỉ có thể đánh giá sau khi sự kiện kết thúc.');
+              } else {
+                const hasUsedTicket = tickets.some(t => t.eventId === event.id && t.checkinStatus === 'USED');
+                if (hasUsedTicket) {
+                  setCanReview(true);
+                } else {
+                  setCanReview(false);
+                  setReviewReasonMessage('Bạn chỉ có thể đánh giá sự kiện khi đã mua vé và check-in tham gia thành công.');
+                }
+              }
+            }
+          })
+          .catch(() => {
+            setCanReview(false);
+            setReviewReasonMessage('Lỗi tải dữ liệu kiểm tra quyền đánh giá.');
+          });
+      } else {
+        setCanReview(false);
+        setReviewReasonMessage('Vui lòng đăng nhập để viết đánh giá.');
+      }
+    }
+  }, [event]);
+
+  const handleFollowToggle = async () => {
+    if (!isLoggedIn()) { window.location.href = '/login'; return; }
+    if (!event?.organizerId) return;
+    setFollowLoading(true);
+    try {
+      const action = isFollowing ? 'unfollow' : 'follow';
+      const res = await apiRequest(`/organizers/${event.organizerId}/${action}`, { method: 'POST' });
+      if (res.success) {
+        setIsFollowing(res.data.followed);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   // Countdown timer
   useEffect(() => {
@@ -298,7 +361,7 @@ export default function EventDetailPage({ params }) {
         try {
           const payOSRes = await apiRequest('/payments/create-payos-link', {
             method: 'POST',
-            body: JSON.stringify({ orderId: lastResponse.orderId }),
+            body: JSON.stringify({ orderIds: allOrderIds }),
           });
           if (payOSRes.success && payOSRes.data) {
             setPayOSData(payOSRes.data);
@@ -434,7 +497,7 @@ export default function EventDetailPage({ params }) {
         <Navbar />
         <div className={styles.container}>
           <div className={styles.notFound}>
-            <p>🎉 {t('events.no_events_found')}</p>
+            <p>{t('events.no_events_found')}</p>
             <Link href="/events" className="btn btn-primary">{t('common.back')}</Link>
           </div>
         </div>
@@ -452,12 +515,9 @@ export default function EventDetailPage({ params }) {
           style={event.imageUrl ? { backgroundImage: `url(http://localhost:8080${event.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
         >
           {!event.imageUrl && (
-            <div className={styles.heroBg}>
-              <div className={styles.imagePlaceholder}>
-                {event.category?.name?.includes('Nhạc') && '🎵'}
-                {event.category?.name?.includes('Sân') && '🎭'}
-                {event.category?.name?.includes('Thể') && '⚽'}
-                {!event.category?.name && '🎪'}
+            <div className={styles.imageOverlay}>
+              <div className={styles.categoryBadge}>
+                {event.category?.name || 'Sự kiện'}
               </div>
             </div>
           )}
@@ -466,11 +526,12 @@ export default function EventDetailPage({ params }) {
           </Link>
           <button onClick={toggleFavorite} style={{
             position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.95)',
-            border: 'none', borderRadius: '50%', width: 44, height: 44,
+            border: 'none', borderRadius: '20px', padding: '8px 16px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s',
+            fontWeight: 700, fontSize: '0.82rem', color: isFavorited ? '#e91e63' : '#334155'
           }}>
-            {icons.heart(22, isFavorited ? '#e91e63' : '#999', isFavorited)}
+            {isFavorited ? 'Đã thích' : 'Yêu thích'}
           </button>
         </div>
 
@@ -483,10 +544,10 @@ export default function EventDetailPage({ params }) {
                 <h1 className={styles.title}>{event.title}</h1>
                 <div className={styles.metadata}>
                   <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                    {icons.mapPin(16, '#666')} {event.location || t('common.contact')}
+                    Địa điểm: {event.location || t('common.contact')}
                   </span>
                   <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                    {icons.calendar(16, '#666')} {formatDate(event.startTime)} {formatTime(event.startTime)}
+                    Thời gian: {formatDate(event.startTime)} {formatTime(event.startTime)}
                   </span>
                 </div>
               </div>
@@ -508,9 +569,33 @@ export default function EventDetailPage({ params }) {
 
             {/* Event Stats */}
             <div className={styles.stats}>
-              <div className={styles.statItem}>
+              <div className={styles.statItem} style={{ display: 'flex', flexDirection: 'column' }}>
                 <span className={styles.statLabel}>{t('events.detail_organizer')}</span>
-                <span className={styles.statValue}>{event.organizer || 'N/A'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <span className={styles.statValue} style={{ margin: 0 }}>{event.organizer || 'N/A'}</span>
+                  {event.organizerId && (
+                    <button 
+                      onClick={handleFollowToggle} 
+                      disabled={followLoading}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: isFollowing ? '1px solid #d1d5db' : 'none',
+                        background: isFollowing ? '#f3f4f6' : '#00B46E',
+                        color: isFollowing ? '#374151' : '#fff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {followLoading ? '...' : isFollowing ? '✓ Đang theo dõi' : '＋ Theo dõi'}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className={styles.statItem}>
                 <span className={styles.statLabel}>{t('events.detail_category')}</span>
@@ -570,7 +655,7 @@ export default function EventDetailPage({ params }) {
           <aside className={styles.sidebar}>
             {/* Book Now Card */}
             <div className={styles.bookingCard}>
-              <h2 className={styles.bookingTitle}>🎫 {t('events.booking_title')}</h2>
+              <h2 className={styles.bookingTitle}>Đặt vé</h2>
               <p style={{ fontSize: '0.88rem', color: '#4a5568', marginBottom: '1rem', lineHeight: 1.6 }}>
                 {t('events.booking_desc')}
               </p>
@@ -590,18 +675,32 @@ export default function EventDetailPage({ params }) {
                   </div>
                 </div>
               )}
-              <button 
-                className={styles.bookNowBtn}
-                onClick={openBookingModal}
-              >
-                🎟️ {t('events.booking_btn')}
-              </button>
+              {(() => {
+                const now = new Date();
+                const end = new Date(event.endTime);
+                const isClosed = event.status === 'CANCELLED' || event.status === 'CLOSED' || now > end;
+                return (
+                  <button 
+                    className={styles.bookNowBtn}
+                    onClick={openBookingModal}
+                    disabled={isClosed}
+                    style={isClosed ? { 
+                      background: '#94a3b8', 
+                      cursor: 'not-allowed', 
+                      boxShadow: 'none',
+                      opacity: 0.8
+                    } : {}}
+                  >
+                    {isClosed ? 'Đã kết thúc / Hủy' : 'Đặt vé ngay'}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Countdown Timer */}
             {countdown.active && (
               <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', borderRadius: 14, padding: '1.25rem', marginBottom: '1rem', color: '#fff' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.75rem', opacity: 0.9, textAlign: 'center' }}>⏰ {t('time.starts_in')}</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.75rem', opacity: 0.9, textAlign: 'center' }}>Thời gian còn lại</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
                   {[{ v: countdown.days, l: t('time.days') }, { v: countdown.hours, l: t('time.hours') }, { v: countdown.minutes, l: t('time.minutes') }, { v: countdown.seconds, l: t('time.seconds') }].map((item, i) => (
                     <div key={i} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '0.5rem' }}>
@@ -618,8 +717,8 @@ export default function EventDetailPage({ params }) {
               <p className={styles.shareLabel}>{t('events.share_title')}</p>
               <div className={styles.shareButtons}>
                 <button className={styles.shareBtn} title="Facebook">f</button>
-                <button className={styles.shareBtn} title="Twitter">𝕏</button>
-                <button className={styles.shareBtn} title="Copy link">🔗</button>
+                <button className={styles.shareBtn} title="Twitter">X</button>
+                <button className={styles.shareBtn} title="Copy link">Copy Link</button>
               </div>
             </div>
           </aside>
@@ -633,9 +732,9 @@ export default function EventDetailPage({ params }) {
             {/* Modal Header */}
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>🎫 {t('events.booking_modal_title').replace('{title}', event.title)}</h2>
+                <h2 className={styles.modalTitle}>Đặt vé: {event.title}</h2>
                 <p className={styles.modalSubtitle}>
-                  {icons.mapPin(14, '#94a3b8')} {event.location} • {icons.calendar(14, '#94a3b8')} {formatDate(event.startTime)}
+                  Địa điểm: {event.location} • Thời gian: {formatDate(event.startTime)}
                 </p>
               </div>
               <button className={styles.modalCloseBtn} onClick={closeBookingModal}>✕</button>
@@ -681,14 +780,14 @@ export default function EventDetailPage({ params }) {
                     <div className={styles.bottomBarRow}>
                       <div className={styles.bottomBarStat}>
                         <span className={styles.bottomBarLabel}>{t('events.booking_total_selected_seats')}</span>
-                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'seats' : 'ghế'}</span>
+                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} vé</span>
                       </div>
                       <div className={styles.bottomBarStat}>
                         <span className={styles.bottomBarLabel}>{t('events.booking_selected_positions')}</span>
                         <span className={styles.bottomBarValue}>
                           {getAllSelectedSeatNames().length > 0
                             ? getAllSelectedSeatNames().join(', ')
-                            : t('events.booking_no_seats_selected')}
+                            : 'Chưa chọn ghế'}
                         </span>
                       </div>
                     </div>
@@ -713,27 +812,27 @@ export default function EventDetailPage({ params }) {
 
             {bookingStep === 'confirm' && (
               <div className={styles.paymentContent}>
-                <h2 className={styles.bookingTitle}>📋 {t('events.booking_confirm_order')}</h2>
-
-                {/* Event Info Summary */}
-                <div className={styles.confirmEventInfo}>
-                  <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>🎪 {t('events.category_all') === 'All' ? 'Event' : 'Sự kiện'}</span>
-                    <span className={styles.confirmEventValue}>{event.title}</span>
-                  </div>
-                  <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>📍 {t('home.search_placeholder_location')}</span>
-                    <span className={styles.confirmEventValue}>{event.location || 'N/A'}</span>
-                  </div>
-                  <div className={styles.confirmEventRow}>
-                    <span className={styles.confirmEventLabel}>📅 {t('events.time_label')}</span>
-                    <span className={styles.confirmEventValue}>{formatDate(event.startTime)} - {formatTime(event.startTime)}</span>
-                  </div>
-                </div>
-
-                {/* Ticket Details */}
-                <div className={styles.confirmOrderSummary}>
-                  <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>🎫 {t('events.booking_detail_seats')}</p>
+                <h2 className={styles.bookingTitle}>Xác nhận đặt vé</h2>
+ 
+                 {/* Event Info Summary */}
+                 <div className={styles.confirmEventInfo}>
+                   <div className={styles.confirmEventRow}>
+                     <span className={styles.confirmEventLabel}>{t('events.category_all') === 'All' ? 'Event' : 'Sự kiện'}</span>
+                     <span className={styles.confirmEventValue}>{event.title}</span>
+                   </div>
+                   <div className={styles.confirmEventRow}>
+                     <span className={styles.confirmEventLabel}>{t('home.search_placeholder_location')}</span>
+                     <span className={styles.confirmEventValue}>{event.location || 'N/A'}</span>
+                   </div>
+                   <div className={styles.confirmEventRow}>
+                     <span className={styles.confirmEventLabel}>{t('events.time_label')}</span>
+                     <span className={styles.confirmEventValue}>{formatDate(event.startTime)} - {formatTime(event.startTime)}</span>
+                   </div>
+                 </div>
+ 
+                 {/* Ticket Details */}
+                 <div className={styles.confirmOrderSummary}>
+                   <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>Chi tiết vé</p>
                   {Object.entries(selectedTickets).map(([typeId, qty]) => {
                     const ticket = ticketTypes.find(t => t.id == typeId);
                     const seatObjs = selectedSeatObjects[typeId] || [];
@@ -760,7 +859,7 @@ export default function EventDetailPage({ params }) {
 
                 {/* Voucher Section */}
                 <div className={styles.confirmVoucherSection}>
-                  <p className={styles.confirmVoucherLabel}>🏷   {t('events.voucher_label')}</p>
+                  <p className={styles.confirmVoucherLabel}>{t('events.voucher_label')}</p>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <input
                       type="text"
@@ -980,7 +1079,7 @@ export default function EventDetailPage({ params }) {
                     padding: '14px 28px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', 
                     borderRadius: '12px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 15px rgba(15, 23, 42, 0.3)', transition: 'transform 0.2s' 
                   }}>
-                    🎟️ Xem vé của tôi
+                    Xem vé của tôi
                   </Link>
                   <button onClick={closeBookingModal} style={{ 
                     padding: '14px 28px', background: '#f1f5f9', color: '#334155', border: 'none', 
@@ -999,7 +1098,7 @@ export default function EventDetailPage({ params }) {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>⭐ {t('events.review_title')}</h2>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{t('events.review_title')}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b' }}>{reviewStats.averageRating}</span>
               <div>
@@ -1010,30 +1109,40 @@ export default function EventDetailPage({ params }) {
           </div>
 
           {/* Review Form */}
-          {isLoggedIn() && (
-            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>{t('events.review_write_title')}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>{t('events.review_rating_label')}</span>
-                <StarRating rating={myRating} interactive onRate={setMyRating} />
-                {myRating > 0 && <span style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600 }}>{myRating}/5</span>}
+          {isLoggedIn() ? (
+            canReview ? (
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>{t('events.review_write_title')}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>{t('events.review_rating_label')}</span>
+                  <StarRating rating={myRating} interactive onRate={setMyRating} />
+                  {myRating > 0 && <span style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600 }}>{myRating}/5</span>}
+                </div>
+                <textarea
+                  value={myComment} onChange={e => setMyComment(e.target.value)}
+                  placeholder={t('events.review_comment_placeholder')}
+                  rows={3}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+                  {reviewMsg && <span style={{ fontSize: '0.85rem', color: reviewMsg.includes('✅') ? '#10b981' : '#ef4444' }}>{reviewMsg}</span>}
+                  <button onClick={submitReview} disabled={reviewSubmitting} style={{
+                    padding: '0.6rem 1.5rem', background: 'var(--primary)', color: '#fff', border: 'none',
+                    borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', marginLeft: 'auto',
+                    opacity: reviewSubmitting ? 0.6 : 1
+                  }}>
+                    {reviewSubmitting ? t('events.review_submitting') : t('events.review_submit_btn')}
+                  </button>
+                </div>
               </div>
-              <textarea
-                value={myComment} onChange={e => setMyComment(e.target.value)}
-                placeholder={t('events.review_comment_placeholder')}
-                rows={3}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
-                {reviewMsg && <span style={{ fontSize: '0.85rem', color: reviewMsg.includes('✅') ? '#10b981' : '#ef4444' }}>{reviewMsg}</span>}
-                <button onClick={submitReview} disabled={reviewSubmitting} style={{
-                  padding: '0.6rem 1.5rem', background: 'var(--primary)', color: '#fff', border: 'none',
-                  borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', marginLeft: 'auto',
-                  opacity: reviewSubmitting ? 0.6 : 1
-                }}>
-                  {reviewSubmitting ? t('events.review_submitting') : '📝 ' + t('events.review_submit_btn')}
-                </button>
+            ) : (
+              <div style={{ background: '#f9fafb', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px dashed #d1d5db', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
+                {reviewReasonMessage}
               </div>
+            )
+          ) : (
+            <div style={{ background: '#f9fafb', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px dashed #d1d5db', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
+              Vui lòng <Link href="/login" style={{ color: '#00B46E', fontWeight: 600, textDecoration: 'underline' }}>đăng nhập</Link> để viết đánh giá.
             </div>
           )}
 
@@ -1064,12 +1173,12 @@ export default function EventDetailPage({ params }) {
         </div>
       </div>
 
-      {/* 🗺️ Google Maps */}
+      {/* Google Maps */}
       {event?.location && (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
           <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>🗺️ {t('events.category_all') === 'All' ? 'Location Map' : 'Bản đồ địa điểm'}</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{t('events.category_all') === 'All' ? 'Location Map' : 'Bản đồ địa điểm'}</h3>
             </div>
             <iframe
               width="100%" height="300" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
@@ -1079,11 +1188,11 @@ export default function EventDetailPage({ params }) {
         </div>
       )}
 
-      {/* 🔗 Related Events */}
+      {/* Related Events */}
       {relatedEvents.length > 0 && (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem 2rem' }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>🔗 {t('events.category_all') === 'All' ? 'Related Events' : 'Sự kiện liên quan'}</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>{t('events.category_all') === 'All' ? 'Related Events' : 'Sự kiện liên quan'}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
               {relatedEvents.map(re => (
                 <Link key={re.id} href={`/events/${re.id}`} style={{ textDecoration: 'none' }}>
@@ -1098,13 +1207,13 @@ export default function EventDetailPage({ params }) {
                       height: 120, background: re.imageUrl ? `url(http://localhost:8080${re.imageUrl}) center/cover` : 'linear-gradient(135deg, #667eea, #764ba2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
-                      {!re.imageUrl && <span style={{ fontSize: '2rem', opacity: 0.5 }}>🎪</span>}
+                      {!re.imageUrl && <span style={{ fontSize: '0.85rem', color: '#a0aec0' }}>TRIVENT</span>}
                     </div>
                     <div style={{ padding: '1rem' }}>
                       <div style={{ fontSize: '0.72rem', color: '#00B46E', fontWeight: 600, marginBottom: '0.3rem' }}>{re.category?.name || 'Sự kiện'}</div>
                       <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.4rem', lineHeight: 1.3 }}>{re.title}</h4>
                       <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-                        📅 {new Date(re.startTime).toLocaleDateString('vi-VN')} • 📍 {re.location || 'TBD'}
+                        Thời gian: {new Date(re.startTime).toLocaleDateString('vi-VN')} • Địa điểm: {re.location || 'TBD'}
                       </div>
                     </div>
                   </div>

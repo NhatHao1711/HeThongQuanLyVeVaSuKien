@@ -1,5 +1,7 @@
 package com.ticketbox.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.ticketbox.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,6 +13,7 @@ import java.time.LocalDateTime;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id
@@ -27,6 +30,7 @@ public class User {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -48,8 +52,31 @@ public class User {
     @Builder.Default
     private UserRole role = UserRole.ROLE_USER;
 
+    @JsonIgnore
     @Column(name = "reset_token", length = 255)
     private String resetToken;
+
+    @Column(name = "balance", precision = 12, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+
+    @Column(name = "holding_balance", precision = 12, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal holdingBalance = java.math.BigDecimal.ZERO;
+
+    @Column(name = "bank_account", columnDefinition = "JSON")
+    private String bankAccount;
+
+    @Column(name = "kyc_status", length = 20)
+    private String kycStatus;
+
+    @Column(name = "commission_rate", precision = 5, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal commissionRate = new java.math.BigDecimal("0.20");
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "agency_status", length = 20)
+    private com.ticketbox.enums.AgencyStatus agencyStatus;
 
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;

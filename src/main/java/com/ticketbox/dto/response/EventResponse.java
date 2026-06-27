@@ -26,4 +26,11 @@ public class EventResponse {
     private List<TicketTypeResponse> ticketTypes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    private String rejectReason;
+    private Long views;
+    private String featuredTag;
+    private Long organizerId;
+    private String organizerName;
+    private Boolean isFeatured;
 }

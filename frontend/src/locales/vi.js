@@ -1,4 +1,4 @@
-{
+export default {
   "nav": {
     "home": "Trang chủ",
     "events": "Sự kiện",
@@ -13,7 +13,16 @@
     "register": "Đăng ký",
     "notifications": "Thông báo",
     "read_all": "Đọc tất cả",
-    "no_notifications": "Không có thông báo"
+    "no_notifications": "Không có thông báo",
+    "search_placeholder": "Bạn tìm gì hôm nay?",
+    "create_event": "Tạo sự kiện",
+    "no_new_notifications": "Không có thông báo mới",
+    "account": "Tài khoản",
+    "admin_channel": "Kênh Quản Trị",
+    "agency_channel": "Kênh Đại Lý",
+    "register_agency": "Đăng ký Đại Lý",
+    "profile": "Trang Cá Nhân",
+    "explore": "Khám phá sự kiện"
   },
   "home": {
     "hero_badge": "Khám phá sự kiện tuyệt vời",
@@ -32,7 +41,7 @@
     "hot_events_desc": "Đừng bỏ lỡ — các sự kiện được săn vé nhiều nhất",
     "book_now": "Đặt vé ngay",
     "no_events": "Chưa có sự kiện nào. Hãy đăng nhập Admin để tạo và publish sự kiện!",
-    "view_all": "Xem tất cả sự kiện →",
+    "view_all": "Xem tất cả sự kiện",
     "super_deal": "SIÊU ƯU ĐÃI",
     "vouchers_title": "Mã giảm giá cho sinh viên",
     "vouchers_desc": "Lưu ngay mã giảm giá và áp dụng khi thanh toán vé sự kiện",
@@ -56,7 +65,23 @@
     "why_item5_desc": "Săn vé xịn với giá \"hạt dẻ\". Vô vàn ưu đãi độc quyền dành riêng cho thẻ sinh viên của bạn.",
     "search": "Tìm kiếm",
     "search_placeholder_title": "Tên sự kiện...",
-    "search_placeholder_location": "Địa điểm"
+    "search_placeholder_location": "Địa điểm",
+    "explore_section_title": "Khám Phá Sự Kiện",
+    "explore_section_subtitle": "Đăng ký tham gia ngay các hoạt động, sự kiện sôi động nhất",
+    "loading_events": "Đang tải danh sách sự kiện...",
+    "no_events_announced": "Chưa có sự kiện nào",
+    "no_events_announced_desc": "Danh mục này hiện tại chưa có sự kiện nào được công bố. Bạn có thể đăng ký tài khoản Đại lý để tự tạo và quản lý sự kiện.",
+    "register_agency_create": "Đăng ký Đại lý & Tạo sự kiện",
+    "time_prefix": "Thời gian",
+    "location_prefix": "Địa điểm",
+    "become_agency_title": "Trở thành Đại lý Bán vé",
+    "become_agency_desc": "Đăng ký ngay tài khoản đại lý để đăng tải các sự kiện của bạn lên TRIVENT hoàn toàn miễn phí!",
+    "register_now": "Đăng ký ngay",
+    "welcome_title": "Chào mừng bạn đến với TRIVENT",
+    "welcome_desc": "Khám phá hàng ngàn sự kiện tuyệt vời được tổ chức bởi sinh viên các trường đại học.",
+    "welcome_agency_title": "Tự Tạo & Quảng Bá Sự Kiện",
+    "welcome_agency_desc": "Đăng ký tài khoản đại lý bán vé để xuất bản sự kiện của bạn và tiếp cận hàng ngàn sinh viên.",
+    "welcome_start_now": "Khởi tạo ngay"
   },
   "common": {
     "buy_ticket": "Đặt vé ngay",
@@ -99,13 +124,13 @@
     "forgot_title": "Quên mật khẩu",
     "forgot_subtitle": "Nhập email để nhận link đặt lại mật khẩu",
     "forgot_send_btn": "Gửi link đặt lại mật khẩu",
-    "forgot_success_msg": "✅ Nếu email tồn tại, bạn sẽ nhận được hướng dẫn qua email. Hãy kiểm tra hòm thư!",
+    "forgot_success_msg": "Nếu email tồn tại, bạn sẽ nhận được hướng dẫn qua email. Hãy kiểm tra hòm thư!",
     "reset_title": "Đặt lại mật khẩu",
     "reset_subtitle": "Nhập mật khẩu mới cho tài khoản",
     "reset_new_pwd": "Mật khẩu mới",
     "reset_confirm_pwd": "Xác nhận mật khẩu",
     "reset_btn": "Đặt lại mật khẩu",
-    "reset_success_msg": "✅ Đặt lại mật khẩu thành công! Hãy đăng nhập lại.",
+    "reset_success_msg": "Đặt lại mật khẩu thành công! Hãy đăng nhập lại.",
     "pwd_not_match": "Mật khẩu xác nhận không khớp!",
     "register_fail": "Đăng ký thất bại!",
     "login_fail": "Đăng nhập thất bại!",
@@ -150,10 +175,10 @@
     "detail_no_desc": "Không có mô tả",
     "share_title": "Chia sẻ sự kiện",
     "share_success": "Đã sao chép link!",
-    "status_cancelled": "🔴 Đã hủy",
-    "status_upcoming": "🟡 Sắp diễn ra",
-    "status_ongoing": "🟢 Đang diễn ra",
-    "status_completed": "⚫ Đã kết thúc",
+    "status_cancelled": "Đã hủy",
+    "status_upcoming": "Sắp diễn ra",
+    "status_ongoing": "Đang diễn ra",
+    "status_completed": "Đã kết thúc",
     "booking_title": "Đặt vé",
     "booking_desc": "Chọn loại vé và vị trí ghế ngồi yêu thích của bạn.",
     "booking_price_from": "Giá từ",
@@ -181,7 +206,7 @@
     "booking_bank_info": "Nội dung chuyển khoản",
     "booking_bank_qr_scan": "Quét mã QR để chuyển khoản nhanh",
     "booking_bank_confirm_btn": "Tôi đã chuyển khoản",
-    "booking_success_title": "🎉 Đặt vé thành công!",
+    "booking_success_title": "Đặt vé thành công!",
     "booking_success_desc": "Đơn hàng của bạn đã được ghi nhận. Vui lòng chờ Admin duyệt giao dịch chuyển khoản. Vé và mã QR check-in sẽ được gửi qua email của bạn sau khi thanh toán được xác nhận.",
     "booking_view_tickets_btn": "Xem vé của tôi",
     "booking_select_at_least_one": "Vui lòng chọn ít nhất một vé",
@@ -254,7 +279,7 @@
     "tab_my_buddies": "Bạn bè của tôi",
     "event_label": "Chọn sự kiện:",
     "event_placeholder": "Chọn sự kiện để tìm bạn...",
-    "no_tickets_warning": "⚠️ Bạn cần mua vé sự kiện này trước khi tìm bạn đồng hành!",
+    "no_tickets_warning": "Bạn cần mua vé sự kiện này trước khi tìm bạn đồng hành!",
     "buy_ticket_btn": "Đặt vé sự kiện này ngay",
     "potential_buddies_title": "Sinh viên tham dự sự kiện này ({count})",
     "no_potentials": "Chưa có sinh viên nào đăng ký tìm bạn đồng hành cho sự kiện này.",
@@ -268,7 +293,7 @@
     "no_outgoing": "Bạn chưa gửi lời mời nào.",
     "accept_btn": "Chấp nhận",
     "decline_btn": "Từ chối",
-    "status_accepted": "Đã ghép đôi 🎉",
+    "status_accepted": "Đã ghép đôi",
     "status_declined": "Đã từ chối",
     "status_pending": "Đang chờ",
     "my_buddies_list": "Danh sách bạn đồng hành ({count})",
@@ -279,7 +304,7 @@
     "no_suggestions": "Chưa có gợi ý kết nối. Hãy mời bạn bè tham gia sự kiện nhé!",
     "connect_btn": "Kết nối",
     "contact_modal_title": "Thông tin liên hệ",
-    "contact_modal_desc": "Hãy chủ động liên hệ qua email để hẹn thời gian và địa điểm gặp mặt nhé! Chúc hai bạn có một trải nghiệm sự kiện tuyệt vời! 🎉",
+    "contact_modal_desc": "Hãy chủ động liên hệ qua email để hẹn thời gian và địa điểm gặp mặt nhé! Chúc hai bạn có một trải nghiệm sự kiện tuyệt vời!",
     "close_btn": "Đóng",
     "no_events": "Chưa có sự kiện nào."
   },
@@ -335,7 +360,10 @@
     "unupdated": "Chưa cập nhật",
     "unlinked": "Chưa liên kết",
     "joined_date": "Ngày tham gia",
-    "edit_btn": "Chỉnh sửa"
+    "edit_btn": "Chỉnh sửa",
+    "role_admin": "Quản trị viên",
+    "role_organizer": "Đại lý",
+    "role_user": "Sinh viên"
   },
   "favorites": {
     "title": "Sự kiện yêu thích",
@@ -383,4 +411,4 @@
     "submit_btn": "Gửi đề xuất sự kiện",
     "submitting_btn": "Đang gửi đề xuất..."
   }
-}
+};

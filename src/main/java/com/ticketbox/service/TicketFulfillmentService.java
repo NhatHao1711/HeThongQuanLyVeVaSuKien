@@ -31,6 +31,7 @@ public class TicketFulfillmentService {
     private final UserTicketRepository userTicketRepository;
     private final AESUtil aesUtil;
     private final QRCodeService qrCodeService;
+    private final EmailService emailService;
 
     @RabbitListener(queues = "${rabbitmq.queue.payment-completed}")
     @Transactional
@@ -67,6 +68,27 @@ public class TicketFulfillmentService {
 
             // 4. Save all updated tickets
             userTicketRepository.saveAll(tickets);
+
+            // 5. Send booking confirmation email with QR code
+            try {
+                com.ticketbox.entity.User user = tickets.get(0).getUser();
+                com.ticketbox.entity.TicketType ticketType = tickets.get(0).getTicketType();
+                com.ticketbox.entity.Event event = ticketType.getEvent();
+                com.ticketbox.entity.Order order = tickets.get(0).getOrder();
+                
+                emailService.sendBookingConfirmation(
+                    user.getEmail(),
+                    user.getFullName(),
+                    event.getTitle(),
+                    ticketType.getName(),
+                    tickets.size(),
+                    order.getTotalAmount(),
+                    order.getTransactionRef(),
+                    tickets.get(0).getQrToken()
+                );
+            } catch (Exception e) {
+                log.warn("⚠️ Failed to send fulfillment email: {}", e.getMessage());
+            }
 
             log.info("✅ Fulfilled {} tickets for Order #{}",
                     tickets.size(), message.getOrderId());

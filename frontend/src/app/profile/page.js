@@ -100,14 +100,14 @@ export default function ProfilePage() {
                 }}>
                   {profile.avatarUrl
                     ? <img src={API_BASE + profile.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : profile.fullName?.charAt(0)?.toUpperCase() || icons.user(40, '#fff')}
+                    : profile.fullName?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
                 <label style={{
                   position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%',
                   background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                  cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', fontWeight: 'bold'
                 }}>
-                  {icons.camera(16, '#fff')}
+                  +
                   <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
                 </label>
               </div>
@@ -116,10 +116,23 @@ export default function ProfilePage() {
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                 padding: '0.25rem 0.75rem', borderRadius: 20, fontSize: '0.75rem',
-                background: profile.role === 'ROLE_ADMIN' ? 'rgba(255,107,53,0.1)' : 'rgba(76,175,80,0.1)',
-                color: profile.role === 'ROLE_ADMIN' ? '#ff6b35' : '#4caf50', fontWeight: 600, marginTop: '0.5rem'
+                background: profile.role === 'ROLE_ADMIN' 
+                  ? 'rgba(255,107,53,0.1)' 
+                  : profile.role === 'ROLE_ORGANIZER' 
+                    ? 'rgba(14,165,233,0.1)' 
+                    : 'rgba(76,175,80,0.1)',
+                color: profile.role === 'ROLE_ADMIN' 
+                  ? '#ff6b35' 
+                  : profile.role === 'ROLE_ORGANIZER' 
+                    ? '#0ea5e9' 
+                    : '#4caf50', 
+                fontWeight: 600, marginTop: '0.5rem'
               }}>
-                {profile.role === 'ROLE_ADMIN' ? <>{icons.crown(14, '#ff6b35')} Admin</> : <>{icons.user(14, '#4caf50')} User</>}
+                {profile.role === 'ROLE_ADMIN' 
+                  ? t('profile.role_admin') 
+                  : profile.role === 'ROLE_ORGANIZER' 
+                    ? t('profile.role_organizer') 
+                    : t('profile.role_user')}
               </span>
             </div>
 
@@ -127,7 +140,7 @@ export default function ProfilePage() {
 
             <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {icons.clipboardList(18)} {t('profile.tab_info')}
+                {t('profile.tab_info')}
               </h3>
               <div style={{ display: 'grid', gap: '1rem' }}>
                 <div>
@@ -163,17 +176,17 @@ export default function ProfilePage() {
                 {editing ? (
                   <>
                     <button onClick={handleSave} className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.save(16, '#fff')} {t('common.save')}
+                      {t('common.save')}
                     </button>
                     <button onClick={() => setEditing(false)} className="btn btn-outline" style={{ flex: 1 }}>{t('common.cancel')}</button>
                   </>
                 ) : (
                   <>
                     <button onClick={() => setEditing(true)} className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.edit(16, '#fff')} {t('profile.edit_btn')}
+                      {t('profile.edit_btn')}
                     </button>
                     <button onClick={() => setShowPwForm(!showPwForm)} className="btn btn-outline" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                      {icons.lock(16)} {t('profile.tab_pwd')}
+                      {t('profile.tab_pwd')}
                     </button>
                   </>
                 )}
@@ -183,7 +196,7 @@ export default function ProfilePage() {
             {showPwForm && (
               <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {icons.lock(18)} {t('profile.tab_pwd')}
+                  {t('profile.tab_pwd')}
                 </h3>
                 {pwMsg && <div style={{ padding: '0.75rem', borderRadius: 8, background: (pwMsg.includes('thành công') || pwMsg.toLowerCase().includes('success')) ? '#e8f5e9' : '#fbe9e7', textAlign: 'center', marginBottom: '1rem' }}>{pwMsg}</div>}
                 <div style={{ display: 'grid', gap: '0.75rem' }}>

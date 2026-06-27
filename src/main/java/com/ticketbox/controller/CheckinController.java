@@ -6,6 +6,7 @@ import com.ticketbox.service.CheckinService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import com.ticketbox.security.CustomUserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,10 +21,12 @@ public class CheckinController {
      * Giải mã AES, kiểm tra vé, cập nhật USED, block trùng lặp.
      */
     @PostMapping("/scan")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
     public ResponseEntity<ApiResponse<String>> scanQR(
-            @Valid @RequestBody CheckinRequest request) {
+            @Valid @RequestBody CheckinRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        String result = checkinService.processCheckin(request.getQrToken());
+        String result = checkinService.processCheckin(request.getQrToken(), userDetails);
 
         return ResponseEntity.ok(ApiResponse.success(result, "CHECKED_IN"));
     }

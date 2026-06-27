@@ -4,8 +4,10 @@ import com.ticketbox.dto.request.BookingRequest;
 import com.ticketbox.dto.response.BookingResponse;
 import com.ticketbox.entity.Order;
 import com.ticketbox.entity.TicketType;
+import com.ticketbox.entity.Event;
 import com.ticketbox.entity.User;
 import com.ticketbox.entity.UserTicket;
+import java.time.LocalDateTime;
 import com.ticketbox.enums.CheckinStatus;
 import com.ticketbox.enums.PaymentStatus;
 import com.ticketbox.exception.BadRequestException;
@@ -99,6 +101,10 @@ public class TicketBookingService {
                 TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "TicketType", "id", ticketTypeId));
+
+                if (ticketType.getEvent() != null && ticketType.getEvent().getEndTime() != null && ticketType.getEvent().getEndTime().isBefore(java.time.LocalDateTime.now())) {
+                    throw new BadRequestException("Sự kiện này đã kết thúc, không thể đặt vé.");
+                }
 
                 if (ticketType.getAvailableQuantity() < quantity) {
                     throw new TicketSoldOutException(ticketTypeId, quantity,
@@ -207,24 +213,6 @@ public class TicketBookingService {
                 log.info("📦 Created Order #{} with {} tickets for user #{}",
                         order.getId(), quantity, userId);
 
-                // 6.6 Send booking confirmation email with QR code
-                try {
-                    // Do not expose QR Code for PENDING orders in email
-                    String firstQrToken = null;
-                    emailService.sendBookingConfirmation(
-                        user.getEmail(),
-                        user.getFullName(),
-                        ticketType.getEvent().getTitle(),
-                        ticketType.getName(),
-                        quantity,
-                        totalAmount,
-                        transactionRef,
-                        firstQrToken
-                    );
-                } catch (Exception e) {
-                    log.warn("⚠️ Failed to send email: {}", e.getMessage());
-                }
-
                 // 7. Return response
                 return BookingResponse.builder()
                         .orderId(order.getId())
@@ -246,5 +234,43 @@ public class TicketBookingService {
                 log.info("🔓 Released lock for ticketTypeId={}", ticketTypeId);
             }
         }
+    }
+
+    /**
+     * Check-in vé bằng QR token
+     */
+    @Transactional
+    public void checkinTicket(String qrToken, Long organizerId) {
+        // Giải mã QR token
+        String plainText = aesUtil.decrypt(qrToken);
+        String[] parts = plainText.split("_");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("QR Token không hợp lệ");
+        }
+
+        Long ticketId = Long.parseLong(parts[0]);
+        // Long userId = Long.parseLong(parts[1]); // Không nhất thiết phải kiểm tra userId ở đây
+        
+        UserTicket ticket = userTicketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("UserTicket", "id", ticketId));
+
+        if (ticket.getCheckinStatus() == CheckinStatus.USED) {
+            throw new IllegalStateException("Vé này đã được check-in vào lúc " + ticket.getCheckinTime());
+        }
+
+        // Kiểm tra xem người check-in có phải là ban tổ chức của sự kiện này hay không (hoặc là ADMIN)
+        Event event = ticket.getOrder().getEvent();
+        User currentUser = userRepository.findById(organizerId).orElseThrow(() -> new ResourceNotFoundException("User", "id", organizerId));
+
+        if (currentUser.getRole() != com.ticketbox.enums.UserRole.ROLE_ADMIN) {
+            if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(organizerId)) {
+                throw new IllegalStateException("Bạn không có quyền check-in cho sự kiện này");
+            }
+        }
+
+        ticket.setCheckinStatus(CheckinStatus.USED);
+        ticket.setCheckinTime(LocalDateTime.now());
+        userTicketRepository.save(ticket);
+        log.info("✅ Đã check-in thành công cho vé #{}", ticketId);
     }
 }

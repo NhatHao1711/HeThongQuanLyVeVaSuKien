@@ -8,11 +8,16 @@ import com.ticketbox.dto.response.TicketTypeResponse;
 import com.ticketbox.entity.Event;
 import com.ticketbox.entity.EventCategory;
 import com.ticketbox.entity.TicketType;
+import com.ticketbox.entity.User;
+import com.ticketbox.enums.AgencyStatus;
 import com.ticketbox.enums.EventStatus;
+import com.ticketbox.enums.UserRole;
 import com.ticketbox.exception.ResourceNotFoundException;
 import com.ticketbox.repository.EventCategoryRepository;
 import com.ticketbox.repository.EventRepository;
+import com.ticketbox.repository.SeatRepository;
 import com.ticketbox.repository.TicketTypeRepository;
+import com.ticketbox.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,17 +34,34 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class EventService {
 
     private final EventRepository eventRepository;
-    private final TicketTypeRepository ticketTypeRepository;
     private final EventCategoryRepository eventCategoryRepository;
+    private final TicketTypeRepository ticketTypeRepository;
+    private final UserRepository userRepository;
+    private final SeatRepository seatRepository;
+    private final com.ticketbox.repository.FollowOrganizerRepository followOrganizerRepository;
+    private final com.ticketbox.repository.NotificationRepository notificationRepository;
 
     /**
      * Lấy danh sách sự kiện (phân trang, filter theo status)
      */
     public List<EventResponse> getAllEvents() {
         return eventRepository.findByStatus(EventStatus.PUBLISHED)
+                .stream()
+                .filter(e -> e.getEndTime() == null || e.getEndTime().isAfter(java.time.LocalDateTime.now()))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy danh sách sự kiện của một người tổ chức (bất kể trạng thái)
+     */
+    public List<EventResponse> getMyEvents(Long organizerId) {
+        requireApprovedOrganizer(organizerId);
+        return eventRepository.findByOrganizerId(organizerId)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -48,9 +70,15 @@ public class EventService {
     /**
      * Lấy chi tiết sự kiện theo ID
      */
+    @Transactional
     public EventResponse getEventById(Long eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        if (event.getViews() == null) {
+            event.setViews(0L);
+        }
+        event.setViews(event.getViews() + 1);
+        event = eventRepository.save(event);
         return toResponse(event);
     }
 
@@ -58,7 +86,7 @@ public class EventService {
      * Tạo sự kiện mới
      */
     @Transactional
-    public EventResponse createEvent(CreateEventRequest request) {
+    public EventResponse createEvent(Long userId, CreateEventRequest request) {
         if (request.getEndTime().isBefore(request.getStartTime())) {
             throw new IllegalArgumentException("End time phải sau start time");
         }
@@ -69,14 +97,31 @@ public class EventService {
                     .orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.getCategoryId()));
         }
 
+        User organizer = null;
+        EventStatus status = EventStatus.DRAFT;
+
+        if (userId != null) {
+            organizer = userRepository.findById(userId).orElse(null);
+            if (organizer != null) {
+                if (organizer.getRole() == UserRole.ROLE_ADMIN) {
+                    status = EventStatus.DRAFT;
+                } else {
+                    requireApprovedOrganizer(organizer);
+                    status = EventStatus.PENDING;
+                }
+            }
+        }
+
         Event event = Event.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .location(request.getLocation())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
+                .holdingUntil(request.getEndTime().plusHours(24))
                 .category(category)
-                .status(EventStatus.DRAFT)
+                .organizer(organizer)
+                .status(status)
                 .build();
 
         event = eventRepository.save(event);
@@ -98,6 +143,7 @@ public class EventService {
         event.setLocation(request.getLocation());
         event.setStartTime(request.getStartTime());
         event.setEndTime(request.getEndTime());
+        event.setHoldingUntil(request.getEndTime().plusHours(24));
 
         if (request.getCategoryId() != null) {
             EventCategory category = eventCategoryRepository.findById(request.getCategoryId())
@@ -112,20 +158,34 @@ public class EventService {
     }
 
     /**
-     * Publish sự kiện (thay đổi status từ DRAFT → PUBLISHED)
+     * Publish sự kiện (thay đổi status từ DRAFT hoặc PENDING → PUBLISHED)
      */
     @Transactional
     public EventResponse publishEvent(Long eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
 
-        if (event.getStatus() != EventStatus.DRAFT) {
-            throw new IllegalArgumentException("Chỉ sự kiện DRAFT mới có thể publish");
+        if (event.getStatus() != EventStatus.DRAFT && event.getStatus() != EventStatus.PENDING) {
+            throw new IllegalArgumentException("Chỉ sự kiện DRAFT hoặc PENDING mới có thể publish");
         }
 
         event.setStatus(EventStatus.PUBLISHED);
         event = eventRepository.save(event);
         log.info("🚀 Published Event #{}", eventId);
+
+        // Gửi thông báo đến những người theo dõi đại lý này
+        if (event.getOrganizer() != null) {
+            List<com.ticketbox.entity.FollowOrganizer> followers = followOrganizerRepository.findByOrganizerId(event.getOrganizer().getId());
+            for (com.ticketbox.entity.FollowOrganizer follow : followers) {
+                com.ticketbox.entity.Notification notification = com.ticketbox.entity.Notification.builder()
+                        .userId(follow.getUser().getId())
+                        .message("Ban Tổ Chức [" + event.getOrganizer().getFullName() + "] vừa đăng sự kiện mới: " + event.getTitle())
+                        .type("EVENT_NEW")
+                        .isRead(false)
+                        .build();
+                notificationRepository.save(notification);
+            }
+        }
 
         return toResponse(event);
     }
@@ -215,6 +275,162 @@ public class EventService {
     }
 
     /**
+     * Cập nhật sự kiện của tôi
+     */
+    @Transactional
+    public EventResponse updateMyEvent(Long userId, Long eventId, CreateEventRequest request) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền sửa sự kiện này");
+        }
+
+        return updateEvent(eventId, request);
+    }
+
+    /**
+     * Xoá sự kiện của tôi (chỉ xoá được DRAFT hoặc PENDING events)
+     */
+    @Transactional
+    public void deleteMyEvent(Long userId, Long eventId) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() ->  new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền xoá sự kiện này");
+        }
+
+        if (event.getStatus() != EventStatus.DRAFT && event.getStatus() != EventStatus.PENDING) {
+            throw new IllegalArgumentException("Chỉ sự kiện DRAFT hoặc PENDING mới có thể xoá");
+        }
+
+        eventRepository.delete(event);
+        log.info("🗑️ Organizer {} deleted Event #{}", userId, eventId);
+    }
+
+    /**
+     * Publish sự kiện của tôi
+     */
+    @Transactional
+    public EventResponse publishMyEvent(Long userId, Long eventId) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền publish sự kiện này");
+        }
+
+        return publishEvent(eventId);
+    }
+
+    /**
+     * Đóng sự kiện của tôi
+     */
+    @Transactional
+    public EventResponse closeMyEvent(Long userId, Long eventId) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền đóng sự kiện này");
+        }
+
+        return closeEvent(eventId);
+    }
+
+    /**
+     * Thêm loại vé cho sự kiện của tôi
+     */
+    @Transactional
+    public TicketTypeResponse addMyTicketType(Long userId, Long eventId, CreateTicketTypeRequest request) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền thêm vé vào sự kiện này");
+        }
+
+        return addTicketType(eventId, request);
+    }
+
+    /**
+     * Cập nhật loại vé của tôi
+     */
+    @Transactional
+    public TicketTypeResponse updateMyTicketType(Long userId, Long ticketTypeId, CreateTicketTypeRequest request) {
+        requireApprovedOrganizer(userId);
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("TicketType", "id", ticketTypeId));
+
+        if (ticketType.getEvent() == null || ticketType.getEvent().getOrganizer() == null || !ticketType.getEvent().getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền sửa vé này");
+        }
+
+        return updateTicketType(ticketTypeId, request);
+    }
+
+    /**
+     * Xoá loại vé của tôi
+     */
+    @Transactional
+    public void deleteMyTicketType(Long userId, Long ticketTypeId) {
+        requireApprovedOrganizer(userId);
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("TicketType", "id", ticketTypeId));
+        if (ticketType.getEvent() == null || ticketType.getEvent().getOrganizer() == null || 
+                !ticketType.getEvent().getOrganizer().getId().equals(userId)) {
+            throw new RuntimeException("Access Denied: Not your event");
+        }
+        deleteTicketType(ticketTypeId);
+    }
+
+    public long countMySeats(Long userId, Long ticketTypeId) {
+        requireApprovedOrganizer(userId);
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("TicketType", "id", ticketTypeId));
+        if (ticketType.getEvent() == null || ticketType.getEvent().getOrganizer() == null || 
+                !ticketType.getEvent().getOrganizer().getId().equals(userId)) {
+            throw new RuntimeException("Access Denied: Not your event");
+        }
+        return seatRepository.countByTicketTypeId(ticketTypeId);
+    }
+
+    public void generateMySeats(Long userId, Long ticketTypeId, int rows, int cols) {
+        requireApprovedOrganizer(userId);
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("TicketType", "id", ticketTypeId));
+        if (ticketType.getEvent() == null || ticketType.getEvent().getOrganizer() == null || 
+                !ticketType.getEvent().getOrganizer().getId().equals(userId)) {
+            throw new RuntimeException("Access Denied: Not your event");
+        }
+        
+        long existing = seatRepository.countByTicketTypeId(ticketTypeId);
+        if (existing > 0) {
+            seatRepository.deleteAll(seatRepository.findByTicketTypeId(ticketTypeId));
+        }
+
+        java.util.List<com.ticketbox.entity.Seat> seats = new java.util.ArrayList<>();
+        for (int r = 0; r < rows; r++) {
+            String rowLabel = String.valueOf((char) ('A' + r));
+            for (int c = 1; c <= cols; c++) {
+                seats.add(com.ticketbox.entity.Seat.builder()
+                        .ticketType(ticketType)
+                        .name(rowLabel + String.format("%02d", c))
+                        .status(com.ticketbox.enums.SeatStatus.AVAILABLE)
+                        .build());
+            }
+        }
+        seatRepository.saveAll(seats);
+        log.info("💺 Generated {} seats for TicketType #{}", rows * cols, ticketTypeId);
+    }
+
+    /**
      * Xoá loại vé
      */
     @Transactional
@@ -232,7 +448,7 @@ public class EventService {
         log.info("🗑️ Deleted TicketType #{}", ticketTypeId);
     }
 
-    private EventResponse toResponse(Event event) {
+    public EventResponse toResponse(Event event) {
         EventCategoryResponse categoryResponse = null;
         if (event.getCategory() != null) {
             categoryResponse = EventCategoryResponse.builder()
@@ -257,6 +473,12 @@ public class EventService {
                         .collect(Collectors.toList()))
                 .createdAt(event.getCreatedAt())
                 .updatedAt(event.getUpdatedAt())
+                .rejectReason(event.getRejectReason())
+                .views(event.getViews() != null ? event.getViews() : 0L)
+                .featuredTag(event.getFeaturedTag())
+                .organizerId(event.getOrganizer() != null ? event.getOrganizer().getId() : null)
+                .organizerName(event.getOrganizer() != null ? event.getOrganizer().getFullName() : null)
+                .isFeatured(event.getIsFeatured() != null ? event.getIsFeatured() : false)
                 .build();
     }
 
@@ -278,5 +500,75 @@ public class EventService {
         event.setImageUrl(imageUrl);
         eventRepository.save(event);
         log.info("🖼️ Updated image URL for event {}: {}", eventId, imageUrl);
+    }
+
+    @Transactional
+    public void updateMyEventImageUrl(Long userId, Long eventId, String imageUrl) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền cập nhật ảnh sự kiện này");
+        }
+        event.setImageUrl(imageUrl);
+        eventRepository.save(event);
+        log.info("Organizer {} updated image URL for event {}: {}", userId, eventId, imageUrl);
+    }
+
+    @Transactional
+    public EventResponse setFeaturedEvent(Long eventId, boolean isFeatured) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        event.setIsFeatured(isFeatured);
+        event = eventRepository.save(event);
+        log.info("⭐ Marked Event #{} as featured: {}", eventId, isFeatured);
+        
+        return toResponse(event);
+    }
+
+    @Transactional
+    public EventResponse rejectEvent(Long eventId, String rejectReason) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getStatus() != EventStatus.PENDING) {
+            throw new IllegalArgumentException("Chỉ sự kiện đang chờ duyệt (PENDING) mới có thể từ chối");
+        }
+
+        event.setStatus(EventStatus.REJECTED);
+        event.setRejectReason(rejectReason);
+        event = eventRepository.save(event);
+        log.info("❌ Rejected Event #{}, Reason: {}", eventId, rejectReason);
+
+        return toResponse(event);
+    }
+
+    @Transactional
+    public EventResponse updateFeaturedTag(Long eventId, String featuredTag, Boolean isFeatured) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        event.setFeaturedTag(featuredTag);
+        if (isFeatured != null) {
+            event.setIsFeatured(isFeatured);
+        }
+        event = eventRepository.save(event);
+        log.info("⭐ Updated Featured Tag for Event #{}: tag={}, isFeatured={}", eventId, featuredTag, isFeatured);
+
+        return toResponse(event);
+    }
+
+    private User requireApprovedOrganizer(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        requireApprovedOrganizer(user);
+        return user;
+    }
+
+    private void requireApprovedOrganizer(User user) {
+        if (user.getRole() != UserRole.ROLE_ORGANIZER || user.getAgencyStatus() != AgencyStatus.APPROVED) {
+            throw new IllegalStateException("Tài khoản đại lý của bạn chưa được admin duyệt.");
+        }
     }
 }

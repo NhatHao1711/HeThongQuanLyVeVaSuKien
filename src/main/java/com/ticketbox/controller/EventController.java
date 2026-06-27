@@ -44,6 +44,18 @@ public class EventController {
     }
 
     /**
+     * GET /api/events/my-events - Danh sách sự kiện của tôi (Authenticated user)
+     */
+    @GetMapping("/my-events")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getMyEvents(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails) {
+        log.info("📚 Fetching my events for user: {}", userDetails.getId());
+        List<EventResponse> events = eventService.getMyEvents(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Danh sách sự kiện của tôi", events));
+    }
+
+    /**
      * GET /api/events/{id} - Chi tiết sự kiện (Public)
      */
     @GetMapping("/{id}")
@@ -57,24 +69,26 @@ public class EventController {
      * POST /api/events/create - Sinh viên/Ban tổ chức đề xuất sự kiện mới (DRAFT)
      */
     @PostMapping("/create")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<ApiResponse<EventResponse>> createEventByUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
             @Valid @RequestBody CreateEventRequest request) {
         log.info("📝 User/Student proposing new event: {}", request.getTitle());
-        EventResponse event = eventService.createEvent(request);
+        EventResponse event = eventService.createEvent(userDetails.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Đề xuất sự kiện thành công! Vui lòng chờ Ban quản trị phê duyệt.", event));
+                .body(ApiResponse.success("Đã gửi yêu cầu duyệt sự kiện", event));
     }
 
     /**
-     * POST /api/events/admin/create - Tạo sự kiện mới (Admin only, Draft status)
+     * POST /api/events/admin/create - Admin tạo sự kiện (PUBLISHED ngay)
      */
     @PostMapping("/admin/create")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<EventResponse>> createEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
             @Valid @RequestBody CreateEventRequest request) {
         log.info("📝 Admin creating new event: {}", request.getTitle());
-        EventResponse event = eventService.createEvent(request);
+        EventResponse event = eventService.createEvent(userDetails.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo sự kiện thành công", event));
     }
@@ -112,6 +126,19 @@ public class EventController {
         log.info("🛑 Admin closing event with id: {}", id);
         EventResponse event = eventService.closeEvent(id);
         return ResponseEntity.ok(ApiResponse.success("Đóng sự kiện thành công", event));
+    }
+
+    /**
+     * POST /api/events/admin/{id}/featured - Đánh dấu/Bỏ đánh dấu sự kiện ưu tiên
+     */
+    @PostMapping("/admin/{id}/featured")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<EventResponse>> setFeaturedEvent(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "true") boolean featured) {
+        log.info("⭐ Admin setting featured={} for event: {}", featured, id);
+        EventResponse event = eventService.setFeaturedEvent(id, featured);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái nổi bật thành công", event));
     }
 
     /**
@@ -175,11 +202,143 @@ public class EventController {
     }
 
     /**
+     * PUT /api/events/my-events/{id} - Cập nhật sự kiện của tôi
+     */
+    @PutMapping("/my-events/{id}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<EventResponse>> updateMyEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id,
+            @Valid @RequestBody CreateEventRequest request) {
+        log.info("✏️ User {} updating event with id: {}", userDetails.getId(), id);
+        EventResponse event = eventService.updateMyEvent(userDetails.getId(), id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật sự kiện thành công", event));
+    }
+
+    /**
+     * DELETE /api/events/my-events/{id} - Xoá sự kiện của tôi
+     */
+    @DeleteMapping("/my-events/{id}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<Void>> deleteMyEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        log.info("🗑️ User {} deleting event with id: {}", userDetails.getId(), id);
+        eventService.deleteMyEvent(userDetails.getId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Xoá sự kiện thành công", (Void) null));
+    }
+
+    /**
+     * POST /api/events/my-events/{id}/publish - Publish sự kiện của tôi (DRAFT → PUBLISHED)
+     */
+    @PostMapping("/my-events/{id}/publish")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<EventResponse>> publishMyEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        log.info("🚀 User {} publishing event with id: {}", userDetails.getId(), id);
+        EventResponse event = eventService.publishMyEvent(userDetails.getId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Publish sự kiện thành công", event));
+    }
+
+    /**
+     * POST /api/events/my-events/{id}/close - Đóng sự kiện của tôi (PUBLISHED → CLOSED)
+     */
+    @PostMapping("/my-events/{id}/close")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<EventResponse>> closeMyEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        log.info("🛑 User {} closing event with id: {}", userDetails.getId(), id);
+        EventResponse event = eventService.closeMyEvent(userDetails.getId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Đóng sự kiện thành công", event));
+    }
+
+    /**
+     * POST /api/events/my-events/{id}/ticket-types - Thêm loại vé cho sự kiện của tôi
+     */
+    @PostMapping("/my-events/{id}/ticket-types")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<TicketTypeResponse>> addMyTicketType(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id,
+            @Valid @RequestBody CreateTicketTypeRequest request) {
+        log.info("➕ User {} adding ticket type to event: {}", userDetails.getId(), id);
+        TicketTypeResponse ticketType = eventService.addMyTicketType(userDetails.getId(), id, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Thêm loại vé thành công", ticketType));
+    }
+
+    /**
+     * PUT /api/events/my-events/ticket-types/{ticketTypeId} - Cập nhật loại vé của tôi
+     */
+    @PutMapping("/my-events/ticket-types/{ticketTypeId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<TicketTypeResponse>> updateMyTicketType(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long ticketTypeId,
+            @Valid @RequestBody CreateTicketTypeRequest request) {
+        log.info("✏️ User {} updating ticket type with id: {}", userDetails.getId(), ticketTypeId);
+        TicketTypeResponse ticketType = eventService.updateMyTicketType(userDetails.getId(), ticketTypeId, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật loại vé thành công", ticketType));
+    }
+
+    /**
+     * DELETE /api/events/my-events/ticket-types/{ticketTypeId} - Xoá loại vé của tôi
+     */
+    @DeleteMapping("/my-events/ticket-types/{ticketTypeId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<Void>> deleteMyTicketType(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long ticketTypeId) {
+        log.info("🗑️ User {} deleting ticket type with id: {}", userDetails.getId(), ticketTypeId);
+        eventService.deleteMyTicketType(userDetails.getId(), ticketTypeId);
+        return ResponseEntity.ok(ApiResponse.success("Xoá loại vé thành công", (Void) null));
+    }
+
+    /**
+     * GET /api/events/my-events/ticket-types/{ticketTypeId}/seats/count - Lấy số lượng ghế của loại vé của tôi
+     */
+    @GetMapping("/my-events/ticket-types/{ticketTypeId}/seats/count")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> countMySeats(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long ticketTypeId) {
+        log.info("🔢 User {} getting seat count for ticket type: {}", userDetails.getId(), ticketTypeId);
+        long count = eventService.countMySeats(userDetails.getId(), ticketTypeId);
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("seatCount", count);
+        return ResponseEntity.ok(ApiResponse.success("Lấy số lượng ghế thành công", data));
+    }
+
+    /**
+     * POST /api/events/my-events/ticket-types/{ticketTypeId}/seats/generate - Tạo ghế cho loại vé của tôi
+     */
+    @PostMapping("/my-events/ticket-types/{ticketTypeId}/seats/generate")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> generateMySeats(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long ticketTypeId,
+            @RequestBody java.util.Map<String, Object> body) {
+        log.info("💺 User {} generating seats for ticket type: {}", userDetails.getId(), ticketTypeId);
+        
+        int rows  = body.containsKey("rows")  ? ((Number) body.get("rows")).intValue()  : 10;
+        int cols  = body.containsKey("cols")  ? ((Number) body.get("cols")).intValue()  : 10;
+        
+        eventService.generateMySeats(userDetails.getId(), ticketTypeId, rows, cols);
+        
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("seatsCreated", rows * cols);
+        return ResponseEntity.ok(ApiResponse.success("Tạo ghế thành công", data));
+    }
+
+    /**
      * POST /api/events/{id}/upload-image - Upload ảnh cho sự kiện do User tạo (Authenticated user)
      */
     @PostMapping("/{id}/upload-image")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<ApiResponse<String>> uploadEventImageByUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
             @PathVariable Long id,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
         log.info("🖼️ User uploading image for event: {}", id);
@@ -197,7 +356,7 @@ public class EventController {
         java.nio.file.Files.write(filePath, file.getBytes());
 
         String imageUrl = "/uploads/events/" + filename;
-        eventService.updateEventImageUrl(id, imageUrl);
+        eventService.updateMyEventImageUrl(userDetails.getId(), id, imageUrl);
 
         log.info("✅ Image uploaded for event {}: {}", id, imageUrl);
         return ResponseEntity.ok(ApiResponse.success("Upload ảnh thành công", imageUrl));

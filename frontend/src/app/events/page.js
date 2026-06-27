@@ -179,15 +179,7 @@ function EventsContent() {
   };
 
   const getCategoryIcon = (category) => {
-    if (!category?.name) return '🎪';
-    const name = category.name.toLowerCase();
-    if (name.includes('nhạc')) return '🎵';
-    if (name.includes('sân') || name.includes('nghệ')) return '🎭';
-    if (name.includes('thể')) return '⚽';
-    if (name.includes('workshop')) return '🎓';
-    if (name.includes('tham')) return '🌍';
-    if (name.includes('bán')) return '🔄';
-    return '🎪';
+    return '';
   };
 
   return (
@@ -299,7 +291,7 @@ function EventsContent() {
             </div>
 
             <button onClick={handleClearFilters} className={styles.clearFilters}>
-              🔄 {t('events.clear_filters')}
+              {t('events.clear_filters')}
             </button>
           </aside>
 
@@ -319,7 +311,7 @@ function EventsContent() {
               <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(0, 180, 110, 0.2)', color: '#4ade80', borderRadius: '50px', fontWeight: 700, fontSize: '0.85rem', marginBottom: '1rem', border: '1px solid rgba(0,180,110,0.3)' }}>
-                    ✨ {t('home.hero_badge').toUpperCase()}
+                    {t('home.hero_badge').toUpperCase()}
                   </div>
                   <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>{t('events.list_title')}</h1>
                   <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '500px' }}>{t('events.list_subtitle')}</p>
@@ -353,7 +345,7 @@ function EventsContent() {
               </div>
             ) : filteredEvents.length === 0 ? (
               <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>📭</div>
+                <div className={styles.emptyIcon}>Không có kết quả</div>
                 <h3 className={styles.emptyTitle}>{t('events.no_events_found')}</h3>
                 <p className={styles.emptyText}>
                   {searchQuery ? t('events.try_different_keyword') : t('events.no_events_found')}
@@ -394,15 +386,15 @@ function EventsContent() {
                         <p className={styles.eventDescription}>{event.description}</p>
                         <div className={styles.eventMeta}>
                           <div className={styles.eventMetaItem}>
-                            📍 {event.location || 'N/A'}
+                            Địa điểm: {event.location || 'N/A'}
                           </div>
                           <div className={styles.eventMetaItem}>
-                            📅 {new Date(event.startTime).toLocaleDateString('vi-VN')}
+                            Thời gian: {new Date(event.startTime).toLocaleDateString('vi-VN')}
                           </div>
                         </div>
                         <div className={styles.eventFooter}>
                           <span className={styles.eventPrice}>{formatPrice(event.ticketTypes)}</span>
-                          <button className={styles.eventBtn}>{t('common.buy_ticket')} →</button>
+                          <button className={styles.eventBtn}>{t('common.buy_ticket')}</button>
                         </div>
                       </div>
                     </div>
