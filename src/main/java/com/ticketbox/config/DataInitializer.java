@@ -91,6 +91,12 @@ public class DataInitializer implements CommandLineRunner {
             }
 
             try {
+                upsertPayoutTestAccount();
+            } catch (Exception ex) {
+                log.warn("Khong the tao tai khoan test rut tien: {}", ex.getMessage());
+            }
+
+            try {
                 jdbcTemplate.execute("ALTER TABLE events MODIFY COLUMN status VARCHAR(50) NOT NULL");
                 log.info("🔧 Đã fix column status trong bảng events thành VARCHAR(50)");
             } catch (Exception ex) {
@@ -134,5 +140,33 @@ public class DataInitializer implements CommandLineRunner {
             log.warn("⚠️ Không thể kiểm tra/nạp dữ liệu ban đầu: {}", e.getMessage());
             log.warn("   Bảng có thể chưa được tạo (lần chạy đầu tiên). Sẽ thử lại lần sau.");
         }
+    }
+
+    private void upsertPayoutTestAccount() {
+        String passwordHash = "$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O";
+        String bankJson = "{\"bankName\":\"Vietcombank\",\"bankAccountNumber\":\"0123456789\",\"bankAccountName\":\"TRIVENT TEST AGENCY\"}";
+
+        jdbcTemplate.update(
+                "INSERT INTO users (university_id, full_name, email, password_hash, interests_tags, " +
+                        "is_verified, role, balance, holding_balance, bank_account, kyc_status, commission_rate, " +
+                        "agency_status, created_at, updated_at) " +
+                        "VALUES (1, 'Test Agency Payout', 'agency.payout@test.com', ?, " +
+                        "'[\"business\",\"events\"]', true, 'ROLE_ORGANIZER', 500000, 0, ?, 'APPROVED', 0.20, " +
+                        "'APPROVED', NOW(), NOW()) " +
+                        "ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), password_hash = VALUES(password_hash), " +
+                        "is_verified = true, role = 'ROLE_ORGANIZER', balance = 500000, holding_balance = 0, " +
+                        "bank_account = VALUES(bank_account), kyc_status = 'APPROVED', commission_rate = 0.20, " +
+                        "agency_status = 'APPROVED', updated_at = NOW()",
+                passwordHash, bankJson);
+
+        jdbcTemplate.update(
+                "INSERT INTO organizer_requests (user_id, organization_name, contact_phone, contact_email, " +
+                        "description, status, created_at, updated_at) " +
+                        "SELECT u.id, 'TRIVENT Test Agency', '0900000000', u.email, " +
+                        "'Tai khoan test tinh nang rut tien', 'APPROVED', NOW(), NOW() " +
+                        "FROM users u WHERE u.email = 'agency.payout@test.com' " +
+                        "AND NOT EXISTS (SELECT 1 FROM organizer_requests r WHERE r.user_id = u.id AND r.status = 'APPROVED')");
+
+        log.info("Tai khoan test rut tien: agency.payout@test.com / admin123 (balance 500000 VND)");
     }
 }

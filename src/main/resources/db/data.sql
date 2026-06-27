@@ -75,7 +75,23 @@ INSERT IGNORE INTO users (id, university_id, full_name, email, password_hash,
 
 (11, 6, 'Nông Duy J', 'j.nong@student.utc.edu.vn',
  '$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O',
- '["international","languages","culture"]', true, 'ROLE_USER', NOW(), NOW());
+'["international","languages","culture"]', true, 'ROLE_USER', NOW(), NOW());
+
+-- =========== PAYOUT TEST ORGANIZER ===========
+-- Email: agency.payout@test.com / Password: admin123
+INSERT IGNORE INTO users (id, university_id, full_name, email, password_hash,
+    interests_tags, is_verified, role, balance, holding_balance, bank_account,
+    kyc_status, commission_rate, agency_status, created_at, updated_at) VALUES
+(12, 1, 'Test Agency Payout', 'agency.payout@test.com',
+ '$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O',
+ '["business","events"]', true, 'ROLE_ORGANIZER', 500000, 0,
+ '{"bankName":"Vietcombank","bankAccountNumber":"0123456789","bankAccountName":"TRIVENT TEST AGENCY"}',
+ 'APPROVED', 0.20, 'APPROVED', NOW(), NOW());
+
+INSERT IGNORE INTO organizer_requests (id, user_id, organization_name, contact_phone, contact_email,
+    description, status, created_at, updated_at) VALUES
+(1, 12, 'TRIVENT Test Agency', '0900000000', 'agency.payout@test.com',
+ 'Tai khoan test tinh nang rut tien', 'APPROVED', NOW(), NOW());
 
 -- =========== EVENTS (Dates in 2026) ===========
 INSERT IGNORE INTO events (id, title, description, location, image_url, start_time, end_time, status, category_id, created_at, updated_at) VALUES

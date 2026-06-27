@@ -28,6 +28,6 @@ public class CheckinController {
 
         String result = checkinService.processCheckin(request.getQrToken(), userDetails);
 
-        return ResponseEntity.ok(ApiResponse.success(result, "CHECKED_IN"));
+        return ResponseEntity.ok(ApiResponse.success("Check-in thành công", result));
     }
 }

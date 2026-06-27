@@ -13,8 +13,8 @@ export default function CheckinPage() {
   const [scanning, setScanning] = useState(false);
   const [manualToken, setManualToken] = useState('');
   const [processing, setProcessing] = useState(false);
-  const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+  const processingRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -45,9 +45,12 @@ export default function CheckinPage() {
         await stopCamera();
       }
 
+      setResult(null);
+      setScanning(true);
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       const html5QrCode = new Html5Qrcode("qr-reader");
       html5QrCodeRef.current = html5QrCode;
-      setScanning(true);
 
       await html5QrCode.start(
         { facingMode: "environment" },
@@ -63,7 +66,7 @@ export default function CheckinPage() {
         (errorMessage) => {
           // parse error, ignore
         }
-      ).catch(async (err) => {
+      ).catch(async () => {
         // If back camera not available, try front camera
         console.log("Trying front camera...");
         await html5QrCode.start(
@@ -107,7 +110,8 @@ export default function CheckinPage() {
   };
 
   const handleScan = async (token) => {
-    if (!token || !token.trim() || processing) return;
+    if (!token || !token.trim() || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
 
     // Pause camera while processing
@@ -141,6 +145,7 @@ export default function CheckinPage() {
       setResult(entry);
       setHistory(prev => [entry, ...prev.slice(0, 49)]);
     } finally {
+      processingRef.current = false;
       setProcessing(false);
       // Resume camera after 2 seconds to avoid double-scan
       setTimeout(() => {
