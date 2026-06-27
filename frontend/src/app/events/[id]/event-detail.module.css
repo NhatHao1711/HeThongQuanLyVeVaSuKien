@@ -244,8 +244,8 @@
   background: #fff;
   border-radius: 20px;
   width: 95%;
-  max-width: 900px;
-  max-height: 90vh;
+  max-width: 1200px;
+  max-height: 95vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);

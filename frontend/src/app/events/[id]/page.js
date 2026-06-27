@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -13,6 +13,9 @@ import { useTranslation } from '@/context/TranslationContext';
 export default function EventDetailPage({ params }) {
   const { id } = React.use(params);
   const { t } = useTranslation();
+  const seatMapRef = useRef(null);
+  const [suggestQuantity, setSuggestQuantity] = useState(2);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -229,13 +232,12 @@ export default function EventDetailPage({ params }) {
 
   const getAllSelectedSeatNames = () => {
     const allNames = [];
-    Object.entries(selectedSeatIds).forEach(([typeId, seatIds]) => {
-      if (seatIds && seatIds.length > 0) {
+    Object.entries(selectedSeatObjects).forEach(([typeId, seatObjects]) => {
+      if (seatObjects && seatObjects.length > 0) {
         const ticketType = ticketTypes.find(t => t.id == typeId);
         const typeName = ticketType?.name || 'Vé';
-        // We'll collect them; the SeatMap component stores IDs, not names,
-        // but we'll show the count per type
-        allNames.push(`${typeName} (${seatIds.length} ghế)`);
+        const seatNames = seatObjects.map(s => s.name).join(', ');
+        allNames.push(`${typeName}: ${seatNames}`);
       }
     });
     return allNames;
@@ -642,65 +644,119 @@ export default function EventDetailPage({ params }) {
             </div>
 
             {bookingStep === 'select' && (
-              <>
-                {/* Ticket Type Tabs */}
-                <div className={styles.ticketTypeTabs}>
-                  {ticketTypes.map(ticket => (
-                    <button
-                      key={ticket.id}
-                      className={`${styles.ticketTypeTab} ${activeTicketTypeId === ticket.id ? styles.ticketTypeTabActive : ''}`}
-                      onClick={() => setActiveTicketTypeId(ticket.id)}
-                    >
-                      <span className={styles.tabTicketName}>{ticket.name || 'Vé'}</span>
-                      <span className={styles.tabTicketPrice}>{formatPrice(ticket.price)}</span>
-                      {(selectedTickets[ticket.id] || 0) > 0 && (
-                        <span className={styles.tabBadge}>{selectedTickets[ticket.id]}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'row' }}>
+                {/* Left Pane: Seat Map */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid #e2e8f0' }}>
+                  {/* Ticket Type Tabs */}
+                  <div className={styles.ticketTypeTabs}>
+                    {ticketTypes.map(ticket => (
+                      <button
+                        key={ticket.id}
+                        className={`${styles.ticketTypeTab} ${activeTicketTypeId === ticket.id ? styles.ticketTypeTabActive : ''}`}
+                        onClick={() => setActiveTicketTypeId(ticket.id)}
+                      >
+                        <span className={styles.tabTicketName}>{ticket.name || 'Vé'}</span>
+                        <span className={styles.tabTicketPrice}>{formatPrice(ticket.price)}</span>
+                        {(selectedTickets[ticket.id] || 0) > 0 && (
+                          <span className={styles.tabBadge}>{selectedTickets[ticket.id]}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
 
-                {error && (
-                  <div className={styles.modalError}>{error}</div>
-                )}
-
-                {/* Seat Map Area */}
-                <div className={styles.seatMapArea}>
-                  {activeTicketTypeId && (
-                    <SeatMap
-                      key={activeTicketTypeId}
-                      ticketTypeId={activeTicketTypeId}
-                      onSeatsSelected={(seats, seatObjects) => handleSeatsSelected(activeTicketTypeId, seats, seatObjects)}
-                    />
+                  {error && (
+                    <div className={styles.modalError}>{error}</div>
                   )}
+
+                  {/* Seat Map Area */}
+                  <div className={styles.seatMapArea}>
+                    {activeTicketTypeId && (
+                      <SeatMap
+                        ref={seatMapRef}
+                        key={activeTicketTypeId}
+                        ticketTypeId={activeTicketTypeId}
+                        initialSelectedSeats={selectedSeatIds[activeTicketTypeId] || []}
+                        onSeatsSelected={(seats, seatObjects) => handleSeatsSelected(activeTicketTypeId, seats, seatObjects)}
+                      />
+                    )}
+                  </div>
                 </div>
 
-                {/* Bottom Summary Bar */}
-                <div className={styles.modalBottomBar}>
-                  <div className={styles.bottomBarInfo}>
-                    <div className={styles.bottomBarRow}>
-                      <div className={styles.bottomBarStat}>
-                        <span className={styles.bottomBarLabel}>{t('events.booking_total_selected_seats')}</span>
-                        <span className={styles.bottomBarValue}>{getTotalSeatsCount()} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'seats' : 'ghế'}</span>
-                      </div>
-                      <div className={styles.bottomBarStat}>
-                        <span className={styles.bottomBarLabel}>{t('events.booking_selected_positions')}</span>
-                        <span className={styles.bottomBarValue}>
-                          {getAllSelectedSeatNames().length > 0
-                            ? getAllSelectedSeatNames().join(', ')
-                            : t('events.booking_no_seats_selected')}
-                        </span>
-                      </div>
+                {/* Right Pane: Summary & Payment */}
+                <div style={{ width: '320px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', padding: '1.5rem', gap: '1.5rem', overflowY: 'auto' }}>
+                  
+                  {/* Smart Seat Finder UI */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1e3a8a' }}>✨ Gợi ý ghế:</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="10" 
+                        value={suggestQuantity}
+                        onChange={(e) => setSuggestQuantity(Number(e.target.value))}
+                        style={{ width: '60px', padding: '6px', borderRadius: '4px', border: '1px solid #bfdbfe', outline: 'none', fontSize: '0.9rem' }}
+                      />
+                      <button 
+                        onClick={async () => {
+                          if (seatMapRef.current) {
+                            setIsSuggesting(true);
+                            await seatMapRef.current.findBestSeats(suggestQuantity);
+                            setIsSuggesting(false);
+                          } else {
+                            alert("Vui lòng chọn loại vé trước!");
+                          }
+                        }}
+                        disabled={isSuggesting || !activeTicketTypeId}
+                        style={{ flex: 1, padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '500', fontSize: '0.9rem' }}
+                      >
+                        {isSuggesting ? 'Đang tìm...' : 'Tìm ngay'}
+                      </button>
                     </div>
                   </div>
 
-                  <div className={styles.bottomBarPayment}>
+                  {/* Middle Section: Selected seats info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: '#ffffff', padding: '1.25rem', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    
+                    {/* Event mini-summary */}
+                    <div style={{ paddingBottom: '0.8rem', borderBottom: '1px dashed #e2e8f0' }}>
+                       <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#1a1a2e', marginBottom: '0.3rem', lineHeight: '1.3' }}>{event.title}</div>
+                       <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                         🕒 {formatDate(event.startTime)}
+                       </div>
+                    </div>
+
+                    <div className={styles.bottomBarStat}>
+                      <span className={styles.bottomBarLabel}>🎟️ {t('events.booking_total_selected_seats')}</span>
+                      <span className={styles.bottomBarValue} style={{ fontSize: '1.05rem' }}>{getTotalSeatsCount()} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'seats' : 'ghế'}</span>
+                    </div>
+                    <div className={styles.bottomBarStat}>
+                      <span className={styles.bottomBarLabel}>💺 {t('events.booking_selected_positions')}</span>
+                      <div className={styles.bottomBarValue} style={{ fontSize: '1rem', color: '#00B46E', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                        {getAllSelectedSeatNames().length > 0
+                          ? getAllSelectedSeatNames().map((name, index) => (
+                              <div key={index}>{name}</div>
+                            ))
+                          : <span style={{ color: '#94a3b8' }}>{t('events.booking_no_seats_selected')}</span>}
+                      </div>
+                    </div>
+
+                    {/* Urgency / Note */}
+                    <div style={{ marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.78rem', color: '#92400e', display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: '1.4' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⏱️</span>
+                      <span>Ghế đã chọn sẽ được <strong>giữ trong 10 phút</strong> kể từ lúc bạn nhấn Tiếp tục. Vui lòng thanh toán sớm để không mất chỗ!</span>
+                    </div>
+                  </div>
+
+                  {/* Bottom Section: Total Price & Button */}
+                  <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '1rem', borderTop: '2px dashed #e2e8f0' }}>
                     <div className={styles.totalSection}>
                       <span className={styles.totalLabel}>{t('events.booking_total_amount')}</span>
                       <span className={styles.totalAmount}>{formatPrice(calculateTotal())}</span>
                     </div>
                     <button
                       className={styles.paymentBtn}
+                      style={{ width: '100%' }}
                       onClick={() => { setError(''); setBookingStep('confirm'); }}
                       disabled={getTotalSeatsCount() === 0}
                     >
@@ -708,7 +764,7 @@ export default function EventDetailPage({ params }) {
                     </button>
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
             {bookingStep === 'confirm' && (

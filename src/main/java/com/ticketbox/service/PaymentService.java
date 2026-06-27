@@ -96,7 +96,16 @@ public class PaymentService {
         order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
         orderRepository.save(order);
 
-        long orderCode = order.getId();
+        long orderCode;
+        if (order.getTransactionRef() != null && order.getTransactionRef().matches("\\d+")) {
+            orderCode = Long.parseLong(order.getTransactionRef());
+        } else {
+            long unixSeconds = System.currentTimeMillis() / 1000L;
+            orderCode = Long.parseLong(unixSeconds + String.format("%04d", order.getId()));
+            order.setTransactionRef(String.valueOf(orderCode));
+            orderRepository.save(order);
+        }
+
         int amount = order.getTotalAmount().intValue();
         String description = "TRIVENT " + order.getId();
 
@@ -165,6 +174,13 @@ public class PaymentService {
             return PaymentStatus.PAID;
         }
 
+        long orderCode;
+        if (order.getTransactionRef() != null && order.getTransactionRef().matches("\\d+")) {
+            orderCode = Long.parseLong(order.getTransactionRef());
+        } else {
+            orderCode = order.getId();
+        }
+
         try {
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -174,7 +190,7 @@ public class PaymentService {
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
             org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
-                    "https://api-merchant.payos.vn/v2/payment-requests/" + order.getId(),
+                    "https://api-merchant.payos.vn/v2/payment-requests/" + orderCode,
                     org.springframework.http.HttpMethod.GET,
                     entity,
                     Map.class
@@ -229,8 +245,12 @@ public class PaymentService {
         int amountPaid = webhookData.getAmount();
 
         // 2. Tìm kiếm đơn hàng
-        Order order = orderRepository.findById(orderCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderCode));
+        Order order = orderRepository.findByTransactionRef(String.valueOf(orderCode))
+                .orElseGet(() -> orderRepository.findById(orderCode).orElse(null));
+                
+        if (order == null) {
+            throw new ResourceNotFoundException("Order", "transactionRef/id", orderCode);
+        }
 
         // 3. Lũy đẳng (Idempotency check)
         if (order.getPaymentStatus() == PaymentStatus.PAID) {

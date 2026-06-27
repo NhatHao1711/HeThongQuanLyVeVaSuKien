@@ -67,4 +67,13 @@ public class SeatController {
         seatService.generateSeats(ticketTypeId, prefix, count);
         return ResponseEntity.ok(ApiResponse.success("Tạo ghế thành công", null));
     }
+
+    @GetMapping("/best-available")
+    public ResponseEntity<ApiResponse<List<com.ticketbox.dto.response.SeatGroupOptionResponse>>> getBestAvailableSeats(
+            @RequestParam Long ticketTypeId,
+            @RequestParam int quantity,
+            @RequestParam(required = false) List<Long> ignoreLockedSeatIds) {
+        List<com.ticketbox.dto.response.SeatGroupOptionResponse> options = seatService.findBestAvailableSeats(ticketTypeId, quantity, ignoreLockedSeatIds);
+        return ResponseEntity.ok(ApiResponse.success("Lấy gợi ý ghế thành công", options));
+    }
 }

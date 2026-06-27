@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import "./SeatMap.css";
 import { apiRequest } from "@/lib/api";
 
-export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
+const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeats = [] }, ref) => {
   const [seats, setSeats] = useState([]);
-  const [selectedSeats, setSelectedSeats] = useState([]);
+  const [selectedSeats, setSelectedSeats] = useState(initialSelectedSeats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   
   // This helps UI handle optimistic lock/unlock transitions
   const [processingSeats, setProcessingSeats] = useState([]);
@@ -70,6 +71,14 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
         newSelected = [...selectedSeats, seat.id];
       }
       setSelectedSeats(newSelected);
+      
+      // Update seat status locally so it renders correctly if unselected after a tab switch
+      setSeats(prevSeats => prevSeats.map(s => 
+        s.id === seat.id 
+          ? { ...s, status: isSelected ? "AVAILABLE" : "LOCKED" } 
+          : s
+      ));
+
       // Pass both IDs and seat info (names) to parent
       const selectedSeatObjects = seats.filter(s => newSelected.includes(s.id));
       onSeatsSelected(newSelected, selectedSeatObjects);
@@ -81,6 +90,56 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
       setProcessingSeats(prev => prev.filter(id => id !== seat.id));
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    findBestSeats: async (suggestQuantity) => {
+      setIsSuggesting(true);
+      try {
+        let url = `/seats/best-available?ticketTypeId=${ticketTypeId}&quantity=${suggestQuantity}`;
+        if (selectedSeats.length > 0) {
+          url += `&ignoreLockedSeatIds=${selectedSeats.join(',')}`;
+        }
+        const res = await apiRequest(url);
+        if (res.success && res.data && res.data.length > 0) {
+          const bestOption = res.data[0]; // Top 1 option
+          const newSeatIds = bestOption.seats.map(s => s.id);
+          
+          // Unlock currently selected seats
+          if (selectedSeats.length > 0) {
+            await apiRequest("/seats/unlock", {
+              method: "POST",
+              body: JSON.stringify({ seatIds: selectedSeats })
+            });
+          }
+          
+          // Lock the newly suggested seats
+          await apiRequest("/seats/lock", {
+            method: "POST",
+            body: JSON.stringify({ seatIds: newSeatIds })
+          });
+          
+          // Update local status so they render correctly if unselected later
+          setSeats(prevSeats => prevSeats.map(s => {
+            if (selectedSeats.includes(s.id)) return { ...s, status: "AVAILABLE" };
+            if (newSeatIds.includes(s.id)) return { ...s, status: "LOCKED" };
+            return s;
+          }));
+
+          setSelectedSeats(newSeatIds);
+          
+          const selectedSeatObjects = seats.filter(s => newSeatIds.includes(s.id));
+          onSeatsSelected(newSeatIds, selectedSeatObjects);
+          
+        } else {
+          alert(`Không tìm thấy ${suggestQuantity} ghế trống liền kề phù hợp.`);
+        }
+      } catch (err) {
+        alert("Lỗi khi tìm ghế gợi ý");
+      } finally {
+        setIsSuggesting(false);
+      }
+    }
+  }));
 
   if (loading) return <div className="seatmap-loading">Đang tải sơ đồ ghế...</div>;
   if (error) return <div className="seatmap-error">{error}</div>;
@@ -100,6 +159,7 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
   return (
     <div className="seatmap-container">
       <h3 className="seatmap-title">Chọn chỗ ngồi</h3>
+
       <div className="seatmap-stage">MÀN HÌNH CHÍNH</div>
       
       <div className="seatmap-grid-wrapper">
@@ -116,7 +176,7 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
                 <span className="seatmap-row-label">{row}</span>
                 <div className="seatmap-seats" style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${maxSeatsPerRow}, 40px)`,
+                  gridTemplateColumns: `repeat(${maxSeatsPerRow}, 36px)`,
                   gap: '6px'
                 }}>
                   {sortedSeats.map(seat => {
@@ -157,11 +217,9 @@ export default function SeatMap({ ticketTypeId, onSeatsSelected }) {
         <div className="legend-item"><div className="seatmap-seat booked"></div> Đã bán</div>
       </div>
       
-      {selectedSeats.length > 0 && (
-         <div className="seatmap-summary">
-            Đã chọn: {seats.filter(s => selectedSeats.includes(s.id)).map(s => s.name).join(", ")}
-         </div>
-      )}
+
     </div>
   );
-}
+});
+
+export default SeatMap;
