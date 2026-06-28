@@ -43,10 +43,80 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalUsers", userRepository.count());
-        stats.put("totalEvents", eventRepository.count());
-        stats.put("totalOrders", orderRepository.count());
-        stats.put("totalTicketsSold", userTicketRepository.count());
+        
+        long totalUsers = userRepository.count();
+        long totalEvents = eventRepository.count();
+        long totalOrders = orderRepository.count();
+        long totalTicketsSold = userTicketRepository.findAll().stream()
+                .filter(ut -> ut.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .count();
+
+        BigDecimal totalRevenue = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .map(Order::getTotalAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long pendingEvents = eventRepository.findAll().stream()
+                .filter(e -> e.getStatus() == com.ticketbox.enums.EventStatus.PENDING)
+                .count();
+
+        long publishedEvents = eventRepository.findAll().stream()
+                .filter(e -> e.getStatus() == com.ticketbox.enums.EventStatus.PUBLISHED)
+                .count();
+
+        long activeOrganizers = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == com.ticketbox.enums.UserRole.ROLE_ORGANIZER && u.getAgencyStatus() == com.ticketbox.enums.AgencyStatus.APPROVED)
+                .count();
+
+        long pendingOrganizers = userRepository.findAll().stream()
+                .filter(u -> u.getAgencyStatus() == com.ticketbox.enums.AgencyStatus.PENDING)
+                .count();
+
+        // Thống kê doanh số theo ngày
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        java.util.Map<String, List<Order>> ordersByDate = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter), java.util.TreeMap::new, Collectors.toList()));
+
+        List<Map<String, Object>> salesByDate = new java.util.ArrayList<>();
+        ordersByDate.forEach((dateStr, dayOrders) -> {
+            Map<String, Object> dayStats = new HashMap<>();
+            dayStats.put("date", dateStr);
+            dayStats.put("ordersCount", dayOrders.size());
+            long tickets = dayOrders.stream().mapToLong(o -> o.getUserTickets().size()).sum();
+            dayStats.put("ticketsSold", tickets);
+            BigDecimal dayRevenue = dayOrders.stream()
+                    .map(Order::getTotalAmount)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            dayStats.put("revenue", dayRevenue);
+            salesByDate.add(dayStats);
+        });
+
+        // Phân loại theo danh mục sự kiện
+        java.util.Map<String, Long> categoryStats = eventRepository.findAll().stream()
+                .filter(e -> e.getCategory() != null)
+                .collect(Collectors.groupingBy(e -> e.getCategory().getName(), Collectors.counting()));
+
+        // Phân phối số vé bán theo danh mục
+        java.util.Map<String, Long> categoryTicketSales = userTicketRepository.findAll().stream()
+                .filter(ut -> ut.getOrder() != null && ut.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID && ut.getTicketType() != null && ut.getTicketType().getEvent() != null && ut.getTicketType().getEvent().getCategory() != null)
+                .collect(Collectors.groupingBy(ut -> ut.getTicketType().getEvent().getCategory().getName(), Collectors.counting()));
+
+        stats.put("totalUsers", totalUsers);
+        stats.put("totalEvents", totalEvents);
+        stats.put("totalOrders", totalOrders);
+        stats.put("totalTicketsSold", totalTicketsSold);
+        stats.put("totalRevenue", totalRevenue);
+        stats.put("pendingEvents", pendingEvents);
+        stats.put("publishedEvents", publishedEvents);
+        stats.put("activeOrganizers", activeOrganizers);
+        stats.put("pendingOrganizers", pendingOrganizers);
+        stats.put("salesByDate", salesByDate);
+        stats.put("categoryStats", categoryStats);
+        stats.put("categoryTicketSales", categoryTicketSales);
+
         return ResponseEntity.ok(ApiResponse.success("Thống kê dashboard", stats));
     }
 
@@ -327,13 +397,40 @@ public class AdminController {
                     map.put("id", order.getId());
                     map.put("transactionRef", order.getTransactionRef());
                     map.put("totalAmount", order.getTotalAmount());
-                    map.put("paymentMethod", order.getPaymentMethod());
-                    map.put("status", order.getPaymentStatus());
+                    map.put("paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "VNPAY");
+                    map.put("status", order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "PENDING");
                     map.put("createdAt", order.getCreatedAt());
+                    map.put("voucherCode", order.getVoucherCode());
+                    map.put("discountAmount", order.getDiscountAmount());
                     if (order.getUser() != null) {
                         map.put("userName", order.getUser().getFullName());
                         map.put("userEmail", order.getUser().getEmail());
+                        map.put("userPhone", order.getUser().getPhone());
                     }
+                    
+                    // Lấy chi tiết vé trong đơn hàng
+                    List<Map<String, Object>> tickets = order.getUserTickets().stream().map(t -> {
+                        Map<String, Object> tMap = new HashMap<>();
+                        tMap.put("id", t.getId());
+                        tMap.put("qrToken", t.getQrToken());
+                        tMap.put("checkinStatus", t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED");
+                        tMap.put("checkinTime", t.getCheckinTime());
+                        if (t.getTicketType() != null) {
+                            tMap.put("ticketTypeName", t.getTicketType().getName());
+                            tMap.put("ticketPrice", t.getTicketType().getPrice());
+                            if (t.getTicketType().getEvent() != null) {
+                                tMap.put("eventTitle", t.getTicketType().getEvent().getTitle());
+                                tMap.put("eventLocation", t.getTicketType().getEvent().getLocation());
+                                tMap.put("eventStartTime", t.getTicketType().getEvent().getStartTime());
+                            }
+                        }
+                        if (t.getSeat() != null) {
+                            tMap.put("seatName", t.getSeat().getName());
+                        }
+                        return tMap;
+                    }).collect(Collectors.toList());
+                    
+                    map.put("tickets", tickets);
                     return map;
                 }).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success("Danh sách đơn hàng", orders));

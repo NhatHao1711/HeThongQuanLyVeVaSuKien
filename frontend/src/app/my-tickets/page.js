@@ -6,24 +6,23 @@ import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
 import { useTranslation } from '@/context/TranslationContext';
 
+const calculateTicketTimeLeft = (createdAt) => {
+  if (!createdAt) return '00:00';
+  const expireTime = new Date(createdAt).getTime() + 15 * 60000;
+  const now = new Date().getTime();
+  const diff = expireTime - now;
+  if (diff <= 0) return '00:00';
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const CountdownTimer = ({ createdAt }) => {
-  const [timeLeft, setTimeLeft] = useState('');
+  const [timeLeft, setTimeLeft] = useState(() => calculateTicketTimeLeft(createdAt));
 
   useEffect(() => {
-    const calculateTimeLeft = () => {
-      if (!createdAt) return '00:00';
-      const expireTime = new Date(createdAt).getTime() + 15 * 60000;
-      const now = new Date().getTime();
-      const diff = expireTime - now;
-      if (diff <= 0) return '00:00';
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    };
-
-    setTimeLeft(calculateTimeLeft());
     const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
+      setTimeLeft(calculateTicketTimeLeft(createdAt));
     }, 1000);
     return () => clearInterval(timer);
   }, [createdAt]);

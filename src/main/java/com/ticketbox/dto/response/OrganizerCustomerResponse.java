@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -17,6 +18,7 @@ public class OrganizerCustomerResponse {
     private String customerEmail;
     private String customerPhone;
     private String ticketTypeName;
+    private BigDecimal ticketPrice;
     private String seatNumber;
     private CheckinStatus checkinStatus;
     private LocalDateTime purchaseDate;

@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -15,7 +14,14 @@ import java.util.List;
 public class OrganizerStatsResponse {
     private Long totalViews;
     private Long ticketsSold;
+    private Long checkedInTickets;
+    private Long unusedTickets;
     private Long totalCapacity;
-    private BigDecimal totalRevenue;
+    private Long totalEvents;
+    private Long pendingEvents;
+    private Long publishedEvents;
+    private Long closedEvents;
+    private Double attendanceRate;
+    private java.math.BigDecimal totalRevenue;
     private List<SalesDailyResponse> salesByDate;
 }

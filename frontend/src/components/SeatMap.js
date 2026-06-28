@@ -237,4 +237,6 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   );
 });
 
+SeatMap.displayName = "SeatMap";
+
 export default SeatMap;

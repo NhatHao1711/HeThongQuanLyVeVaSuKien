@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,5 +12,6 @@ import java.math.BigDecimal;
 public class SalesDailyResponse {
     private String date;
     private Long ticketsSold;
-    private BigDecimal revenue;
+    private java.math.BigDecimal revenue;
+    private Long ordersCount;
 }

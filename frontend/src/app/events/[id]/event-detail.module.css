@@ -106,18 +106,24 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
   margin-bottom: 1.5rem;
 }
 .statItem {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.2rem;
+  border-radius: 14px;
+  padding: 1.25rem 1rem;
   text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.statLabel { display: block; font-size: 0.75rem; color: #a0aec0; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; }
-.statValue { display: block; font-size: 0.9rem; font-weight: 700; color: #1a1a2e; }
+.statItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+.statLabel { display: block; font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.statValue { display: block; font-size: 0.95rem; font-weight: 800; color: #0f172a; }
 
 /* ===== SECTION ===== */
 .section {

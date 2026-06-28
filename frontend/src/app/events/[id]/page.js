@@ -533,17 +533,79 @@ export default function EventDetailPage({ params }) {
       <Navbar />
       <div className={styles.container}>
         {/* Hero Banner */}
-        <div className={styles.heroBanner}
-          style={event.imageUrl ? { backgroundImage: `url(http://localhost:8080${event.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-        >
-          {!event.imageUrl && (
-            <div className={styles.imageOverlay}>
-              <div className={styles.categoryBadge}>
-                {event.category?.name || 'Sự kiện'}
+        <div className={styles.heroBanner} style={{ position: 'relative', height: '380px', overflow: 'hidden', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {event.imageUrl ? (
+            <>
+              {/* Blurred Background Layer */}
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: `url(http://localhost:8080${event.imageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(30px) brightness(0.4)',
+                  transform: 'scale(1.15)',
+                  zIndex: 1
+                }}
+              />
+              {/* Sharp Foreground Cover */}
+              <div 
+                style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%',
+                  padding: '20px'
+                }}
+              >
+                <img 
+                  src={`http://localhost:8080${event.imageUrl}`} 
+                  alt={event.title}
+                  style={{
+                    maxHeight: '100%',
+                    maxWidth: '1200px',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    borderRadius: '16px',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            /* Premium fall-back gradient with overlay graphics */
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1
+              }}
+            >
+              <div style={{ textAlign: 'center', color: '#fff', padding: '2rem' }}>
+                <span style={{ fontSize: '3.5rem', opacity: 0.9, display: 'block', marginBottom: '10px' }}>🎫</span>
+                <span style={{ background: 'rgba(255,255,255,0.2)', padding: '8px 20px', borderRadius: '24px', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {event.category?.name || 'Sự kiện'}
+                </span>
               </div>
             </div>
           )}
-          <Link href="/events" className={styles.backBtn}>
+          
+          <Link href="/events" className={styles.backBtn} style={{ zIndex: 10 }}>
             ← {t('common.back')}
           </Link>
           <button onClick={toggleFavorite} style={{
@@ -551,7 +613,8 @@ export default function EventDetailPage({ params }) {
             border: 'none', borderRadius: '20px', padding: '8px 16px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s',
-            fontWeight: 700, fontSize: '0.82rem', color: isFavorited ? '#e91e63' : '#334155'
+            fontWeight: 700, fontSize: '0.82rem', color: isFavorited ? '#e91e63' : '#334155',
+            zIndex: 10
           }}>
             {isFavorited ? 'Đã thích' : 'Yêu thích'}
           </button>
@@ -561,83 +624,149 @@ export default function EventDetailPage({ params }) {
           {/* Main Section */}
           <div className={styles.mainSection}>
             {/* Event Header */}
-            <div className={styles.eventHeader}>
-              <div>
-                <h1 className={styles.title}>{event.title}</h1>
-                <div className={styles.metadata}>
-                  <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                    Địa điểm: {event.location || t('common.contact')}
-                  </span>
-                  <span className={styles.metaItem} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                    Thời gian: {formatDate(event.startTime)} {formatTime(event.startTime)}
-                  </span>
-                </div>
+            <div className={styles.eventHeader} style={{ display: 'block', padding: '2rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'inline-block', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '6px 14px', borderRadius: '30px', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
+                {event.category?.name || 'Sự kiện'}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')}
-                  style={{ padding: '0.4rem 0.75rem', borderRadius: 8, border: '1px solid #1877f2', background: '#1877f2', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Facebook
-                </button>
-                <button onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(event.title)}&url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')}
-                  style={{ padding: '0.4rem 0.75rem', borderRadius: 8, border: '1px solid #1da1f2', background: '#000', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                  X
-                </button>
-                <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert(t('events.share_success')); }}
-                  style={{ padding: '0.4rem 0.75rem', borderRadius: 8, border: '1px solid #ddd', background: '#f8f9fa', color: '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Copy link
-                </button>
+              <h1 className={styles.title} style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', lineHeight: '1.25', marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>
+                {event.title}
+              </h1>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginTop: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                {/* Time row */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ background: '#eff6ff', borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#3b82f6' }}>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Thời gian</span>
+                    <span style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, color: '#1e293b', marginTop: '2px' }}>
+                      {formatDate(event.startTime)} {formatTime(event.startTime)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Location row */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ background: '#ecfdf5', borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#10b981' }}>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Địa điểm</span>
+                    <span style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, color: '#1e293b', marginTop: '2px', lineHeight: 1.4 }}>
+                      {event.location || t('common.contact')}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Event Stats */}
             <div className={styles.stats}>
-              <div className={styles.statItem} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className={styles.statItem} style={{ display: 'flex', flexDirection: 'column', borderTop: '4px solid #8b5cf6', alignItems: 'center' }}>
                 <span className={styles.statLabel}>{t('events.detail_organizer')}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', justifyContent: 'center' }}>
                   <span className={styles.statValue} style={{ margin: 0 }}>{event.organizer || 'N/A'}</span>
                   {event.organizerId && (
                     <button 
                       onClick={handleFollowToggle} 
                       disabled={followLoading}
                       style={{
-                        padding: '4px 10px',
+                        padding: '3px 8px',
                         borderRadius: '6px',
                         border: isFollowing ? '1px solid #d1d5db' : 'none',
-                        background: isFollowing ? '#f3f4f6' : '#00B46E',
+                        background: isFollowing ? '#f3f4f6' : '#8b5cf6',
                         color: isFollowing ? '#374151' : '#fff',
-                        fontSize: '0.75rem',
+                        fontSize: '0.7rem',
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '2px',
                         transition: 'all 0.15s'
                       }}
                     >
-                      {followLoading ? '...' : isFollowing ? '✓ Đang theo dõi' : '＋ Theo dõi'}
+                      {followLoading ? '...' : isFollowing ? '✓ Đang theo' : '＋ Theo dõi'}
                     </button>
                   )}
                 </div>
               </div>
-              <div className={styles.statItem}>
+              <div className={styles.statItem} style={{ borderTop: '4px solid #3b82f6' }}>
                 <span className={styles.statLabel}>{t('events.detail_category')}</span>
-                <span className={styles.statValue}>{event.category?.name || 'Other'}</span>
+                <span className={styles.statValue} style={{ color: '#3b82f6' }}>{event.category?.name || 'Other'}</span>
               </div>
-              <div className={styles.statItem}>
-                <span className={styles.statLabel}>{t('events.detail_status')}</span>
-                <span className={styles.statValue}>
-                  {(() => {
-                    const now = new Date();
-                    const start = new Date(event.startTime);
-                    const end = new Date(event.endTime);
-                    if (event.status === 'CANCELLED') return t('events.status_cancelled');
-                    if (now < start) return t('events.status_upcoming');
-                    if (now >= start && now <= end) return t('events.status_ongoing');
-                    return t('events.status_completed');
-                  })()}
-                </span>
-              </div>
+              {(() => {
+                const now = new Date();
+                const start = new Date(event.startTime);
+                const end = new Date(event.endTime);
+                let statusText = t('events.status_completed');
+                let color = '#64748b'; // default completed
+                if (event.status === 'CANCELLED') {
+                  statusText = t('events.status_cancelled');
+                  color = '#ef4444';
+                } else if (now < start) {
+                  statusText = t('events.status_upcoming');
+                  color = '#10b981';
+                } else if (now >= start && now <= end) {
+                  statusText = t('events.status_ongoing');
+                  color = '#f59e0b';
+                }
+                return (
+                  <div className={styles.statItem} style={{ borderTop: `4px solid ${color}` }}>
+                    <span className={styles.statLabel}>{t('events.detail_status')}</span>
+                    <span className={styles.statValue} style={{ color: color }}>
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Ticket Types Information */}
+            {ticketTypes && ticketTypes.length > 0 && (
+              <div className={styles.section}>
+                <h2>Loại vé & Giá vé</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                  {ticketTypes.map((ticket, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '1.25rem',
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      transition: 'transform 0.15s'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>{ticket.name}</span>
+                          <span style={{ background: ticket.remaining > 0 ? '#ecfdf5' : '#fef2f2', color: ticket.remaining > 0 ? '#059669' : '#dc2626', padding: '2px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 700 }}>
+                            {ticket.remaining > 0 ? `Còn ${ticket.remaining} vé` : 'Hết vé'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
+                          Số lượng phát hành: {ticket.quantity} vé
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981' }}>
+                          {formatPrice(ticket.price)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div className={styles.section}>
@@ -734,15 +863,6 @@ export default function EventDetailPage({ params }) {
               </div>
             )}
 
-            {/* Share Section */}
-            <div className={styles.shareSection}>
-              <p className={styles.shareLabel}>{t('events.share_title')}</p>
-              <div className={styles.shareButtons}>
-                <button className={styles.shareBtn} title="Facebook">f</button>
-                <button className={styles.shareBtn} title="Twitter">X</button>
-                <button className={styles.shareBtn} title="Copy link">Copy Link</button>
-              </div>
-            </div>
           </aside>
         </div>
       </div>

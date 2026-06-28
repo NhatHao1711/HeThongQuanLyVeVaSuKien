@@ -3,14 +3,23 @@ package com.ticketbox.service;
 import com.ticketbox.dto.response.OrganizerCustomerResponse;
 import com.ticketbox.dto.response.OrganizerStatsResponse;
 import com.ticketbox.dto.response.SalesDailyResponse;
-import com.ticketbox.entity.*;
-import com.ticketbox.repository.*;
+import com.ticketbox.entity.Event;
+import com.ticketbox.entity.Order;
+import com.ticketbox.entity.UserTicket;
+import com.ticketbox.enums.CheckinStatus;
+import com.ticketbox.enums.EventStatus;
+import com.ticketbox.repository.EventRepository;
+import com.ticketbox.repository.OrderRepository;
+import com.ticketbox.repository.UserTicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,64 +29,65 @@ public class OrganizerDashboardService {
     private final EventRepository eventRepository;
     private final OrderRepository orderRepository;
     private final UserTicketRepository userTicketRepository;
-    private final UserRepository userRepository;
 
     public OrganizerStatsResponse getOrganizerStats(Long organizerId) {
-        User organizer = userRepository.findById(organizerId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy Đại lý"));
-
         List<Event> events = eventRepository.findByOrganizerId(organizerId);
 
-        // 1. Tổng lượt xem
         long totalViews = events.stream().mapToLong(e -> e.getViews() != null ? e.getViews() : 0L).sum();
-
-        // 2. Tổng sức chứa
         long totalCapacity = events.stream()
                 .flatMap(e -> e.getTicketTypes().stream())
                 .mapToLong(tt -> tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0L)
                 .sum();
 
-        // 3. Số vé đã bán
         List<Order> paidOrders = orderRepository.findPaidOrdersByOrganizerId(organizerId);
-        long ticketsSold = paidOrders.stream()
-                .mapToLong(o -> o.getUserTickets().size())
-                .sum();
+        List<UserTicket> paidTickets = userTicketRepository.findPaidTicketsByOrganizerId(organizerId);
 
-        // 4. Doanh thu của Organizer (80%)
-        BigDecimal commissionRate = organizer.getCommissionRate() != null ? organizer.getCommissionRate() : new BigDecimal("0.20");
-        BigDecimal multiplier = BigDecimal.ONE.subtract(commissionRate);
-        
-        BigDecimal totalRevenue = paidOrders.stream()
-                .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .multiply(multiplier);
+        long ticketsSold = paidTickets.size();
+        long checkedInTickets = paidTickets.stream()
+                .filter(t -> t.getCheckinStatus() == CheckinStatus.USED)
+                .count();
+        long unusedTickets = Math.max(0, ticketsSold - checkedInTickets);
+        double attendanceRate = ticketsSold > 0 ? checkedInTickets * 100.0 / ticketsSold : 0.0;
 
-        // 5. Doanh số theo ngày (salesByDate)
+        java.math.BigDecimal totalRevenue = paidTickets.stream()
+                .map(t -> t.getTicketType() != null && t.getTicketType().getPrice() != null ? t.getTicketType().getPrice() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        long pendingEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PENDING).count();
+        long publishedEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PUBLISHED).count();
+        long closedEvents = events.stream().filter(e -> e.getStatus() == EventStatus.CLOSED).count();
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         Map<String, List<Order>> ordersByDate = paidOrders.stream()
-                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter)));
+                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter), LinkedHashMap::new, Collectors.toList()));
 
         List<SalesDailyResponse> salesByDate = new ArrayList<>();
         ordersByDate.forEach((dateStr, orders) -> {
             long dayTicketsSold = orders.stream().mapToLong(o -> o.getUserTickets().size()).sum();
-            BigDecimal dayRevenue = orders.stream()
-                    .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .multiply(multiplier);
-
+            java.math.BigDecimal dayRevenue = orders.stream()
+                    .map(Order::getTotalAmount)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
             salesByDate.add(SalesDailyResponse.builder()
                     .date(dateStr)
                     .ticketsSold(dayTicketsSold)
                     .revenue(dayRevenue)
+                    .ordersCount((long) orders.size())
                     .build());
         });
-
         salesByDate.sort(Comparator.comparing(SalesDailyResponse::getDate));
 
         return OrganizerStatsResponse.builder()
                 .totalViews(totalViews)
                 .ticketsSold(ticketsSold)
+                .checkedInTickets(checkedInTickets)
+                .unusedTickets(unusedTickets)
                 .totalCapacity(totalCapacity)
+                .totalEvents((long) events.size())
+                .pendingEvents(pendingEvents)
+                .publishedEvents(publishedEvents)
+                .closedEvents(closedEvents)
+                .attendanceRate(attendanceRate)
                 .totalRevenue(totalRevenue)
                 .salesByDate(salesByDate)
                 .build();
@@ -90,7 +100,8 @@ public class OrganizerDashboardService {
                 .customerEmail(t.getUser().getEmail())
                 .customerPhone(t.getUser().getPhone())
                 .ticketTypeName(t.getTicketType().getName())
-                .seatNumber(t.getSeat() != null ? t.getSeat().getName() : "Không có")
+                .ticketPrice(t.getTicketType().getPrice())
+                .seatNumber(t.getSeat() != null ? t.getSeat().getName() : "Khong co")
                 .checkinStatus(t.getCheckinStatus())
                 .purchaseDate(t.getCreatedAt())
                 .eventTitle(t.getTicketType().getEvent().getTitle())
@@ -101,10 +112,10 @@ public class OrganizerDashboardService {
 
     public String exportCustomersCsv(Long eventId, Long organizerId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+                .orElseThrow(() -> new RuntimeException("Khong tim thay su kien"));
 
         if (!event.getOrganizer().getId().equals(organizerId)) {
-            throw new RuntimeException("Bạn không có quyền xuất danh sách của sự kiện này");
+            throw new RuntimeException("Ban khong co quyen xuat danh sach cua su kien nay");
         }
 
         List<UserTicket> tickets = userTicketRepository.findPaidTicketsByOrganizerId(organizerId).stream()
@@ -112,8 +123,8 @@ public class OrganizerDashboardService {
                 .collect(Collectors.toList());
 
         StringBuilder csvContent = new StringBuilder();
-        csvContent.append('\ufeff'); // UTF-8 BOM
-        csvContent.append("Họ tên,Email,Số điện thoại,Loại vé,Số ghế,Trạng thái Check-in,Ngày mua\n");
+        csvContent.append('\ufeff');
+        csvContent.append("Ho ten,Email,So dien thoai,Loai ve,So ghe,Trang thai Check-in,Ngay mua\n");
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         for (UserTicket t : tickets) {
@@ -121,7 +132,7 @@ public class OrganizerDashboardService {
             String email = t.getUser().getEmail() != null ? t.getUser().getEmail() : "";
             String phone = t.getUser().getPhone() != null ? t.getUser().getPhone() : "";
             String type = t.getTicketType().getName() != null ? t.getTicketType().getName().replace(",", " ") : "";
-            String seat = t.getSeat() != null ? t.getSeat().getName() : "Không có";
+            String seat = t.getSeat() != null ? t.getSeat().getName() : "Khong co";
             String checkin = t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED";
             String date = t.getCreatedAt() != null ? t.getCreatedAt().format(formatter) : "";
 

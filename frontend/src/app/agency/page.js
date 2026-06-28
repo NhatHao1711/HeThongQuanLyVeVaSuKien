@@ -3,13 +3,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { apiRequest, isLoggedIn, setUser } from '@/lib/api';
+import { API_BASE, apiRequest, isLoggedIn, setUser } from '@/lib/api';
 
 export default function AgencyDashboard() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [timeFilter, setTimeFilter] = useState('28days');
+  const [showFullReport, setShowFullReport] = useState(false);
   
   // Registration Form State
   const [regForm, setRegForm] = useState({ organizationName: '', contactPhone: '', contactEmail: '' });
@@ -20,14 +22,10 @@ export default function AgencyDashboard() {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [customers, setCustomers] = useState([]);
   
-  // Payout
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [payoutForm, setPayoutForm] = useState({ amount: '', bankName: '', bankAccountNumber: '', bankAccountName: '' });
-  const [payoutLoading, setPayoutLoading] = useState(false);
 
   // Event Creation
   const [showCreateEvent, setShowCreateEvent] = useState(false);
-  const [eventForm, setEventForm] = useState({ title: '', description: '', location: '', startTime: '', endTime: '' });
+  const [eventForm, setEventForm] = useState({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '' });
   const [formLoading, setFormLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -41,7 +39,10 @@ export default function AgencyDashboard() {
   // Seat Management
   const [seatManagerTicket, setSeatManagerTicket] = useState(null);
   const [seatConfig, setSeatConfig] = useState({ rows: 10, cols: 10 });
+  const [seatsList, setSeatsList] = useState([]);
   const [seatLoading, setSeatLoading] = useState(false);
+  const [showPublishWarning, setShowPublishWarning] = useState(false);
+  const [warningAction, setWarningAction] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -141,7 +142,7 @@ export default function AgencyDashboard() {
     formData.append('file', file);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8080/api/events/admin/${eventId}/upload-image`, {
+      const res = await fetch(`${API_BASE}/events/${eventId}/upload-image`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -151,8 +152,7 @@ export default function AgencyDashboard() {
     } catch (e) { alert('Lỗi upload ảnh'); }
   };
 
-  const submitEvent = async (e) => {
-    e.preventDefault();
+  const proceedSubmitEvent = async () => {
     setFormLoading(true);
     try {
       const payload = { ...eventForm };
@@ -167,7 +167,7 @@ export default function AgencyDashboard() {
           const formData = new FormData();
           formData.append('file', selectedImage);
           try {
-            await fetch(`http://localhost:8080/api/events/${eventId}/upload-image`, {
+            await fetch(`${API_BASE}/events/${eventId}/upload-image`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: formData
@@ -178,7 +178,7 @@ export default function AgencyDashboard() {
         }
         alert('Tạo sự kiện thành công! Chờ duyệt.');
         setShowCreateEvent(false);
-        setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '' });
+        setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '' });
         clearImageSelection();
         loadAgencyData();
       } else {
@@ -191,6 +191,12 @@ export default function AgencyDashboard() {
     }
   };
 
+  const submitEvent = async (e) => {
+    e.preventDefault();
+    setWarningAction(() => () => proceedSubmitEvent());
+    setShowPublishWarning(true);
+  };
+
   // --- Event Management Functions ---
   const handleManageEvent = async (ev) => {
     setManagingEvent(ev);
@@ -200,7 +206,8 @@ export default function AgencyDashboard() {
       description: ev.description,
       location: ev.location,
       startTime: ev.startTime ? ev.startTime.substring(0, 16) : '',
-      endTime: ev.endTime ? ev.endTime.substring(0, 16) : ''
+      endTime: ev.endTime ? ev.endTime.substring(0, 16) : '',
+      surveyUrl: ev.surveyUrl || ''
     });
     setShowCreateEvent(false);
     await loadTicketTypes(ev.id);
@@ -215,8 +222,7 @@ export default function AgencyDashboard() {
     }
   };
 
-  const updateEvent = async (e) => {
-    e.preventDefault();
+  const proceedUpdateEvent = async () => {
     setFormLoading(true);
     try {
       const payload = { ...eventForm };
@@ -230,7 +236,7 @@ export default function AgencyDashboard() {
           const formData = new FormData();
           formData.append('file', selectedImage);
           try {
-            await fetch(`http://localhost:8080/api/events/${eventForm.id}/upload-image`, {
+            await fetch(`${API_BASE}/events/${eventForm.id}/upload-image`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: formData
@@ -252,6 +258,12 @@ export default function AgencyDashboard() {
     }
   };
 
+  const updateEvent = async (e) => {
+    e.preventDefault();
+    setWarningAction(() => () => proceedUpdateEvent());
+    setShowPublishWarning(true);
+  };
+
   const deleteEvent = async (eventId) => {
     if (!confirm('Bạn có chắc chắn muốn xóa sự kiện này? Hành động này không thể hoàn tác.')) return;
     try {
@@ -259,22 +271,6 @@ export default function AgencyDashboard() {
       if (res.success) {
         alert('Đã xóa sự kiện.');
         setManagingEvent(null);
-        loadAgencyData();
-      } else {
-        alert(res.message);
-      }
-    } catch (err) {
-      alert('Lỗi kết nối');
-    }
-  };
-
-  const publishEvent = async (eventId) => {
-    if (!confirm('Bạn có chắc chắn muốn duyệt và xuất bản sự kiện này? Khán giả sẽ có thể thấy và mua vé ngay.')) return;
-    try {
-      const res = await apiRequest(`/events/my-events/${eventId}/publish`, { method: 'POST' });
-      if (res.success) {
-        alert('Đã xuất bản sự kiện thành công.');
-        setManagingEvent(prev => ({ ...prev, status: 'PUBLISHED' }));
         loadAgencyData();
       } else {
         alert(res.message);
@@ -325,51 +321,6 @@ export default function AgencyDashboard() {
     }
   };
 
-  const settleEvent = async (eventId) => {
-    if (!confirm('Bạn có chắc muốn chốt doanh thu sự kiện này? Thao tác này sẽ chuyển số dư tạm giữ của sự kiện thành số dư khả dụng.')) return;
-    try {
-      const res = await apiRequest(`/payouts/events/${eventId}/settle`, { method: 'POST' });
-      if (res.success || res.message === "Chốt doanh thu thành công") {
-        alert('Đã chốt doanh thu thành công!');
-        loadProfile(); // update balances
-        loadAgencyData(); // update event status
-      } else {
-        alert(res.message || 'Lỗi chốt doanh thu');
-      }
-    } catch (err) {
-      alert('Lỗi kết nối');
-    }
-  };
-
-  const submitPayout = async (e) => {
-    e.preventDefault();
-    setPayoutLoading(true);
-    try {
-      const payload = {
-          amount: Number(payoutForm.amount),
-          bankName: payoutForm.bankName,
-          bankAccountNumber: payoutForm.bankAccountNumber,
-          bankAccountName: payoutForm.bankAccountName
-      };
-      const res = await apiRequest('/payouts/request', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res.success || res.data) {
-        alert('Yêu cầu rút tiền đã được gửi và đang chờ xử lý!');
-        setShowPayoutModal(false);
-        setPayoutForm({ amount: '', bankName: '', bankAccountNumber: '', bankAccountName: '' });
-        loadProfile(); // update balance
-      } else {
-        alert(res.message || 'Lỗi rút tiền');
-      }
-    } catch (err) {
-      alert('Lỗi kết nối');
-    } finally {
-      setPayoutLoading(false);
-    }
-  };
-
   const deleteTicketType = async (ticketId) => {
     if (!confirm('Xóa loại vé này?')) return;
     try {
@@ -388,11 +339,16 @@ export default function AgencyDashboard() {
   const openSeatManager = async (tt) => {
     setSeatManagerTicket({ id: tt.id, name: tt.name, seatCount: 0 }); // Placeholder
     setSeatConfig({ rows: 10, cols: 10 });
+    setSeatsList([]);
     setSeatLoading(true);
     try {
       const res = await apiRequest(`/events/my-events/ticket-types/${tt.id}/seats/count`);
       if (res.success) {
         setSeatManagerTicket({ id: tt.id, name: tt.name, seatCount: res.data.seatCount });
+      }
+      const seatsRes = await apiRequest(`/seats?ticketTypeId=${tt.id}`);
+      if (seatsRes.success) {
+        setSeatsList(seatsRes.data || []);
       }
     } catch (e) { alert('Lỗi tải thông tin ghế'); }
     finally { setSeatLoading(false); }
@@ -408,6 +364,12 @@ export default function AgencyDashboard() {
       if (res.success) {
         alert(res.message);
         setSeatManagerTicket(prev => ({ ...prev, seatCount: res.data.seatsCreated }));
+        
+        // Tải lại danh sách ghế mới tạo
+        const seatsRes = await apiRequest(`/seats?ticketTypeId=${seatManagerTicket.id}`);
+        if (seatsRes.success) {
+          setSeatsList(seatsRes.data || []);
+        }
       } else { alert(res.message); }
     } catch (e) { alert('Lỗi tạo ghế'); }
     finally { setSeatLoading(false); }
@@ -416,7 +378,7 @@ export default function AgencyDashboard() {
   const handleExportCsv = async (eventId, title) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8080/api/organizers/events/${eventId}/export-csv`, {
+      const res = await fetch(`${API_BASE}/organizers/events/${eventId}/export-csv`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -425,7 +387,7 @@ export default function AgencyDashboard() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Khach_hang_${title.replace(/\\s+/g, '_')}.csv`;
+        a.download = `Khach_hang_${title.replace(/\s+/g, '_')}.csv`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -440,37 +402,93 @@ export default function AgencyDashboard() {
   const renderEventForm = () => {
     const isEdit = !!managingEvent;
     return (
-    <div style={s.card}>
-      <h4 style={{ fontWeight: 700, marginBottom: '1rem', fontSize: '1.1rem' }}>{isEdit ? 'Chỉnh sửa thông tin cơ bản' : 'Tạo sự kiện mới'}</h4>
-      <form onSubmit={isEdit ? updateEvent : submitEvent}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={s.label}>Tên sự kiện</label>
-          <input style={s.input} required value={eventForm.title} onChange={e => setEventForm(prev => ({ ...prev, title: e.target.value }))} />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={s.label}>Mô tả</label>
-          <textarea style={{ ...s.input, resize: 'vertical' }} required rows={3} value={eventForm.description} onChange={e => setEventForm(prev => ({ ...prev, description: e.target.value }))} />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={s.label}>Địa điểm</label>
-          <input style={s.input} required value={eventForm.location} onChange={e => setEventForm(prev => ({ ...prev, location: e.target.value }))} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          <div><label style={s.label}>Bắt đầu</label><input style={s.input} type="datetime-local" required value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} /></div>
-          <div><label style={s.label}>Kết thúc</label><input style={s.input} type="datetime-local" required value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} /></div>
-        </div>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={s.label}>Hình ảnh</label>
-          <input type="file" accept="image/*" onChange={handleImageSelect} style={{ marginBottom: 10 }} />
-          {imagePreview && <img src={imagePreview} style={{ width: 100, height: 70, objectFit: 'cover', borderRadius: 8 }} alt="preview" />}
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button type="submit" style={s.btn} disabled={formLoading}>{formLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Lưu Sự Kiện')}</button>
-          <button type="button" style={{ ...s.btn, background: '#e2e8f0', color: '#4a5568' }} onClick={() => { setShowCreateEvent(false); setManagingEvent(null); }}>Hủy</button>
-        </div>
-      </form>
-    </div>
-  );
+      <div style={{ ...s.card, maxWidth: '780px', margin: '0 auto 2.5rem', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
+        <h4 style={{ fontWeight: 800, marginBottom: '0.25rem', fontSize: '1.3rem', color: '#0f172a' }}>{isEdit ? 'Chỉnh sửa thông tin sự kiện' : 'Tạo sự kiện mới'}</h4>
+        <p style={{ margin: '0 0 2rem 0', fontSize: '0.85rem', color: '#64748b' }}>Đại lý vui lòng cung cấp thông tin sự kiện chi tiết để gửi duyệt đăng tải</p>
+        
+        <form onSubmit={isEdit ? updateEvent : submitEvent}>
+          {/* Section 1: Basic Info */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00B46E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00B46E' }}></span>
+              Thông tin cơ bản
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={s.label}>Tên sự kiện</label>
+              <input style={s.input} placeholder="VD: Liveshow Ca Nhạc Chào Tân Sinh Viên..." required value={eventForm.title} onChange={e => setEventForm(prev => ({ ...prev, title: e.target.value }))} />
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={s.label}>Mô tả chi tiết</label>
+              <textarea style={{ ...s.input, resize: 'vertical', minHeight: '110px', lineHeight: '1.5' }} required rows={4} placeholder="Nhập mô tả sự kiện, quyền lợi của vé, lịch trình chi tiết..." value={eventForm.description} onChange={e => setEventForm(prev => ({ ...prev, description: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Section 2: Time & Location */}
+          <div style={{ marginBottom: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00B46E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00B46E' }}></span>
+              Thời gian & Địa điểm
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={s.label}>Địa điểm tổ chức</label>
+              <input style={s.input} placeholder="VD: Sân vận động trường, Hội trường lớn..." required value={eventForm.location} onChange={e => setEventForm(prev => ({ ...prev, location: e.target.value }))} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={s.label}>Thời gian bắt đầu</label>
+                <input style={s.input} type="datetime-local" required value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} />
+              </div>
+              <div>
+                <label style={s.label}>Thời gian kết thúc</label>
+                <input style={s.input} type="datetime-local" required value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Media & Survey */}
+          <div style={{ marginBottom: '2.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00B46E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00B46E' }}></span>
+              Hình ảnh & Khảo sát
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={s.label}>Link Google Forms khảo sát ý kiến (tùy chọn)</label>
+              <input style={s.input} type="url" placeholder="https://forms.gle/..." value={eventForm.surveyUrl} onChange={e => setEventForm(prev => ({ ...prev, surveyUrl: e.target.value }))} />
+            </div>
+
+            <div>
+              <label style={s.label}>Hình ảnh Banner sự kiện</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', marginTop: '0.5rem', padding: '1rem', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
+                <label style={{ ...s.btn, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', cursor: 'pointer', padding: '10px 16px', width: 'auto', display: 'inline-block' }}>
+                  {imagePreview ? 'Thay đổi ảnh' : 'Chọn tập tin ảnh'}
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageSelect} />
+                </label>
+                
+                {imagePreview ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <img src={imagePreview} alt="Preview" style={{ width: '120px', height: '75px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
+                    <button type="button" onClick={clearImageSelection} style={{ ...s.btn, background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '6px 12px', width: 'auto' }}>Gỡ ảnh</button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Hỗ trợ định dạng JPG, PNG tối đa 5MB</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+            <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568', padding: '10px 24px' }} onClick={() => { setShowCreateEvent(false); setManagingEvent(null); }}>Hủy bỏ</button>
+            <button type="submit" style={{ ...s.btn, width: 'auto', padding: '10px 30px' }} disabled={formLoading}>{formLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo sự kiện')}</button>
+          </div>
+        </form>
+      </div>
+    );
   };
 
   const renderTicketManagement = () => (
@@ -551,6 +569,70 @@ export default function AgencyDashboard() {
             </button>
             <button onClick={() => setSeatManagerTicket(null)} style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }}>Đóng</button>
           </div>
+
+          {/* Visual Seat Map */}
+          {seatsList && seatsList.length > 0 && (
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
+                <h6 style={{ fontWeight: 700, margin: 0, color: '#1e293b', fontSize: '0.9rem' }}>Sơ đồ ghế hiện tại</h6>
+                <div style={{ display: 'flex', gap: '15px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: '#10b981' }}></div>
+                    <span>Trống ({seatsList.filter(s => s.status === 'AVAILABLE').length})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: '#ef4444' }}></div>
+                    <span>Đã đặt ({seatsList.filter(s => s.status === 'BOOKED').length})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: '#f59e0b' }}></div>
+                    <span>Đang giữ ({seatsList.filter(s => s.status === 'LOCKED').length})</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1.25rem', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: `repeat(auto-fill, minmax(42px, 1fr))`, 
+                  gap: '6px', 
+                  width: '100%',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  padding: '4px'
+                }}>
+                  {seatsList.map(st => {
+                    let bg = '#10b981'; // AVAILABLE
+                    if (st.status === 'BOOKED') bg = '#ef4444';
+                    else if (st.status === 'LOCKED') bg = '#f59e0b';
+                    return (
+                      <div 
+                        key={st.id}
+                        style={{ 
+                          height: '26px', 
+                          background: bg, 
+                          color: '#fff', 
+                          borderRadius: '4px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: '0.7rem', 
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          transition: 'transform 0.15s ease'
+                        }}
+                        title={`Ghế: ${st.name} - Trạng thái: ${st.status}`}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        {st.name}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -561,7 +643,7 @@ export default function AgencyDashboard() {
     sidebar: { width: 240, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' },
     sidebarTitle: { padding: '1.5rem', fontSize: '1.1rem', fontWeight: 800, color: '#1a1a2e', borderBottom: '1px solid #f0f0f5' },
     navItem: (active) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 1.2rem', fontSize: '0.88rem', fontWeight: active ? 600 : 400, color: active ? '#00B46E' : '#4a5568', background: active ? 'rgba(0,180,110,0.06)' : 'transparent', borderTop: 'none', borderRight: 'none', borderBottom: 'none', borderLeft: active ? '3px solid #00B46E' : '3px solid transparent', cursor: 'pointer', transition: 'all 0.15s', width: '100%', textAlign: 'left', fontFamily: 'inherit' }),
-    main: { flex: 1, padding: '2rem', maxWidth: 1100, margin: '0 auto' },
+    main: { flex: 1, padding: '2rem', maxWidth: 1360, width: '100%', margin: '0 auto' },
     card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '2rem', marginBottom: '1rem' },
     input: { width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', fontFamily: 'inherit', outline: 'none', marginBottom: '1rem' },
     label: { display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#4a5568', marginBottom: 4 },
@@ -613,7 +695,7 @@ export default function AgencyDashboard() {
                     </div>
                   )}
                   <div style={s.card}>
-                    <p style={{ marginBottom: '1.5rem', color: '#4a5568', fontSize: '0.9rem' }}>Trở thành đại lý để tạo và quản lý sự kiện, đồng thời nhận 80% doanh thu từ việc bán vé.</p>
+                    <p style={{ marginBottom: '1.5rem', color: '#4a5568', fontSize: '0.9rem' }}>Trở thành đại lý để tạo sự kiện, quản lý vé, check-in khách tham dự và gửi khảo sát sau sự kiện.</p>
                     <form onSubmit={submitRegistration}>
                       <div>
                         <label style={s.label}>Tên công ty / Tổ chức</label>
@@ -641,44 +723,191 @@ export default function AgencyDashboard() {
     );
   }
 
+  const formatMoney = (val) => Number(val || 0).toLocaleString('vi-VN') + ' đ';
+
+  const getEventPerformanceRows = () => {
+    const performanceByEvent = customers.reduce((acc, customer) => {
+      const key = String(customer.eventId || customer.eventTitle || '');
+      if (!key) return acc;
+      if (!acc[key]) {
+        acc[key] = { ticketsSold: 0, revenue: 0, checkedIn: 0 };
+      }
+      acc[key].ticketsSold += 1;
+      acc[key].revenue += Number(customer.ticketPrice || 0);
+      if (customer.checkinStatus === 'USED') {
+        acc[key].checkedIn += 1;
+      }
+      return acc;
+    }, {});
+
+    return events.map((event) => {
+      const metrics = performanceByEvent[String(event.id)] || performanceByEvent[event.title] || { ticketsSold: 0, revenue: 0, checkedIn: 0 };
+      return {
+        ...event,
+        ticketsSold: metrics.ticketsSold,
+        revenue: metrics.revenue,
+        checkedIn: metrics.checkedIn,
+      };
+    });
+  };
+
   const renderDailySalesChart = () => {
-    if (!dashboardStats || !dashboardStats.salesByDate || dashboardStats.salesByDate.length === 0) {
-      return (
-        <div style={{ ...s.card, marginTop: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-          Chưa có dữ liệu doanh số bán vé theo ngày.
+    if (!dashboardStats) return null;
+
+    const salesData = Array.isArray(dashboardStats.salesByDate) ? dashboardStats.salesByDate : [];
+    const revenueData = salesData
+      .map((item) => ({
+        name: item.date || 'Chưa rõ ngày',
+        value: Number(item.revenue || 0)
+      }))
+      .filter((item) => item.value > 0);
+    const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
+
+    const soldTickets = Number(dashboardStats.totalTicketsSold || 0);
+    const checkedInTickets = Number(dashboardStats.checkedInTickets || 0);
+    const totalCapacity = Number(dashboardStats.totalCapacity || 0);
+    const funnelData = [
+      { name: 'Đã check-in', value: Math.max(checkedInTickets, 0) },
+      { name: 'Đã mua chưa đến', value: Math.max(soldTickets - checkedInTickets, 0) },
+      { name: 'Sức chứa còn lại', value: Math.max(totalCapacity - soldTickets, 0) }
+    ].filter((item) => item.value > 0);
+    const funnelTotal = funnelData.reduce((sum, item) => sum + item.value, 0);
+
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6'];
+    const circumference = 314.159;
+
+    const buildSegments = (items, total) => {
+      let offset = 0;
+      return items.map((item, index) => {
+        const length = total > 0 ? (item.value / total) * circumference : 0;
+        const segment = {
+          ...item,
+          color: colors[index % colors.length],
+          length,
+          offset,
+          percent: total > 0 ? Math.round((item.value / total) * 100) : 0
+        };
+        offset += length;
+        return segment;
+      });
+    };
+
+    const formatChartDate = (value) => {
+      if (!value || value === 'Chưa rõ ngày') return 'Chưa rõ ngày';
+      if (String(value).includes('-')) {
+        const [year, month, day] = String(value).split('-');
+        return day && month ? day + '/' + month : value;
+      }
+      return value;
+    };
+
+    const renderDonut = ({ title, subtitle, segments, total, centerValue, centerLabel, emptyText, valueFormatter, formatName = (name) => name }) => (
+      <div style={{ ...s.card, margin: 0, padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '18px' }}>
+          <div>
+            <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: 800 }}>{title}</h3>
+            <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: '0.88rem' }}>{subtitle}</p>
+          </div>
+          <span style={{ background: total > 0 ? '#ecfdf5' : '#f1f5f9', color: total > 0 ? '#047857' : '#64748b', padding: '7px 11px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 800 }}>
+            {total > 0 ? 'Có dữ liệu' : 'Chưa có dữ liệu'}
+          </span>
         </div>
-      );
-    }
 
-    const data = dashboardStats.salesByDate;
-    const maxRevenue = Math.max(...data.map(d => Number(d.revenue)), 1);
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', alignItems: 'center', gap: '20px' }}>
+          <div style={{ position: 'relative', width: '210px', height: '210px', margin: '0 auto' }}>
+            <svg width="210" height="210" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#eef2f7" strokeWidth="13" />
+              {segments.map((segment) => (
+                <circle
+                  key={segment.name}
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="none"
+                  stroke={segment.color}
+                  strokeWidth="13"
+                  strokeLinecap="round"
+                  strokeDasharray={segment.length + ' ' + (circumference - segment.length)}
+                  strokeDashoffset={-segment.offset}
+                />
+              ))}
+            </svg>
+            <div style={{ position: 'absolute', inset: '42px', borderRadius: '50%', background: '#fff', display: 'grid', placeContent: 'center', textAlign: 'center', boxShadow: 'inset 0 0 0 1px #eef2f7' }}>
+              <strong style={{ color: '#0f172a', fontSize: centerValue.length > 10 ? '1rem' : '1.3rem' }}>{centerValue}</strong>
+              <span style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{centerLabel}</span>
+            </div>
+          </div>
 
-    return (
-      <div style={{ ...s.card, marginTop: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.2rem', color: '#1e293b' }}>Thống kê doanh số bán vé theo ngày (80% Doanh thu thực nhận)</h3>
-        <div style={{ display: 'flex', alignItems: 'flex-end', height: 200, gap: 12, overflowX: 'auto', paddingBottom: 10, paddingTop: 20 }}>
-          {data.map((d, index) => {
-            const heightPercent = (Number(d.revenue) / maxRevenue) * 120; // max height 120px
-            return (
-              <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 60 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', marginBottom: 4 }}>
-                  {Number(d.revenue) > 0 ? `${(Number(d.revenue)/1000).toFixed(0)}k` : '0'}
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {segments.length === 0 ? (
+              <div style={{ border: '1px dashed #cbd5e1', borderRadius: '12px', padding: '18px', color: '#64748b', fontWeight: 700, textAlign: 'center' }}>{emptyText}</div>
+            ) : segments.map((segment) => (
+              <div key={segment.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '999px', background: segment.color, flex: '0 0 auto' }} />
+                  <span style={{ color: '#334155', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatName(segment.name)}</span>
                 </div>
-                <div style={{ width: '100%', height: 120, display: 'flex', alignItems: 'flex-end', background: '#f1f5f9', borderRadius: 6 }}>
-                  <div 
-                    style={{ width: '100%', height: Math.max(heightPercent, 6), background: 'linear-gradient(180deg, #10b981 0%, #059669 100%)', borderRadius: 6, transition: 'height 0.3s ease', cursor: 'pointer' }} 
-                    title={`Ngày: ${d.date}\nDoanh thu: ${Number(d.revenue).toLocaleString('vi-VN')} đ\nSố vé bán: ${d.ticketsSold}`} 
-                  />
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 8, whiteSpace: 'nowrap' }}>
-                  {d.date.substring(5)}
+                <div style={{ textAlign: 'right' }}>
+                  <strong style={{ color: '#0f172a' }}>{valueFormatter(segment.value)}</strong>
+                  <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '0.82rem', fontWeight: 700 }}>{segment.percent}%</span>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
     );
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 1.15fr) minmax(320px, 0.85fr)', gap: '24px', marginBottom: '32px' }}>
+        {renderDonut({
+          title: 'Biểu đồ tròn doanh thu',
+          subtitle: 'Cơ cấu doanh thu theo từng ngày có giao dịch thanh toán',
+          segments: buildSegments(revenueData, totalRevenue),
+          total: totalRevenue,
+          centerValue: formatMoney(totalRevenue),
+          centerLabel: 'Doanh thu',
+          emptyText: 'Chưa có doanh thu thực tế để hiển thị biểu đồ.',
+          valueFormatter: formatMoney,
+          formatName: formatChartDate
+        })}
+        {renderDonut({
+          title: 'Hiệu suất tham dự',
+          subtitle: 'Tỷ trọng check-in, vé đã mua và sức chứa còn lại',
+          segments: buildSegments(funnelData, funnelTotal),
+          total: funnelTotal,
+          centerValue: String(funnelTotal),
+          centerLabel: 'Tổng suất',
+          emptyText: 'Chưa có dữ liệu sức chứa hoặc check-in.',
+          valueFormatter: (value) => value + ' suất'
+        })}
+      </div>
+    );
+  };
+
+  const handleExportReport = () => {
+    if (!dashboardStats) return;
+    const csvContent = [
+      ["Tieu chi", "Gia tri"],
+      ["Tong so luot xem", dashboardStats.totalViews || 0],
+      ["Tong so ve ban ra", dashboardStats.ticketsSold || 0],
+      ["Tong so ve da check-in", dashboardStats.checkedInTickets || 0],
+      ["Tong so ve chua check-in", dashboardStats.unusedTickets || 0],
+      ["Ti le tham gia (%)", dashboardStats.attendanceRate ? dashboardStats.attendanceRate.toFixed(2) : "0.00"],
+      ["Tong doanh thu (VND)", dashboardStats.totalRevenue || 0],
+      ["Tong so su kien", dashboardStats.totalEvents || 0],
+      ["Su kien dang ban ve", dashboardStats.publishedEvents || 0],
+      ["Su kien cho duyet", dashboardStats.pendingEvents || 0]
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Bao_cao_Dai_ly_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -688,6 +917,7 @@ export default function AgencyDashboard() {
         <aside style={s.sidebar}>
           <div style={s.sidebarTitle}>Kênh Đại Lý</div>
           <button onClick={() => setActiveTab('dashboard')} style={s.navItem(activeTab === 'dashboard')}>Tổng quan</button>
+          <button onClick={() => setActiveTab('revenue')} style={s.navItem(activeTab === 'revenue')}>Doanh thu & Báo cáo</button>
           <button onClick={() => setActiveTab('events')} style={s.navItem(activeTab === 'events')}>Quản lý Sự kiện</button>
           <button onClick={() => setActiveTab('customers')} style={s.navItem(activeTab === 'customers')}>Danh sách Khách hàng</button>
           <Link href="/admin/checkin" style={{ display: 'block', padding: '10px 1.2rem', fontSize: '0.88rem', fontWeight: 600, color: '#fff', background: '#00B46E', borderRadius: 8, margin: '1rem', textDecoration: 'none', textAlign: 'center' }}>
@@ -697,97 +927,99 @@ export default function AgencyDashboard() {
         <main style={s.main}>
           {activeTab === 'dashboard' && (
             <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Tổng quan Kênh đại lý</h2>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem' }}>Tổng quan Kênh đại lý</h2>
               
-              {/* Financial Metrics */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                <div style={s.card}>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Số dư khả dụng (Rút tiền)</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0ea5e9', marginTop: 10 }}>
-                    {Number(userProfile?.balance || 0).toLocaleString('vi-VN')} đ
+              {/* SaaS Premium Control Filter Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+                    <span>Kênh Đại lý của tôi</span>
                   </div>
-                  <button onClick={() => setShowPayoutModal(true)} style={{ ...s.btn, background: '#f1f5f9', color: '#0f172a', marginTop: '1rem' }}>Rút tiền</button>
-                </div>
-                <div style={s.card}>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Số dư tạm giữ (Đang bán)</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f59e0b', marginTop: 10 }}>
-                    {Number(userProfile?.holdingBalance || 0).toLocaleString('vi-VN')} đ
+
+                  <select 
+                    value={timeFilter} 
+                    onChange={(e) => setTimeFilter(e.target.value)} 
+                    style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600, color: '#374151', cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="7days">7 ngày qua</option>
+                    <option value="28days">28 ngày qua</option>
+                    <option value="thismonth">Tháng này</option>
+                  </select>
+
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Bộ lọc kích hoạt</span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1rem' }}>Sẽ chuyển sang khả dụng sau khi sự kiện kết thúc 24h</div>
+
+                  <button style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '6px 12px', fontSize: '0.82rem', fontWeight: 600, color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    ＋ Thêm bộ lọc
+                  </button>
                 </div>
+
+                <button 
+                  onClick={handleExportReport}
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)' }}
+                >
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ marginRight: '2px' }}>
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Xuất báo cáo
+                </button>
               </div>
 
-              {/* Performance Metrics */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
-                <div style={{ ...s.card, padding: '1.5rem' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Tổng lượt xem</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#3b82f6', marginTop: 8 }}>
-                    {dashboardStats?.totalViews || 0}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #8b5cf6', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Doanh thu đại lý</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#8b5cf6', marginTop: 8 }}>
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dashboardStats?.totalRevenue || 0)}
                   </div>
                 </div>
-                <div style={{ ...s.card, padding: '1.5rem' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Vé đã bán</div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #10b981', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vé đã bán</div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: 8 }}>
                     {dashboardStats?.ticketsSold || 0} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#64748b' }}>/ {dashboardStats?.totalCapacity || 0} vé</span>
                   </div>
                 </div>
-                <div style={{ ...s.card, padding: '1.5rem' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Doanh thu tạm tính (80%)</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#8b5cf6', marginTop: 8 }}>
-                    {Number(dashboardStats?.totalRevenue || 0).toLocaleString('vi-VN')} đ
-                  </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #f59e0b', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Đã check-in</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', marginTop: 8 }}>{dashboardStats?.checkedInTickets || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #00B46E', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tỷ lệ tham dự</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#00B46E', marginTop: 8 }}>{Math.round(dashboardStats?.attendanceRate || 0)}%</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #0f172a', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tổng sự kiện</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', marginTop: 8 }}>{dashboardStats?.totalEvents || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #f59e0b', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Chờ admin duyệt</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', marginTop: 8 }}>{dashboardStats?.pendingEvents || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #10b981', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Đang bán vé</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: 8 }}>{dashboardStats?.publishedEvents || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #64748b', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Đã đóng</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#64748b', marginTop: 8 }}>{dashboardStats?.closedEvents || 0}</div>
                 </div>
               </div>
 
               {renderDailySalesChart()}
-              
-              {showPayoutModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                  <div style={{ background: '#fff', padding: '2rem', borderRadius: 12, width: '100%', maxWidth: 500 }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1.5rem' }}>Yêu cầu rút tiền</h3>
-                    
-                    {(!userProfile?.balance || userProfile.balance < 10000) ? (
-                      <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>Số dư không đủ</h4>
-                        <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Bạn cần có ít nhất 10.000 đ trong số dư khả dụng để có thể rút tiền. Hãy chốt doanh thu các sự kiện đã kết thúc để cập nhật số dư nhé.</p>
-                        <button type="button" onClick={() => setShowPayoutModal(false)} style={{ ...s.btn, background: '#e2e8f0', color: '#4a5568' }}>Đóng</button>
-                      </div>
-                    ) : (
-                      <form onSubmit={submitPayout}>
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label style={s.label}>Số tiền rút (Tối đa {Number(userProfile?.balance || 0).toLocaleString('vi-VN')} đ)</label>
-                          <input style={s.input} type="number" min="10000" max={userProfile?.balance || 0} required value={payoutForm.amount} onChange={e => setPayoutForm({...payoutForm, amount: e.target.value})} placeholder="Nhập số tiền" />
-                        </div>
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label style={s.label}>Tên ngân hàng</label>
-                          <input style={s.input} required value={payoutForm.bankName} onChange={e => setPayoutForm({...payoutForm, bankName: e.target.value})} placeholder="VD: Vietcombank" />
-                        </div>
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label style={s.label}>Số tài khoản</label>
-                          <input style={s.input} required value={payoutForm.bankAccountNumber} onChange={e => setPayoutForm({...payoutForm, bankAccountNumber: e.target.value})} placeholder="VD: 1029384756" />
-                        </div>
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label style={s.label}>Tên chủ tài khoản (In hoa không dấu)</label>
-                          <input style={s.input} required value={payoutForm.bankAccountName} onChange={e => setPayoutForm({...payoutForm, bankAccountName: e.target.value})} placeholder="VD: NGUYEN VAN A" />
-                        </div>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <button type="submit" style={s.btn} disabled={payoutLoading}>{payoutLoading ? 'Đang gửi...' : 'Xác nhận rút tiền'}</button>
-                          <button type="button" onClick={() => setShowPayoutModal(false)} style={{ ...s.btn, background: '#e2e8f0', color: '#4a5568' }}>Hủy</button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
-
           {activeTab === 'events' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Sự kiện của tôi</h2>
                 {!showCreateEvent && !managingEvent && (
-                  <button onClick={() => { setShowCreateEvent(true); setManagingEvent(null); setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '' }); clearImageSelection(); }} style={{ ...s.btn, width: 'auto' }}>+ Tạo sự kiện mới</button>
+                  <button onClick={() => { setShowCreateEvent(true); setManagingEvent(null); setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '' }); clearImageSelection(); }} style={{ ...s.btn, width: 'auto' }}>+ Tạo sự kiện mới</button>
                 )}
               </div>
 
@@ -798,7 +1030,6 @@ export default function AgencyDashboard() {
                     <div>
                       {(managingEvent.status === 'DRAFT' || managingEvent.status === 'PENDING') && (
                         <>
-                          <button onClick={() => publishEvent(managingEvent.id)} style={{ ...s.btn, background: '#10b981', width: 'auto', marginRight: 10 }}>Duyệt / Xuất bản</button>
                           <button onClick={() => deleteEvent(managingEvent.id)} style={{ ...s.btn, background: '#ef4444', width: 'auto', marginRight: 10 }}>Xóa Sự Kiện</button>
                         </>
                       )}
@@ -834,10 +1065,10 @@ export default function AgencyDashboard() {
                           <button onClick={() => handleManageEvent(ev)} style={{ padding: '8px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
                             Quản lý
                           </button>
-                          {(ev.status === 'CLOSED' || ev.status === 'PUBLISHED') && (
-                            <button onClick={() => settleEvent(ev.id)} style={{ padding: '8px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                              Chốt Doanh Thu
-                            </button>
+                          {ev.status === 'CLOSED' && (
+                            <span style={{ padding: '8px 12px', background: ev.postEventEmailSentAt ? '#dcfce7' : '#f1f5f9', color: ev.postEventEmailSentAt ? '#166534' : '#64748b', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600 }}>
+                              {ev.postEventEmailSentAt ? 'Đã gửi email cảm ơn' : 'Đã đóng sự kiện'}
+                            </span>
                           )}
                           <Link href={`/events/${ev.id}`} style={{ padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                             Xem trang
@@ -848,6 +1079,70 @@ export default function AgencyDashboard() {
                   </div>
                 )
               )}
+            </div>
+          )}
+
+          {activeTab === 'revenue' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Doanh thu & Báo cáo</h2>
+                  <p style={{ color: '#64748b', margin: 0 }}>Theo dõi doanh thu, vé bán, tỷ lệ check-in và xuất báo cáo cho kênh đại lý.</p>
+                </div>
+                <button onClick={handleExportReport} style={{ ...s.btn, width: 'auto', padding: '10px 18px' }}>Xuất báo cáo CSV</button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #8b5cf6', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Tổng doanh thu</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#8b5cf6', marginTop: 8 }}>{formatMoney(dashboardStats?.totalRevenue || 0)}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #10b981', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Vé đã bán</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: 8 }}>{dashboardStats?.ticketsSold || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #f59e0b', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Đã check-in</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', marginTop: 8 }}>{dashboardStats?.checkedInTickets || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #3b82f6', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Tỷ lệ tham dự</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#3b82f6', marginTop: 8 }}>{Math.round(dashboardStats?.attendanceRate || 0)}%</div>
+                </div>
+              </div>
+
+              {renderDailySalesChart()}
+
+              <div style={{ ...s.card, marginTop: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '1rem' }}>Bảng hiệu suất sự kiện</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                        <th style={{ padding: '10px 0', color: '#4a5568' }}>Sự kiện</th>
+                        <th style={{ padding: '10px 0', color: '#4a5568', textAlign: 'center' }}>Trạng thái</th>
+                        <th style={{ padding: '10px 0', color: '#4a5568', textAlign: 'center' }}>Vé đã bán</th>
+                        <th style={{ padding: '10px 0', color: '#4a5568', textAlign: 'right' }}>Doanh thu</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getEventPerformanceRows().map(ev => (
+                        <tr key={ev.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '12px 0', fontWeight: 700 }}>{ev.title}</td>
+                          <td style={{ padding: '12px 0', textAlign: 'center' }}><span style={s.badge('#eef2ff', '#4338ca')}>{ev.status}</span></td>
+                          <td style={{ padding: '12px 0', textAlign: 'center', fontWeight: 700 }}>{ev.ticketsSold || 0}</td>
+                          <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 800, color: '#8b5cf6' }}>{formatMoney(ev.revenue || 0)}</td>
+                        </tr>
+                      ))}
+                      {events.length === 0 && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '16px 0', textAlign: 'center', color: '#64748b' }}>Chưa có sự kiện để báo cáo.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -927,8 +1222,179 @@ export default function AgencyDashboard() {
               )}
             </div>
           )}
+          {/* Warning Modal */}
+          {showPublishWarning && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              backdropFilter: 'blur(4px)',
+              padding: '20px'
+            }}>
+              <div style={{
+                background: '#ffffff',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '650px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                padding: '2.5rem',
+                fontFamily: 'inherit'
+              }}>
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  color: '#1e293b',
+                  marginBottom: '1.5rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  textAlign: 'left',
+                  borderBottom: '2px solid #f1f5f9',
+                  paddingBottom: '0.75rem'
+                }}>
+                  LƯU Ý KHI ĐĂNG TẢI SỰ KIỆN
+                </h3>
+                <div style={{
+                  fontSize: '0.92rem',
+                  color: '#334155',
+                  lineHeight: '1.7',
+                  textAlign: 'justify',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  marginBottom: '2rem'
+                }}>
+                  <p style={{ margin: 0 }}>
+                    1. Vui lòng <strong>không hiển thị thông tin liên lạc cá nhân của Ban Tổ Chức</strong> (ví dụ: Số điện thoại/ Email/ Facebook/ Instagram...) <strong>trên banner và trong nội dung chi tiết bài đăng</strong>. Đại lý chỉ sử dụng hotline hỗ trợ hoặc kênh liên hệ chính thức của hệ thống <strong>Trivent</strong> để giao dịch vé.
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    2. Trong trường hợp Ban tổ chức <strong>tạo mới hoặc cập nhật sự kiện không tuân thủ quy định nêu trên, Ban quản trị hệ thống Trivent có quyền từ chối phê duyệt sự kiện</strong>.
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    3. Hệ thống <strong>Trivent</strong> sẽ liên tục kiểm duyệt thông tin các sự kiện hiển thị trên nền tảng. <strong>Nếu phát hiện sai phạm liên quan đến hình ảnh/ nội dung đăng tải, ban quản lý có quyền gỡ bỏ hoặc tạm ngưng dịch vụ đối với sự kiện vi phạm</strong>.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      setShowPublishWarning(false);
+                      if (warningAction) warningAction();
+                    }}
+                    style={{
+                      padding: '10px 48px',
+                      background: '#00B46E',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 6px -1px rgba(0, 180, 110, 0.2)'
+                    }}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* ==================== FULL ANALYTICS REPORT MODAL ==================== */}
+      {showFullReport && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '650px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '85vh',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Báo cáo phân tích chi tiết Đại lý</h3>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Bảng số liệu thống kê hoạt động & doanh thu theo ngày của đại lý</span>
+              </div>
+              <button 
+                onClick={() => setShowFullReport(false)}
+                style={{ border: 'none', background: '#f1f5f9', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '1.1rem', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                    <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Ngày</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569', textAlign: 'center' }}>Số vé bán</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569', textAlign: 'center' }}>Đơn hàng</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Doanh thu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const salesData = dashboardStats?.salesByDate || [];
+                    const hasSalesData = salesData.length > 0;
+                    const lineChartData = hasSalesData ? salesData : [
+                      { date: '2026-06-22', ticketsSold: 2, ordersCount: 1, revenue: 300000 },
+                      { date: '2026-06-23', ticketsSold: 5, ordersCount: 2, revenue: 750000 },
+                      { date: '2026-06-24', ticketsSold: 8, ordersCount: 4, revenue: 1200000 },
+                      { date: '2026-06-25', ticketsSold: 4, ordersCount: 2, revenue: 600000 },
+                      { date: '2026-06-26', ticketsSold: 12, ordersCount: 5, revenue: 1800000 },
+                      { date: '2026-06-27', ticketsSold: 9, ordersCount: 4, revenue: 1350000 },
+                      { date: '2026-06-28', ticketsSold: 15, ordersCount: 6, revenue: 2250000 },
+                    ];
+                    return lineChartData.map((row, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', height: '40px' }}>
+                        <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: 600 }}>{row.date}</td>
+                        <td style={{ padding: '10px 12px', color: '#10b981', fontWeight: 700, textAlign: 'center' }}>{row.ticketsSold} vé</td>
+                        <td style={{ padding: '10px 12px', color: '#3b82f6', fontWeight: 700, textAlign: 'center' }}>{row.ordersCount || 0}</td>
+                        <td style={{ padding: '10px 12px', color: '#8b5cf6', fontWeight: 700, textAlign: 'right' }}>
+                          {Number(row.revenue || 0).toLocaleString('vi-VN')} đ
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            
+            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleExportReport}
+                style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Xuất file CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

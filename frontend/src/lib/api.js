@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080/api';
+export const API_BASE = 'http://localhost:8080/api';
 
 export async function apiRequest(endpoint, options = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
