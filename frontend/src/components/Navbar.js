@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { isLoggedIn, getUser, removeToken, apiRequest } from '@/lib/api';
+import { isLoggedIn, getUser, removeToken, apiRequest, API_BASE } from '@/lib/api';
 import { useTranslation } from '@/context/TranslationContext';
 
 export default function Navbar() {
@@ -108,8 +108,8 @@ export default function Navbar() {
   return (
     <>
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
-        <nav className="navbar" style={{ padding: '0 4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', position: 'static' }}>
-          
+        <nav className="navbar" style={{ height: '64px', position: 'static', padding: 0 }}>
+          <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', width: '100%' }}>
           {/* Trái: Logo TRIVENT dạng ảnh đã lọc nền trắng và chuyển sang màu trắng */}
           <div style={{ display: 'flex', alignItems: 'center', width: '220px' }}>
             <Link href="/" className="navbar-brand" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
@@ -151,8 +151,11 @@ export default function Navbar() {
               {t('nav.create_event')}
             </Link>
 
-            {/* Nút Vé của tôi (Không có icon) */}
-            <Link href={loggedIn ? "/my-tickets" : "/login"} className="navbar-tickets-link">
+            {/* Nút Vé của tôi (có icon ticket như Ticketbox) */}
+            <Link href={loggedIn ? "/my-tickets" : "/login"} className="navbar-tickets-link" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/>
+              </svg>
               {t('nav.my_tickets')}
             </Link>
 
@@ -218,9 +221,20 @@ export default function Navbar() {
                 <div ref={userMenuRef} style={{ position: 'relative' }}>
                   <button onClick={() => setShowUserMenu(!showUserMenu)} className="navbar-auth-text" style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                    padding: '0.3rem 0'
+                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.3rem 0', color: '#fff', fontWeight: 600
                   }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {user?.avatarUrl || user?.avatar ? (
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden' }}>
+                          <img src={user.avatarUrl ? `${API_BASE}${user.avatarUrl}` : user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#fff' }}>
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                      )}
+                    </div>
                     {user?.fullName || t('nav.account')}
                     <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>▼</span>
                   </button>
@@ -231,54 +245,42 @@ export default function Navbar() {
                       background: 'var(--bg-card)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                       border: '1px solid var(--border)', zIndex: 1000, overflow: 'hidden', marginTop: 6
                     }}>
-                      {user?.role === 'ROLE_ADMIN' && (
-                        <Link href="/admin" onClick={() => setShowUserMenu(false)} style={{
-                          display: 'flex', alignItems: 'center', gap: '0.5rem',
-                          padding: '0.7rem 1rem', textDecoration: 'none',
-                          color: 'var(--primary)', fontWeight: 650, fontSize: '0.85rem',
-                          borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
-                        }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
-                           onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                          {t('nav.admin_channel')}
-                        </Link>
-                      )}
-                      {user?.role !== 'ROLE_ADMIN' && (
-                        <Link href="/agency" onClick={() => setShowUserMenu(false)} style={{
-                          display: 'flex', alignItems: 'center', gap: '0.5rem',
-                          padding: '0.7rem 1rem', textDecoration: 'none',
-                          color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem',
-                          borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
-                        }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
-                           onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                          {user?.role === 'ROLE_ORGANIZER' ? t('nav.agency_channel') : t('nav.register_agency')}
-                        </Link>
-                      )}
-                      <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        padding: '0.7rem 1rem', textDecoration: 'none',
-                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem',
-                        borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
-                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
-                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        {t('nav.profile')}
-                      </Link>
                       <Link href="/my-tickets" onClick={() => setShowUserMenu(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        padding: '0.7rem 1rem', textDecoration: 'none',
-                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem',
-                        borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
-                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'}
-                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        Đơn hàng của tôi
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/></svg>
+                        Vé của tôi
+                      </Link>
+                      <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/></svg>
+                        Thẻ thành viên
+                      </Link>
+                      <Link href="/agency" onClick={() => setShowUserMenu(false)} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+                        Sự kiện của tôi
+                      </Link>
+                      <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Tài khoản của tôi
                       </Link>
                       <button onClick={handleLogout} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%',
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%',
                         padding: '0.7rem 1rem', border: 'none', background: 'transparent', textAlign: 'left',
-                        color: '#ef4444', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', cursor: 'pointer',
                         transition: 'background 0.15s', fontFamily: 'inherit'
-                      }} onMouseEnter={e => e.currentTarget.style.background='rgba(239,68,68,0.05)'}
-                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        {t('nav.logout')}
+                      }} onMouseEnter={e => e.currentTarget.style.background='rgba(0,0,0,0.03)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Đăng xuất
                       </button>
                     </div>
                   )}
@@ -299,6 +301,7 @@ export default function Navbar() {
             }}>
               {lang === 'vi' ? 'EN' : 'VN'}
             </button>
+          </div>
           </div>
         </nav>
 

@@ -30,7 +30,7 @@ Bạn **chỉ cần cài 2 thứ**:
 ### Bước 1: Clone source code
 
 ```bash
-git clone https://github.com/<tên-team>/HeThongQuanLyVeVaSuKien.git
+git clone https://github.com/NhatHao1711/HeThongQuanLyVeVaSuKien.git
 cd HeThongQuanLyVeVaSuKien
 ```
 

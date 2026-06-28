@@ -355,52 +355,25 @@ function EventsContent() {
                 </button>
               </div>
             ) : (
-              <div className={styles.eventsGrid}>
-                {filteredEvents.map((event) => (
-                  <Link key={event.id} href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
-                    <div className={styles.eventCard}>
-                      <div className={styles.eventImage} style={event.imageUrl ? { backgroundImage: `url(http://localhost:8080${event.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
-                        {!event.imageUrl && getCategoryIcon(event.category)}
-                        <div className={styles.eventBadges}>
-                          {(() => {
-                            const now = new Date();
-                            const start = new Date(event.startTime);
-                            const end = new Date(event.endTime);
-                            const soldOut = event.ticketTypes?.every(t => (t.availableQuantity || 0) <= 0);
-                            const isFree = formatPrice(event.ticketTypes) === t('common.free');
-                            const badges = [];
-                            
-                            if (soldOut) badges.push(<span key="sold" className={styles.badge} style={{ background: 'rgba(239, 68, 68, 0.95)', color: '#fff' }}>{t('common.sold_out')}</span>);
-                            else if (now < start) badges.push(<span key="soon" className={styles.badge} style={{ background: 'rgba(59, 130, 246, 0.95)', color: '#fff' }}>{t('common.upcoming')}</span>);
-                            else if (now >= start && now <= end) badges.push(<span key="live" className={styles.badge} style={{ background: 'rgba(16, 185, 129, 0.95)', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 6, height: 6, background: '#fff', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> {t('common.live')}</span>);
-                            else badges.push(<span key="ended" className={styles.badge} style={{ background: 'rgba(100, 116, 139, 0.95)', color: '#fff' }}>{t('common.ended')}</span>);
-                            
-                            if (isFree && !soldOut) badges.push(<span key="free" className={`${styles.badge} ${styles.free}`}>{t('common.free')}</span>);
-                            return badges;
-                          })()}
-                        </div>
-                      </div>
-                      <div className={styles.eventContent}>
-                        <div className={styles.eventCategory}>{event.category?.name || 'Other'}</div>
-                        <h3 className={styles.eventTitle}>{event.title}</h3>
-                        <p className={styles.eventDescription}>{event.description}</p>
-                        <div className={styles.eventMeta}>
-                          <div className={styles.eventMetaItem}>
-                            Địa điểm: {event.location || 'N/A'}
-                          </div>
-                          <div className={styles.eventMetaItem}>
-                            Thời gian: {new Date(event.startTime).toLocaleDateString('vi-VN')}
-                          </div>
-                        </div>
-                        <div className={styles.eventFooter}>
-                          <span className={styles.eventPrice}>{formatPrice(event.ticketTypes)}</span>
-                          <button className={styles.eventBtn}>{t('common.buy_ticket')}</button>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+              <>
+                <style dangerouslySetInnerHTML={{ __html: `
+                  .cinestar-strict-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 1.5rem;
+                  }
+                  @media (max-width: 1024px) { .cinestar-strict-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+                  @media (max-width: 768px) { .cinestar-strict-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+                  @media (max-width: 480px) { .cinestar-strict-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); } }
+                ` }} />
+                <div className="cinestar-strict-grid">
+                  {filteredEvents.map((event) => (
+                  <div key={event.id}>
+                    <EventCard event={event} />
+                  </div>
                 ))}
               </div>
+              </>
             )}
           </div>
         </div>

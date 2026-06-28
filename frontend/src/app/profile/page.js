@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
-import { apiRequest, isLoggedIn } from '@/lib/api';
+import { apiRequest, isLoggedIn, setUser } from '@/lib/api';
 import { icons } from '@/components/Icons';
 import { useTranslation } from '@/context/TranslationContext';
 
@@ -25,6 +25,7 @@ export default function ProfilePage() {
       const res = await apiRequest('/profile');
       if (res.success) {
         setProfile(res.data);
+        setUser(res.data);
         setForm({ fullName: res.data.fullName || '', phone: res.data.phone || '' });
       }
     } catch (e) { console.error(e); }
@@ -95,12 +96,16 @@ export default function ProfilePage() {
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 <div style={{
                   width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', margin: '0 auto',
-                  background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', color: '#fff'
+                  background: profile.avatarUrl ? 'transparent' : '#e2e8f0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
                   {profile.avatarUrl
                     ? <img src={API_BASE + profile.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : profile.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                    : (
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="#94a3b8" style={{ marginTop: '12px' }}>
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                      </svg>
+                    )}
                 </div>
                 <label style={{
                   position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%',

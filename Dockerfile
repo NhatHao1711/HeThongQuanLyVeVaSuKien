@@ -7,7 +7,7 @@ COPY .mvn/ .mvn/
 COPY mvnw.cmd pom.xml ./
 
 # Generate Linux-compatible mvnw script (only mvnw.cmd exists on Windows)
-RUN printf '#!/bin/sh\nexec java -cp ".mvn/wrapper/maven-wrapper.jar" org.apache.maven.wrapper.MavenWrapperMain "$@"\n' > mvnw && chmod +x mvnw
+RUN printf '#!/bin/sh\nexec java -Dmaven.multiModuleProjectDirectory=/app -cp ".mvn/wrapper/maven-wrapper.jar" org.apache.maven.wrapper.MavenWrapperMain "$@"\n' > mvnw && chmod +x mvnw
 
 # Download dependencies (cached layer)
 RUN ./mvnw dependency:go-offline -B

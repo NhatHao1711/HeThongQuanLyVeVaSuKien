@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/context/TranslationContext';
+import EventCard from '@/components/EventCard';
 
 export default function Home() {
   const [events, setEvents] = useState([]);
@@ -23,23 +24,17 @@ export default function Home() {
     loadVouchers();
   }, []);
 
-  // Lấy 6 sự kiện hot để hiển thị song song làm banner
+  // Lấy 6 sự kiện hot để hiển thị trong banner hero
   const featuredEvents = events.slice(0, 6);
-
-  // Tạo các cặp banner (mỗi slide hiển thị 2 banner song song)
-  const bannerPairs = [];
-  for (let i = 0; i < featuredEvents.length; i += 2) {
-    bannerPairs.push(featuredEvents.slice(i, i + 2));
-  }
 
   // Tự động chuyển slide banner mỗi 5 giây
   useEffect(() => {
-    if (bannerPairs.length <= 1) return;
+    if (featuredEvents.length <= 1) return;
     const timer = setInterval(() => {
-      setCarouselIndex(prev => (prev + 1) % bannerPairs.length);
+      setCarouselIndex(prev => (prev + 1) % featuredEvents.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [bannerPairs.length]);
+  }, [featuredEvents.length]);
 
   const loadVouchers = async () => {
     try {
@@ -134,120 +129,108 @@ export default function Home() {
 
 
 
-      {/* 2. DOUBLE BANNER SLIDER NỀN ĐEN (Ticketbox Style) */}
-      <section className="double-banner-section">
+      {/* 2. HERO BANNER SLIDER (Full-width, Premium Style) */}
+      <section className="hero-banner-section">
         {loading ? (
-          <div style={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
             <div className="spinner" style={{ width: 40, height: 40 }}></div>
           </div>
-        ) : bannerPairs.length > 0 ? (
-          <div className="double-banner-slider-container">
-            {/* Slide Wrapper */}
-            <div className="double-banner-wrapper" style={{ transform: `translateX(-${carouselIndex * 100}%)` }}>
-              {bannerPairs.map((pair, idx) => (
-                <div key={idx} className="double-banner-slide">
-                  {pair.map(ev => (
-                    <div key={ev.id} className="double-banner-item">
-                      {/* Banner Image */}
-                      <img 
-                        src={ev.imageUrl ? `${API_BASE}${ev.imageUrl}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1200&q=80'} 
-                        alt={ev.title} 
-                        className="double-banner-img"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1200&q=80';
-                        }}
-                      />
-                      
-                      {/* Dark Overlay */}
-                      <div className="double-banner-overlay" />
-                      
-                      {/* Details Button */}
-                      <Link href={`/events/${ev.id}`} className="double-banner-btn">
-                        {t('favorites.view_detail')}
-                      </Link>
+        ) : featuredEvents.length > 0 ? (
+          <div className="hero-banner-slider-container">
+            {/* Viewport — clips the slides */}
+            <div className="hero-banner-viewport">
+              <div className="hero-banner-wrapper" style={{ transform: `translateX(-${carouselIndex * 100}%)` }}>
+                {featuredEvents.map((ev, idx) => (
+                  <div key={ev.id} className="hero-banner-slide">
+                    {/* Background Image */}
+                    <img
+                      src={ev.imageUrl ? `${API_BASE}${ev.imageUrl}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80'}
+                      alt={ev.title}
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80';
+                      }}
+                    />
 
-                      {/* Info Text */}
-                      <div className="double-banner-info">
-                        <h3 className="double-banner-title">{ev.title}</h3>
-                        <div className="double-banner-meta">
-                          <span>{t('home.time_prefix')}: {formatDate(ev.startTime)}</span>
-                          <span>{t('home.location_prefix')}: {ev.location || 'HUTECH'}</span>
+                    {/* Dark Gradient Overlay */}
+                    <div className="hero-banner-overlay" />
+
+                    {/* Info Content */}
+                    <div className="hero-banner-info">
+                      <div className="hero-banner-text">
+                        {/* Category Badge */}
+                        <span className="hero-banner-category">
+                          {ev.category?.name || t('nav.events')}
+                        </span>
+                        
+                        {/* Title */}
+                        <h2 className="hero-banner-title">{ev.title}</h2>
+                        
+                        {/* Meta: Date + Location */}
+                        <div className="hero-banner-meta">
+                          <span className="hero-banner-meta-item">
+                            <span className="hero-banner-meta-icon">📅</span>
+                            {formatDate(ev.startTime)}
+                          </span>
+                          <span className="hero-banner-meta-item">
+                            <span className="hero-banner-meta-icon">📍</span>
+                            {ev.location || 'HUTECH'}
+                          </span>
                         </div>
                       </div>
+
+                      {/* Action Buttons */}
+                      <div className="hero-banner-actions">
+                        <span className="hero-banner-price">
+                          {formatPrice(ev.ticketTypes)}
+                        </span>
+                        <Link href={`/events/${ev.id}`} className="hero-banner-btn">
+                          {t('favorites.view_detail')} →
+                        </Link>
+                      </div>
                     </div>
-                  ))}
-                  {/* Nếu cặp chỉ có 1 banner, render thêm banner rỗng hoặc banner đăng ký đại lý */}
-                  {pair.length === 1 && (
-                    <Link href="/agency" className="double-banner-item" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center', textDecoration: 'none' }}>
-                      <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>{t('home.become_agency_title')}</h3>
-                      <p style={{ color: '#9ca3af', fontSize: '0.88rem', maxWidth: 350 }}>{t('home.become_agency_desc')}</p>
-                      <span className="double-banner-btn">{t('home.register_now')}</span>
-                    </Link>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Điều hướng Trái Phải */}
-            {bannerPairs.length > 1 && (
+            {/* Navigation Arrows */}
+            {featuredEvents.length > 1 && (
               <>
-                <button 
-                  onClick={() => setCarouselIndex(prev => prev === 0 ? bannerPairs.length - 1 : prev - 1)}
-                  style={{
-                    position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)',
-                    background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: '1.25rem', color: '#fff',
-                    zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={e => e.target.style.background = 'var(--primary)'}
-                  onMouseLeave={e => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                <button
+                  className="hero-banner-arrow left"
+                  onClick={() => setCarouselIndex(prev => prev === 0 ? featuredEvents.length - 1 : prev - 1)}
                 >
                   ‹
                 </button>
-                <button 
-                  onClick={() => setCarouselIndex(prev => (prev + 1) % bannerPairs.length)}
-                  style={{
-                    position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)',
-                    background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: '1.25rem', color: '#fff',
-                    zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={e => e.target.style.background = 'var(--primary)'}
-                  onMouseLeave={e => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                <button
+                  className="hero-banner-arrow right"
+                  onClick={() => setCarouselIndex(prev => (prev + 1) % featuredEvents.length)}
                 >
                   ›
                 </button>
               </>
             )}
 
-            {/* Slider Dots */}
-            <div style={{ position: 'absolute', bottom: -25, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, zIndex: 10 }}>
-              {bannerPairs.map((_, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => setCarouselIndex(i)} 
-                  style={{
-                    width: carouselIndex === i ? 24 : 8, height: 8, borderRadius: 4,
-                    background: carouselIndex === i ? '#00B46E' : 'rgba(255,255,255,0.3)',
-                    border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0
-                  }} 
+            {/* Dot Indicators */}
+            <div className="hero-banner-dots">
+              {featuredEvents.map((_, i) => (
+                <button
+                  key={i}
+                  className={`hero-banner-dot ${carouselIndex === i ? 'active' : ''}`}
+                  onClick={() => setCarouselIndex(i)}
                 />
               ))}
             </div>
           </div>
         ) : (
-          /* Mặc định nếu không có sự kiện nào */
-          <div className="double-banner-slider-container">
-            <div className="double-banner-slide">
-              <Link href="/agency" className="double-banner-item" style={{ background: 'linear-gradient(135deg, #1e3a8a, #0d9488)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center', textDecoration: 'none' }}>
-                <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>{t('home.welcome_title')}</h3>
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', maxWidth: 400 }}>{t('home.welcome_desc')}</p>
-                <span className="double-banner-btn">{t('nav.register_agency')}</span>
-              </Link>
-              <Link href="/agency" className="double-banner-item" style={{ background: 'linear-gradient(135deg, #4f46e5, #0891b2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center', textDecoration: 'none' }}>
-                <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>{t('home.welcome_agency_title')}</h3>
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', maxWidth: 400 }}>{t('home.welcome_agency_desc')}</p>
-                <span className="double-banner-btn">{t('home.welcome_start_now')}</span>
+          /* Fallback when no events */
+          <div className="hero-banner-slider-container">
+            <div className="hero-banner-slide" style={{ background: 'linear-gradient(135deg, #1e3a8a, #0d9488)' }}>
+              <div className="hero-banner-overlay" />
+              <Link href="/agency" className="hero-banner-cta">
+                <h3>{t('home.welcome_title')}</h3>
+                <p>{t('home.welcome_desc')}</p>
+                <span className="hero-banner-btn">{t('nav.register_agency')}</span>
               </Link>
             </div>
           </div>
@@ -255,11 +238,11 @@ export default function Home() {
       </section>
 
       {/* 3. MAIN EVENTS LIST (With Tabs Filter) */}
-      <section className="section" id="events-section" style={{ background: '#f8fafc', padding: '5rem 0' }}>
+      <section className="section" id="events-section" style={{ background: '#faf6ee', padding: '5rem 0' }}>
         <div className="container">
-          <div className="section-header" style={{ marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: '2.4rem', fontWeight: 900 }}>{t('home.explore_section_title')}</h2>
-            <p style={{ color: '#64748b' }}>{t('home.explore_section_subtitle')}</p>
+          <div className="section-header" style={{ marginBottom: '3rem', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', color: '#0f172a' }}>{t('home.explore_section_title')}</h2>
+            <p style={{ color: '#64748b', fontSize: '1.05rem', marginTop: '0.5rem' }}>{t('home.explore_section_subtitle')}</p>
           </div>
 
 
@@ -281,48 +264,45 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <div className="premium-card-grid">
+              <style dangerouslySetInnerHTML={{ __html: `
+                .cinestar-strict-grid {
+                  display: grid;
+                  grid-template-columns: repeat(4, minmax(0, 1fr));
+                  gap: 1.5rem;
+                }
+                @media (max-width: 1024px) { .cinestar-strict-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+                @media (max-width: 768px) { .cinestar-strict-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+                @media (max-width: 480px) { .cinestar-strict-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); } }
+                
+                /* Bypass cache for overlay */
+                .cinestar-overlay-force {
+                  position: absolute;
+                  top: 0; left: 0; right: 0; bottom: 0;
+                  background: rgba(0, 0, 0, 0.85);
+                  color: #fff;
+                  padding: 1.5rem;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  opacity: 0;
+                  transition: opacity 0.3s ease;
+                  z-index: 10;
+                }
+                .cinestar-event-card:hover .cinestar-overlay-force {
+                  opacity: 1;
+                }
+                .cinestar-event-card {
+                  transition: transform 0.25s, box-shadow 0.25s;
+                }
+                .cinestar-event-card:hover {
+                  transform: translateY(-4px);
+                }
+              ` }} />
+              <div className="cinestar-strict-grid">
                 {filteredEventsList.map(event => (
-                  <Link href={`/events/${event.id}`} key={event.id} style={{ textDecoration: 'none' }}>
-                    <div className="premium-card">
-                      <div className="premium-card-image-wrapper">
-                        {/* Tag category */}
-                        <span className="premium-card-tag">
-                          {event.category?.name || t('nav.events')}
-                        </span>
-                        {/* Event Image */}
-                        <img 
-                          src={event.imageUrl ? `${API_BASE}${event.imageUrl}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=600&q=80'} 
-                          alt={event.title}
-                          className="premium-card-img"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=600&q=80';
-                          }}
-                        />
-                      </div>
-                      
-                      <div className="premium-card-body">
-                        <h3 className="premium-card-title">{event.title}</h3>
-                        
-                        <div className="premium-card-meta">
-                          <div className="premium-card-meta-item">
-                            <span>{t('home.location_prefix')}: {event.location || 'HUTECH'}</span>
-                          </div>
-                          <div className="premium-card-meta-item">
-                            <span>{t('home.time_prefix')}: {formatDate(event.startTime)}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="premium-card-footer">
-                          <div>
-                            <span className="premium-card-price-label">{t('events.booking_price_from')}</span>
-                            <span className="premium-card-price">{formatPrice(event.ticketTypes)}</span>
-                          </div>
-                          <button className="premium-card-btn">{t('common.buy_ticket')}</button>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+                  <div key={event.id}>
+                    <EventCard event={event} />
+                  </div>
                 ))}
               </div>
 
@@ -341,7 +321,7 @@ export default function Home() {
 
 
       {/* 5. WHY CHOOSE TRIVENT (Bento Grid) */}
-      <section className="section" style={{ background: '#f8fafc', padding: '6rem 0', borderTop: '1px solid #e2e8f0' }}>
+      <section className="section" style={{ background: '#faf6ee', padding: '6rem 0', borderTop: '1px solid #efe8da' }}>
         <div className="container">
           <div className="section-header" style={{ marginBottom: '4rem' }}>
             <h2 style={{ fontSize: '2.5rem', fontWeight: 900 }}>{t('home.why_title')}</h2>
