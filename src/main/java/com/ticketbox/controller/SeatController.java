@@ -26,8 +26,16 @@ public class SeatController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<SeatResponse>>> getSeatsByTicketType(
-            @RequestParam Long ticketTypeId) {
-        List<SeatResponse> seats = seatService.getSeatsByTicketType(ticketTypeId);
+            @RequestParam Long ticketTypeId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        
+        Long userId = null;
+        if (userDetails != null) {
+            userId = userRepository.findByEmail(userDetails.getUsername())
+                    .map(User::getId).orElse(null);
+        }
+                
+        List<SeatResponse> seats = seatService.getSeatsByTicketType(ticketTypeId, userId);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách ghế thành công", seats));
     }
 
@@ -72,8 +80,20 @@ public class SeatController {
     public ResponseEntity<ApiResponse<List<com.ticketbox.dto.response.SeatGroupOptionResponse>>> getBestAvailableSeats(
             @RequestParam Long ticketTypeId,
             @RequestParam int quantity,
-            @RequestParam(required = false) List<Long> ignoreLockedSeatIds) {
-        List<com.ticketbox.dto.response.SeatGroupOptionResponse> options = seatService.findBestAvailableSeats(ticketTypeId, quantity, ignoreLockedSeatIds);
+            @RequestParam(required = false) List<Long> ignoreLockedSeatIds,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        if (quantity > 20) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Chỉ có thể gợi ý tối đa 20 ghế."));
+        }
+            
+        Long userId = null;
+        if (userDetails != null) {
+            userId = userRepository.findByEmail(userDetails.getUsername())
+                    .map(User::getId).orElse(null);
+        }
+        
+        List<com.ticketbox.dto.response.SeatGroupOptionResponse> options = seatService.findBestAvailableSeats(ticketTypeId, quantity, ignoreLockedSeatIds, userId);
         return ResponseEntity.ok(ApiResponse.success("Lấy gợi ý ghế thành công", options));
     }
 }

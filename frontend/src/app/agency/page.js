@@ -5,6 +5,24 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { API_BASE, apiRequest, isLoggedIn, setUser } from '@/lib/api';
 
+const getDatesBetween = (startStr, endStr) => {
+  const dates = [];
+  if (!startStr || !endStr) return dates;
+  let current = new Date(startStr);
+  const end = new Date(endStr);
+  current.setHours(0,0,0,0);
+  end.setHours(0,0,0,0);
+  
+  while (current <= end) {
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const dd = String(current.getDate()).padStart(2, '0');
+    dates.push(`${yyyy}-${mm}-${dd}`);
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+};
+
 export default function AgencyDashboard() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
@@ -34,7 +52,7 @@ export default function AgencyDashboard() {
   const [managingEvent, setManagingEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketForm, setTicketForm] = useState({ id: null, name: '', price: 0, totalQuantity: 0 });
+  const [ticketForm, setTicketForm] = useState({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
 
   // Seat Management
   const [seatManagerTicket, setSeatManagerTicket] = useState(null);
@@ -203,7 +221,7 @@ export default function AgencyDashboard() {
     setShowCreateEvent(false);
     setShowTicketForm(false);
     setSeatManagerTicket(null);
-    setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 });
+    setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
     clearImageSelection();
     if (ev.imageUrl) setImagePreview(`${API_BASE.replace('/api', '')}${ev.imageUrl}`);
     setEventForm({
@@ -326,24 +344,48 @@ export default function AgencyDashboard() {
     e.preventDefault();
     try {
       const isUpdate = !!ticketForm.id;
-      const url = isUpdate ? `/events/my-events/ticket-types/${ticketForm.id}` : `/events/my-events/${managingEvent.id}/ticket-types`;
-      const method = isUpdate ? 'PUT' : 'POST';
-      const payload = {
-        name: ticketForm.name,
-        price: Number(ticketForm.price),
-        totalQuantity: Number(ticketForm.totalQuantity)
-      };
-
-      const res = await apiRequest(url, { method, body: JSON.stringify(payload) });
-      if (res.success) {
-        alert(isUpdate ? 'Đã cập nhật vé!' : 'Đã thêm vé!');
-        setShowTicketForm(false);
-        setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 });
-        loadTicketTypes(managingEvent.id);
-        loadAgencyData();
+      
+      if (!isUpdate && ticketForm.applyToAllDays && managingEvent.startTime && managingEvent.endTime) {
+        const dates = getDatesBetween(managingEvent.startTime, managingEvent.endTime);
+        if (dates.length === 0) dates.push(null);
+        
+        for (const date of dates) {
+          const payload = {
+            name: ticketForm.name,
+            price: Number(ticketForm.price),
+            totalQuantity: Number(ticketForm.totalQuantity),
+            eventDate: date
+          };
+          const url = `/events/my-events/${managingEvent.id}/ticket-types`;
+          const res = await apiRequest(url, { method: 'POST', body: JSON.stringify(payload) });
+          if (!res.success) {
+            alert('Có lỗi khi tạo vé cho ngày ' + date + ': ' + res.message);
+          }
+        }
+        alert(`Đã thêm vé cho ${dates.length} ngày!`);
       } else {
-        alert(res.message);
+        const url = isUpdate ? `/events/my-events/ticket-types/${ticketForm.id}` : `/events/my-events/${managingEvent.id}/ticket-types`;
+        const method = isUpdate ? 'PUT' : 'POST';
+        const payload = {
+          name: ticketForm.name,
+          price: Number(ticketForm.price),
+          totalQuantity: Number(ticketForm.totalQuantity),
+          eventDate: ticketForm.eventDate || null
+        };
+
+        const res = await apiRequest(url, { method, body: JSON.stringify(payload) });
+        if (res.success) {
+          alert(isUpdate ? 'Đã cập nhật vé!' : 'Đã thêm vé!');
+        } else {
+          alert(res.message);
+          return;
+        }
       }
+
+      setShowTicketForm(false);
+      setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
+      loadTicketTypes(managingEvent.id);
+      loadAgencyData();
     } catch (err) {
       alert('Lỗi kết nối');
     }
@@ -523,19 +565,26 @@ export default function AgencyDashboard() {
     <div style={{ ...s.card, marginTop: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h4 style={{ fontWeight: 700, fontSize: '1.1rem' }}>Quản lý Loại vé</h4>
-        {!showTicketForm && <button onClick={() => { setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 }); setShowTicketForm(true); }} style={{ ...s.btn, width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}>+ Thêm vé</button>}
+        {!showTicketForm && <button onClick={() => { setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true }); setShowTicketForm(true); }} style={{ ...s.btn, width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}>+ Thêm vé</button>}
       </div>
 
       {showTicketForm && (
         <form onSubmit={submitTicket} style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div><label style={s.label}>Tên vé (VD: VIP)</label><input style={s.input} required value={ticketForm.name} onChange={e => setTicketForm({...ticketForm, name: e.target.value})} /></div>
             <div><label style={s.label}>Giá (VNĐ)</label><input style={s.input} type="number" min="0" required value={ticketForm.price} onChange={e => setTicketForm({...ticketForm, price: e.target.value})} /></div>
             <div><label style={s.label}>Số lượng (Tối đa)</label><input style={s.input} type="number" min="1" required value={ticketForm.totalQuantity} onChange={e => setTicketForm({...ticketForm, totalQuantity: e.target.value})} /></div>
+            <div><label style={s.label}>Ngày áp dụng</label><input style={s.input} type="date" value={ticketForm.eventDate} onChange={e => setTicketForm({...ticketForm, eventDate: e.target.value})} disabled={ticketForm.applyToAllDays} /></div>
           </div>
+          {!ticketForm.id && (
+            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input type="checkbox" id="applyAll" checked={ticketForm.applyToAllDays} onChange={e => setTicketForm({...ticketForm, applyToAllDays: e.target.checked, eventDate: ''})} />
+              <label htmlFor="applyAll" style={{ fontSize: '0.9rem', cursor: 'pointer', color: '#334155', fontWeight: 600 }}>Áp dụng tự động cho toàn bộ các ngày diễn ra sự kiện</label>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="submit" style={{ ...s.btn, width: 'auto' }}>Lưu vé</button>
-            <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }} onClick={() => { setShowTicketForm(false); setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 }); }}>Hủy</button>
+            <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }} onClick={() => { setShowTicketForm(false); setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true }); }}>Hủy</button>
           </div>
         </form>
       )}
@@ -546,6 +595,7 @@ export default function AgencyDashboard() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+              <th style={{ padding: '10px 0', color: '#4a5568' }}>Ngày</th>
               <th style={{ padding: '10px 0', color: '#4a5568' }}>Tên vé</th>
               <th style={{ padding: '10px 0', color: '#4a5568' }}>Giá</th>
               <th style={{ padding: '10px 0', color: '#4a5568' }}>Số lượng</th>
@@ -555,12 +605,13 @@ export default function AgencyDashboard() {
           <tbody>
             {ticketTypes.map(t => (
               <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '10px 0', fontWeight: 600 }}>{t.eventDate ? new Date(t.eventDate).toLocaleDateString('vi-VN') : 'Mặc định'}</td>
                 <td style={{ padding: '10px 0', fontWeight: 600 }}>{t.name}</td>
                 <td style={{ padding: '10px 0', color: '#0ea5e9', fontWeight: 600 }}>{Number(t.price).toLocaleString('vi-VN')} đ</td>
                 <td style={{ padding: '10px 0' }}>{t.totalQuantity} (Còn {t.availableQuantity})</td>
                 <td style={{ padding: '10px 0', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button type="button" onClick={() => openSeatManager(t)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Tạo ghế</button>
-                  <button type="button" onClick={() => { setSeatManagerTicket(null); setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
+                  <button type="button" onClick={() => { setSeatManagerTicket(null); setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity, eventDate: t.eventDate || '' }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
                   <button type="button" onClick={() => deleteTicketType(t.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
                 </td>
               </tr>

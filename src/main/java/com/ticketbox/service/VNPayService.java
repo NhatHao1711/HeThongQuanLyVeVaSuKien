@@ -13,6 +13,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import com.ticketbox.entity.Event;
+import com.ticketbox.entity.LedgerEntry;
+import com.ticketbox.entity.Seat;
+import com.ticketbox.entity.TicketType;
+import com.ticketbox.entity.User;
+import com.ticketbox.entity.UserTicket;
+import com.ticketbox.enums.SeatStatus;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -163,7 +171,7 @@ public class VNPayService {
         String transactionStatus = params.get("vnp_TransactionStatus");
 
         // 3. Find order by transaction reference
-        java.util.List<Order> orders = orderRepository.findByTransactionRef(txnRef);
+        List<Order> orders = orderRepository.findByTransactionRef(txnRef);
         if (orders.isEmpty()) {
             throw new ResourceNotFoundException("Order", "transactionRef", txnRef);
         }
@@ -182,25 +190,25 @@ public class VNPayService {
             orderRepository.save(order);
 
             // Mark seats associated with order as BOOKED
-            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
-                com.ticketbox.entity.Seat seat = ticket.getSeat();
+            for (UserTicket ticket : order.getUserTickets()) {
+                Seat seat = ticket.getSeat();
                 if (seat != null) {
-                    seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                    seat.setStatus(SeatStatus.BOOKED);
                     seatRepository.save(seat);
                 }
             }
 
             // Chia tiền hoa hồng nếu có organizer
-            com.ticketbox.entity.Event event = order.getEvent();
+            Event event = order.getEvent();
             if (event != null && event.getOrganizer() != null) {
-                com.ticketbox.entity.User organizer = event.getOrganizer();
-                java.math.BigDecimal total = order.getTotalAmount();
-                if (total != null && total.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                    java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
+                User organizer = event.getOrganizer();
+                BigDecimal total = order.getTotalAmount();
+                if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new BigDecimal("0.80"));
                     organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
                     userRepository.save(organizer);
                     
-                    com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
+                    LedgerEntry ledgerEntry = LedgerEntry.builder()
                             .order(order)
                             .agency(organizer)
                             .entryType("CREDIT_TICKET_SALE")
@@ -235,16 +243,16 @@ public class VNPayService {
             orderRepository.save(order);
 
             // Hoàn trả vé và ghế khi VNPay thanh toán thất bại
-            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            for (UserTicket ticket : order.getUserTickets()) {
                 // Hoàn vé
-                com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+                TicketType ticketType = ticket.getTicketType();
                 ticketType.setAvailableQuantity(ticketType.getAvailableQuantity() + 1);
                 ticketTypeRepository.save(ticketType);
 
                 // Hoàn ghế
-                com.ticketbox.entity.Seat seat = ticket.getSeat();
+                Seat seat = ticket.getSeat();
                 if (seat != null) {
-                    seat.setStatus(com.ticketbox.enums.SeatStatus.AVAILABLE);
+                    seat.setStatus(SeatStatus.AVAILABLE);
                     seatRepository.save(seat);
                     ticket.setSeat(null); // Gỡ liên kết ghế (chống Unique Constraint)
                     userTicketRepository.save(ticket);

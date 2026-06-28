@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [ticketForm, setTicketForm] = useState({ name: '', price: '', totalQuantity: '' });
+  const [ticketForm, setTicketForm] = useState({ name: '', price: '', totalQuantity: '', eventDate: '', applyToAllDays: true });
   const [userForm, setUserForm] = useState({ fullName: '', email: '', password: '' });
   const [formLoading, setFormLoading] = useState(false);
   const [formMsg, setFormMsg] = useState({ type: '', text: '' });
@@ -290,7 +290,8 @@ export default function AdminDashboard() {
   const createEvent = async (e) => {
     e.preventDefault(); setFormLoading(true);
     try {
-      const res = await apiRequest('/events/admin/create', { method: 'POST', body: JSON.stringify(eventForm) });
+      const payload = { ...eventForm, categoryId: eventForm.categoryId || null };
+      const res = await apiRequest('/events/admin/create', { method: 'POST', body: JSON.stringify(payload) });
       if (res.success) {
         if (selectedImage && res.data?.id) {
           await uploadEventImage(res.data.id, selectedImage);
@@ -301,8 +302,14 @@ export default function AdminDashboard() {
         setShowCreateEvent(false);
         await loadAll();
       }
-      else showMsg('error', res.message || 'Lỗi');
-    } catch { showMsg('error', 'Lỗi kết nối'); } finally { setFormLoading(false); }
+      else {
+        alert(res.message || 'Lỗi tạo sự kiện');
+        showMsg('error', res.message || 'Lỗi');
+      }
+    } catch { 
+      alert('Lỗi kết nối');
+      showMsg('error', 'Lỗi kết nối'); 
+    } finally { setFormLoading(false); }
   };
 
   const startEditEvent = (ev) => {
@@ -319,7 +326,8 @@ export default function AdminDashboard() {
   const saveEditEvent = async (e) => {
     e.preventDefault(); setFormLoading(true);
     try {
-      const res = await apiRequest(`/events/admin/${editingEvent}`, { method: 'PUT', body: JSON.stringify(eventForm) });
+      const payload = { ...eventForm, categoryId: eventForm.categoryId || null };
+      const res = await apiRequest(`/events/admin/${editingEvent}`, { method: 'PUT', body: JSON.stringify(payload) });
       if (res.success) {
         if (selectedImage) await uploadEventImage(editingEvent, selectedImage);
         showMsg('success', 'Đã cập nhật');
@@ -327,8 +335,14 @@ export default function AdminDashboard() {
         clearImageSelection();
         await loadAll();
       }
-      else showMsg('error', res.message || 'Lỗi');
-    } catch { showMsg('error', 'Lỗi kết nối'); } finally { setFormLoading(false); }
+      else {
+        alert(res.message || 'Lỗi cập nhật sự kiện');
+        showMsg('error', res.message || 'Lỗi');
+      }
+    } catch { 
+      alert('Lỗi kết nối');
+      showMsg('error', 'Lỗi kết nối'); 
+    } finally { setFormLoading(false); }
   };
   const handleAddNewCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -344,9 +358,11 @@ export default function AdminDashboard() {
         setShowNewCategoryInput(false);
         showMsg('success', 'Đã tạo phân loại mới thành công!');
       } else {
+        alert(res.message || 'Lỗi khi tạo phân loại');
         showMsg('error', res.message || 'Lỗi khi tạo phân loại');
       }
     } catch (e) {
+      alert('Lỗi kết nối');
       showMsg('error', 'Lỗi kết nối');
     }
   };
@@ -436,19 +452,50 @@ export default function AdminDashboard() {
   const addTicketType = async (e) => {
     e.preventDefault(); setFormLoading(true);
     try {
-      const res = await apiRequest(`/events/admin/${showAddTicket}/add-ticket-type`, { method: 'POST', body: JSON.stringify({ name: ticketForm.name, price: Number(ticketForm.price), totalQuantity: Number(ticketForm.totalQuantity) }) });
-      if (res.success) { setTicketForm({ name: '', price: '', totalQuantity: '' }); setShowAddTicket(null); await loadAll(); showMsg('success', 'Đã thêm vé'); }
-      else showMsg('error', res.message || 'Lỗi');
-    } catch { showMsg('error', 'Lỗi kết nối'); } finally { setFormLoading(false); }
+      const isUpdate = !!ticketForm.id;
+      if (!isUpdate && ticketForm.applyToAllDays && editingEvent) {
+        // Find the event to get start and end dates
+        const ev = events.find(x => x.id === showAddTicket);
+        if (ev && ev.startTime && ev.endTime) {
+          const dates = getDatesBetween(ev.startTime, ev.endTime);
+          if (dates.length === 0) dates.push(null);
+          
+          for (const date of dates) {
+            const payload = {
+              name: ticketForm.name,
+              price: Number(ticketForm.price),
+              totalQuantity: Number(ticketForm.totalQuantity),
+              eventDate: date
+            };
+            const res = await apiRequest(`/events/admin/${showAddTicket}/add-ticket-type`, { method: 'POST', body: JSON.stringify(payload) });
+            if (!res.success) alert('Có lỗi khi tạo vé cho ngày ' + date + ': ' + res.message);
+          }
+          alert(`Đã thêm vé cho ${dates.length} ngày!`);
+        } else {
+          // Fallback if no dates
+          const payload = { ...ticketForm, price: Number(ticketForm.price), totalQuantity: Number(ticketForm.totalQuantity), eventDate: ticketForm.eventDate || null };
+          const res = await apiRequest(`/events/admin/${showAddTicket}/add-ticket-type`, { method: 'POST', body: JSON.stringify(payload) });
+          if (res.success) alert('Đã thêm vé'); else alert(res.message);
+        }
+      } else {
+        const payload = { name: ticketForm.name, price: Number(ticketForm.price), totalQuantity: Number(ticketForm.totalQuantity), eventDate: ticketForm.eventDate || null };
+        const res = await apiRequest(`/events/admin/${showAddTicket}/add-ticket-type`, { method: 'POST', body: JSON.stringify(payload) });
+        if (res.success) alert('Đã thêm vé'); else alert(res.message);
+      }
+
+      setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
+      setShowAddTicket(null);
+      await loadAll();
+    } catch { alert('Lỗi kết nối'); } finally { setFormLoading(false); }
   };
 
-  const startEditTicket = (tt) => { setEditingTicket(tt.id); setTicketForm({ name: tt.name, price: tt.price, totalQuantity: tt.totalQuantity }); };
+  const startEditTicket = (tt) => { setEditingTicket(tt.id); setTicketForm({ name: tt.name, price: tt.price, totalQuantity: tt.totalQuantity, eventDate: tt.eventDate || '', applyToAllDays: true }); };
 
   const saveEditTicket = async (e) => {
     e.preventDefault(); setFormLoading(true);
     try {
-      const res = await apiRequest(`/events/admin/ticket-types/${editingTicket}`, { method: 'PUT', body: JSON.stringify({ name: ticketForm.name, price: Number(ticketForm.price), totalQuantity: Number(ticketForm.totalQuantity) }) });
-      if (res.success) { setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '' }); await loadAll(); showMsg('success', 'Đã cập nhật vé'); }
+      const res = await apiRequest(`/events/admin/ticket-types/${editingTicket}`, { method: 'PUT', body: JSON.stringify({ name: ticketForm.name, price: Number(ticketForm.price), totalQuantity: Number(ticketForm.totalQuantity), eventDate: ticketForm.eventDate || null }) });
+      if (res.success) { setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '', eventDate: '', applyToAllDays: true }); await loadAll(); showMsg('success', 'Đã cập nhật vé'); }
       else showMsg('error', res.message || 'Lỗi');
     } catch { showMsg('error', 'Lỗi kết nối'); } finally { setFormLoading(false); }
   };
@@ -578,7 +625,7 @@ export default function AdminDashboard() {
                 </select>
               ) : (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input className={styles.input} style={{ flex: 1 }} placeholder="Tên phân loại mới (VD: Hội thao)..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
+                  <input className={styles.input} style={{ flex: 1 }} placeholder="Tên phân loại mới (VD: Hội thao)..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewCategory(); } }} />
                   <button type="button" onClick={handleAddNewCategory} className={`${styles.btn} ${styles.btnPrimary}`} style={{ padding: '0 1.25rem' }}>Lưu</button>
                   <button type="button" onClick={() => { setShowNewCategoryInput(false); setNewCategoryName(''); }} className={`${styles.btn} ${styles.btnOutline}`} style={{ padding: '0 1.25rem' }}>Hủy</button>
                 </div>
@@ -1176,7 +1223,7 @@ export default function AdminDashboard() {
                       <div className={styles.cardBody} style={{ background: '#f8fafc', borderTop: '1px solid var(--admin-border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                           <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Chi tiết loại vé</span>
-                          <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} onClick={() => { setShowAddTicket(ev.id); setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '' }); }}>+ Thêm loại vé</button>
+                          <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} onClick={() => { setShowAddTicket(ev.id); setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '', eventDate: '', applyToAllDays: true }); }}>+ Thêm loại vé</button>
                         </div>
 
                         {/* Add Ticket Form */}
@@ -1197,6 +1244,14 @@ export default function AdminDashboard() {
                                   <label className={styles.label}>Số lượng</label>
                                   <input className={styles.input} type="number" required min="1" placeholder="VD: 100" value={ticketForm.totalQuantity} onChange={e => setTicketForm(prev => ({ ...prev, totalQuantity: e.target.value }))} />
                                 </div>
+                                <div className={styles.formGroup}>
+                                  <label className={styles.label}>Ngày áp dụng</label>
+                                  <input className={styles.input} type="date" value={ticketForm.eventDate} onChange={e => setTicketForm(prev => ({ ...prev, eventDate: e.target.value }))} disabled={ticketForm.applyToAllDays} />
+                                </div>
+                              </div>
+                              <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input type="checkbox" id="applyAllAdmin" checked={ticketForm.applyToAllDays} onChange={e => setTicketForm({...ticketForm, applyToAllDays: e.target.checked, eventDate: ''})} />
+                                <label htmlFor="applyAllAdmin" style={{ fontSize: '0.85rem', cursor: 'pointer', color: '#334155', fontWeight: 600 }}>Áp dụng tự động cho toàn bộ các ngày diễn ra sự kiện</label>
                               </div>
                               <div className={styles.btnGroup}>
                                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} disabled={formLoading}>{formLoading ? '...' : 'Xác nhận'}</button>
@@ -1224,10 +1279,14 @@ export default function AdminDashboard() {
                                   <label className={styles.label}>Số lượng</label>
                                   <input className={styles.input} type="number" required min="1" value={ticketForm.totalQuantity} onChange={e => setTicketForm(prev => ({ ...prev, totalQuantity: e.target.value }))} />
                                 </div>
+                                <div className={styles.formGroup}>
+                                  <label className={styles.label}>Ngày áp dụng</label>
+                                  <input className={styles.input} type="date" value={ticketForm.eventDate} onChange={e => setTicketForm(prev => ({ ...prev, eventDate: e.target.value }))} />
+                                </div>
                               </div>
                               <div className={styles.btnGroup}>
                                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} disabled={formLoading}>{formLoading ? '...' : 'Cập nhật'}</button>
-                                <button type="button" className={`${styles.btn} ${styles.btnOutline} ${styles.btnSm}`} onClick={() => { setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '' }); }}>Hủy</button>
+                                <button type="button" className={`${styles.btn} ${styles.btnOutline} ${styles.btnSm}`} onClick={() => { setEditingTicket(null); setTicketForm({ name: '', price: '', totalQuantity: '', eventDate: '', applyToAllDays: true }); }}>Hủy</button>
                               </div>
                             </form>
                           </div>
@@ -1242,7 +1301,7 @@ export default function AdminDashboard() {
                                 <div className={styles.ticketInfo}>
                                   <span className={styles.ticketTitle}>{tt.name}</span>
                                   <span className={styles.ticketMeta}>
-                                    Giá: <strong style={{ color: 'var(--admin-primary)' }}>{formatMoney(tt.price)}</strong>  ·  Còn lại: {tt.availableQuantity}/{tt.totalQuantity}
+                                    Ngày áp dụng: <strong>{tt.eventDate ? new Date(tt.eventDate).toLocaleDateString('vi-VN') : 'Mặc định'}</strong>  ·  Giá: <strong style={{ color: 'var(--admin-primary)' }}>{formatMoney(tt.price)}</strong>  ·  Còn lại: {tt.availableQuantity}/{tt.totalQuantity}
                                   </span>
                                 </div>
                                 <div className={styles.btnGroup}>

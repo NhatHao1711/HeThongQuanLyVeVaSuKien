@@ -14,8 +14,6 @@ export default function EventDetailPage({ params }) {
   const { id } = React.use(params);
   const { t } = useTranslation();
   const seatMapRef = useRef(null);
-  const [suggestQuantity, setSuggestQuantity] = useState(2);
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,13 +41,30 @@ export default function EventDetailPage({ params }) {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, active: false });
   const [relatedEvents, setRelatedEvents] = useState([]);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [payOSData, setPayOSData] = useState(null);
   const [payOSLoading, setPayOSLoading] = useState(false);
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(600); // 10 phút
   const [seatLockStartTime, setSeatLockStartTime] = useState(null);
 
+  const [selectedDate, setSelectedDate] = useState(null);
+  const calendarRef = useRef(null);
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarViewMode, setCalendarViewMode] = useState('calendar');
+  const [expandedDates, setExpandedDates] = useState([]);
+
+  const uniqueDates = [...new Set(ticketTypes.map(t => t.eventDate).filter(Boolean))].sort();
+  const filteredTicketTypes = uniqueDates.length > 0 && selectedDate 
+    ? ticketTypes.filter(t => t.eventDate === selectedDate)
+    : ticketTypes;
+
   useEffect(() => {
     loadEvent();
+    loadReviews();
+    loadRelatedEvents();
+
+
     loadReviews();
     loadRelatedEvents();
 
@@ -200,10 +215,17 @@ export default function EventDetailPage({ params }) {
       const res = await apiRequest(`/events/${id}`);
       if (res.success) {
         setEvent(res.data);
-        setTicketTypes(res.data.ticketTypes || []);
+        const tTypes = res.data.ticketTypes || [];
+        setTicketTypes(tTypes);
         // Set first ticket type as active by default
-        if (res.data.ticketTypes?.length > 0) {
-          setActiveTicketTypeId(res.data.ticketTypes[0].id);
+        if (tTypes.length > 0) {
+          setActiveTicketTypeId(tTypes[0].id);
+          const uDates = [...new Set(tTypes.map(t => t.eventDate).filter(Boolean))].sort();
+          if (uDates.length > 0) {
+            const d = new Date(uDates[0]);
+            setCalendarMonth(d.getMonth());
+            setCalendarYear(d.getFullYear());
+          }
         }
       } else {
         setError(t('events.no_events_found'));
@@ -462,11 +484,31 @@ export default function EventDetailPage({ params }) {
     return binMap[bin] || 'VietQR Partner Bank';
   };
 
-  const openBookingModal = () => {
+  const openBookingModal = (forceDate = null) => {
+    const targetDate = forceDate || selectedDate;
+    
+    if (!isLoggedIn()) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    if (uniqueDates.length > 1 && !targetDate) {
+      calendarRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    
+    if (uniqueDates.length === 1 && !targetDate) {
+      setSelectedDate(uniqueDates[0]);
+    } else if (forceDate) {
+      setSelectedDate(forceDate);
+    }
+
     setShowBookingModal(true);
     setBookingStep('select');
     setSeatLockStartTime(null);
     setError('');
+    setSelectedTickets({});
+    setSelectedSeatIds({});
+    setSelectedSeatObjects({});
     document.body.style.overflow = 'hidden';
   };
 
@@ -674,7 +716,7 @@ export default function EventDetailPage({ params }) {
               <div className={styles.statItem} style={{ display: 'flex', flexDirection: 'column', borderTop: '4px solid #8b5cf6', alignItems: 'center' }}>
                 <span className={styles.statLabel}>{t('events.detail_organizer')}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', justifyContent: 'center' }}>
-                  <span className={styles.statValue} style={{ margin: 0 }}>{event.organizer || 'N/A'}</span>
+                  <span className={styles.statValue} style={{ margin: 0 }}>{event.organizerName || 'N/A'}</span>
                   {event.organizerId && (
                     <button 
                       onClick={handleFollowToggle} 
@@ -730,77 +772,218 @@ export default function EventDetailPage({ params }) {
               })()}
             </div>
 
-            {/* Ticket Types Information */}
-            {ticketTypes && ticketTypes.length > 0 && (
-              <div className={styles.section}>
-                <h2>Loại vé & Giá vé</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', marginTop: '1rem' }}>
-                  {ticketTypes.map((ticket, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1.25rem',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0',
-                      transition: 'transform 0.15s'
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>{ticket.name}</span>
-                          <span style={{ background: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#ecfdf5' : '#fef2f2', color: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#059669' : '#dc2626', padding: '2px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 700 }}>
-                            {(ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? `Còn ${ticket.availableQuantity ?? ticket.remaining} vé` : 'Hết vé'}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
-                          Số lượng phát hành: {ticket.totalQuantity ?? ticket.quantity ?? 0} vé
-                        </p>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981' }}>
-                          {formatPrice(ticket.price)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Description */}
+            {/* Combined Description & Event Details */}
             <div className={styles.section}>
               <h2>{t('events.detail_desc_title')}</h2>
-              <div className={styles.description}>
+              <div className={styles.description} style={{ marginBottom: '2rem' }}>
                 {event.description || t('events.detail_no_desc')}
               </div>
-            </div>
 
-            {/* Event Details */}
-            <div className={styles.section}>
-              <h2>{t('events.detail_info_title')}</h2>
+              <h2 style={{ paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>{t('events.detail_info_title')}</h2>
               <div className={styles.details}>
                 <div className={styles.detailItem}>
-                  <strong>{t('events.detail_start')}:</strong>
+                  <strong>🕒 {t('events.detail_start') || 'Thời gian bắt đầu'}:</strong>
                   <p>{new Date(event.startTime).toLocaleString('vi-VN')}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>{t('events.detail_end')}:</strong>
+                  <strong>🏁 {t('events.detail_end') || 'Thời gian kết thúc'}:</strong>
                   <p>{new Date(event.endTime).toLocaleString('vi-VN')}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>{t('events.detail_tickets')}:</strong>
-                  <p>{event.quantities || t('events.detail_no_desc')}</p>
+                  <strong>📍 Địa điểm tổ chức:</strong>
+                  <p>{event.location || 'Chưa cập nhật'}</p>
                 </div>
                 <div className={styles.detailItem}>
-                  <strong>{t('events.detail_start_point')}:</strong>
-                  <p>{event.startPoint || 'N/A'}</p>
+                  <strong>🔥 Lượt quan tâm:</strong>
+                  <p>{event.views || 0} người đã xem</p>
                 </div>
               </div>
             </div>
 
+            {/* Calendar Section */}
+            {uniqueDates.length > 0 && (
+              <div className={styles.section} ref={calendarRef} style={{ background: '#ffffff', color: '#0f172a', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, color: '#00B46E', fontSize: '1.2rem', fontWeight: 'bold' }}>Lịch diễn</h3>
+                  <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '24px', overflow: 'hidden', padding: '2px', border: '1px solid #e2e8f0' }}>
+                    <button 
+                      onClick={() => setCalendarViewMode('list')}
+                      style={{ background: calendarViewMode === 'list' ? '#fff' : 'transparent', color: calendarViewMode === 'list' ? '#0f172a' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', boxShadow: calendarViewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                    >
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <button 
+                      onClick={() => setCalendarViewMode('calendar')}
+                      style={{ background: calendarViewMode === 'calendar' ? '#fff' : 'transparent', color: calendarViewMode === 'calendar' ? '#0f172a' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', boxShadow: calendarViewMode === 'calendar' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                    >
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {calendarViewMode === 'calendar' ? (
+                  <>
+                    {/* Month Selector */}
+                    <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                      <button 
+                        onClick={() => { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); } else setCalendarMonth(m => m - 1); }} 
+                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem', padding: '0 10px' }}>&lt;</button>
+                      <div style={{ flex: 1, display: 'flex', justifyContent: 'space-around' }}>
+                        {[0, 1, 2, 3, 4].map(offset => {
+                          let m = calendarMonth + offset;
+                          let y = calendarYear;
+                          if (m > 11) { m -= 12; y += 1; }
+                          const isCurrent = offset === 0;
+                          const count = uniqueDates.filter(d => new Date(d).getMonth() === m && new Date(d).getFullYear() === y).length;
+                          return (
+                            <div key={`${m}-${y}`} onClick={() => { setCalendarMonth(m); setCalendarYear(y); }} style={{ textAlign: 'center', cursor: 'pointer', opacity: isCurrent ? 1 : 0.6, borderBottom: isCurrent ? '2px solid #00B46E' : 'none', paddingBottom: '8px', padding: '0 10px' }}>
+                              <div style={{ fontWeight: isCurrent ? 'bold' : 'normal', color: isCurrent ? '#00B46E' : '#334155', fontSize: '1rem' }}>Tháng {m + 1}{isCurrent ? `, ${y}` : ''}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{count} suất diễn</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button 
+                        onClick={() => { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else setCalendarMonth(m => m + 1); }} 
+                        style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem', padding: '0 10px' }}>&gt;</button>
+                    </div>
+
+                    {/* Days of Week */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontWeight: 'bold', color: '#475569', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                      <div>Thứ 2</div><div>Thứ 3</div><div>Thứ 4</div><div>Thứ 5</div><div>Thứ 6</div><div>Thứ 7</div><div>Chủ nhật</div>
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '15px 10px', textAlign: 'center' }}>
+                      {(() => {
+                        const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+                        const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+                        const startingDay = firstDay === 0 ? 6 : firstDay - 1; 
+
+                        return (
+                          <>
+                            {Array(startingDay).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
+                            
+                            {Array(daysInMonth).fill(null).map((_, i) => {
+                              const day = i + 1;
+                              const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                              const isAvailable = uniqueDates.includes(dateStr);
+                              const isSelected = selectedDate === dateStr;
+                              
+                              return (
+                                <div 
+                                  key={day}
+                                  onClick={() => { 
+                                    if (isAvailable) {
+                                      const ticketsForDate = ticketTypes.filter(t => t.eventDate === dateStr);
+                                      if (ticketsForDate.length > 0) {
+                                        setActiveTicketTypeId(ticketsForDate[0].id);
+                                      }
+                                      openBookingModal(dateStr);
+                                    }
+                                  }}
+                                  style={{
+                                    cursor: isAvailable ? 'pointer' : 'default',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    opacity: isAvailable ? 1 : 0.4,
+                                  }}
+                                >
+                                  <span style={{ 
+                                    fontSize: '1.1rem', 
+                                    fontWeight: isAvailable ? 'bold' : 'normal', 
+                                    color: isSelected ? '#fff' : '#334155',
+                                    background: isSelected ? '#00B46E' : 'transparent',
+                                    width: '38px',
+                                    height: '38px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    boxShadow: isSelected ? '0 4px 12px rgba(0, 180, 110, 0.4)' : 'none',
+                                    transition: 'all 0.2s'
+                                  }}>
+                                    {String(day).padStart(2, '0')}
+                                  </span>
+                                  {isAvailable && (
+                                    <div style={{ width: '24px', height: '4px', background: '#00B46E', borderRadius: '2px', marginTop: '6px', opacity: isSelected ? 0 : 0.6 }}></div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {uniqueDates.map(dateStr => {
+                      const d = new Date(dateStr);
+                      const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                      const dayOfWeek = days[d.getDay()];
+                      const isExpanded = expandedDates.includes(dateStr);
+                      const ticketsForDate = ticketTypes.filter(t => t.eventDate === dateStr);
+                      
+                      const startTime = new Date(event.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+                      const endTime = new Date(event.endTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+
+                      return (
+                        <div key={dateStr} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+                          <div 
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.2rem 1rem', background: isExpanded ? '#f8fafc' : '#fff', cursor: 'pointer', transition: 'background 0.2s' }} 
+                            onClick={() => setExpandedDates(prev => prev.includes(dateStr) ? prev.filter(x => x !== dateStr) : [...prev, dateStr])}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <svg width="20" height="20" fill="none" stroke="#64748b" viewBox="0 0 24 24" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                              </svg>
+                              <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#334155' }}>{startTime} - {endTime}, {dayOfWeek}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#00B46E', marginTop: '4px' }}>{String(d.getDate()).padStart(2, '0')} Tháng {String(d.getMonth() + 1).padStart(2, '0')}, {d.getFullYear()}</div>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDate(dateStr);
+                                if (ticketsForDate.length > 0) setActiveTicketTypeId(ticketsForDate[0].id);
+                                openBookingModal(dateStr);
+                              }}
+                              style={{ background: '#00B46E', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(0, 180, 110, 0.2)' }}
+                            >
+                              Mua vé ngay
+                            </button>
+                          </div>
+                          
+                          {isExpanded && (
+                            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
+                              <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>Thông tin vé</h4>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {ticketsForDate.map(ticket => (
+                                  <div key={ticket.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.2rem', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f8fafc' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <svg width="16" height="16" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                      <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#0f172a' }}>{ticket.name}</span>
+                                    </div>
+                                    <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#00B46E' }}>{formatPrice(ticket.price)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
+
 
           {/* Sidebar - Simplified: Only Book Now + Countdown + Share */}
           <aside className={styles.sidebar}>
@@ -833,7 +1016,17 @@ export default function EventDetailPage({ params }) {
                 return (
                   <button 
                     className={styles.bookNowBtn}
-                    onClick={openBookingModal}
+                    onClick={() => {
+                      if (calendarRef.current) {
+                        calendarRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Add a little highlight effect to draw attention
+                        calendarRef.current.style.transition = 'box-shadow 0.3s';
+                        calendarRef.current.style.boxShadow = '0 0 0 4px rgba(0, 180, 110, 0.3)';
+                        setTimeout(() => {
+                          if (calendarRef.current) calendarRef.current.style.boxShadow = '0 2px 10px rgba(0,0,0,0.02)';
+                        }, 1500);
+                      }
+                    }}
                     disabled={isClosed}
                     style={isClosed ? { 
                       background: '#94a3b8', 
@@ -847,6 +1040,44 @@ export default function EventDetailPage({ params }) {
                 );
               })()}
             </div>
+
+            {/* Ticket Types Information */}
+            {ticketTypes && ticketTypes.length > 0 && (
+              <div style={{ background: '#ffffff', borderRadius: 14, padding: '1.25rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Loại vé & Giá vé</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {ticketTypes.map((ticket, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '1rem',
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      transition: 'transform 0.15s'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{ticket.name}</span>
+                          <span style={{ background: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#ecfdf5' : '#fef2f2', color: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#059669' : '#dc2626', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>
+                            {(ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? `Còn ${ticket.availableQuantity ?? ticket.remaining}` : 'Hết'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
+                          Số lượng: {ticket.totalQuantity ?? ticket.quantity ?? 0}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>
+                          {formatPrice(ticket.price)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Countdown Timer */}
             {countdown.active && (
@@ -888,7 +1119,7 @@ export default function EventDetailPage({ params }) {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid #e2e8f0' }}>
                   {/* Ticket Type Tabs */}
                   <div className={styles.ticketTypeTabs}>
-                    {ticketTypes.map(ticket => (
+                    {filteredTicketTypes.map(ticket => (
                       <button
                         key={ticket.id}
                         className={`${styles.ticketTypeTab} ${activeTicketTypeId === ticket.id ? styles.ticketTypeTabActive : ''}`}
@@ -909,101 +1140,89 @@ export default function EventDetailPage({ params }) {
 
                   {/* Seat Map Area */}
                   <div className={styles.seatMapArea}>
-                    {activeTicketTypeId && (
-                      <SeatMap
-                        ref={seatMapRef}
-                        key={activeTicketTypeId}
-                        ticketTypeId={activeTicketTypeId}
-                        initialSelectedSeats={selectedSeatIds[activeTicketTypeId] || []}
-                        onSeatsSelected={(seats, seatObjects) => handleSeatsSelected(activeTicketTypeId, seats, seatObjects)}
-                      />
+                    {activeTicketTypeId ? (
+                      <>
+                        <SeatMap
+                          ref={seatMapRef}
+                          key={activeTicketTypeId}
+                          ticketTypeId={activeTicketTypeId}
+                          initialSelectedSeats={selectedSeatIds[activeTicketTypeId] || []}
+                          onSeatsSelected={(seats, seatObjects) => handleSeatsSelected(activeTicketTypeId, seats, seatObjects)}
+                        />
+                      </>
+                    ) : (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                        Vui lòng chọn loại vé để xem sơ đồ ghế
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Right Pane: Summary & Payment */}
-                <div style={{ width: '320px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', padding: '1.5rem', gap: '1.5rem', overflowY: 'auto' }}>
-                  
-                  {/* Smart Seat Finder UI */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1e3a8a' }}>✨ Gợi ý ghế:</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="10" 
-                        value={suggestQuantity}
-                        onChange={(e) => setSuggestQuantity(Number(e.target.value))}
-                        style={{ width: '60px', padding: '6px', borderRadius: '4px', border: '1px solid #bfdbfe', outline: 'none', fontSize: '0.9rem' }}
-                      />
-                      <button 
-                        onClick={async () => {
-                          if (seatMapRef.current) {
-                            setIsSuggesting(true);
-                            await seatMapRef.current.findBestSeats(suggestQuantity);
-                            setIsSuggesting(false);
-                          } else {
-                            alert("Vui lòng chọn loại vé trước!");
-                          }
-                        }}
-                        disabled={isSuggesting || !activeTicketTypeId}
-                        style={{ flex: 1, padding: '6px 12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '500', fontSize: '0.9rem' }}
-                      >
-                        {isSuggesting ? 'Đang tìm...' : 'Tìm ngay'}
-                      </button>
-                    </div>
+                {/* Right Pane: Selected Tickets Summary */}
+                <div style={{ width: '320px', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '0 1.5rem', height: '72px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Thông tin vé đã chọn</h3>
                   </div>
-
-                  {/* Middle Section: Selected seats info */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: '#ffffff', padding: '1.25rem', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                    
-                    {/* Event mini-summary */}
-                    <div style={{ paddingBottom: '0.8rem', borderBottom: '1px dashed #e2e8f0' }}>
-                       <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#1a1a2e', marginBottom: '0.3rem', lineHeight: '1.3' }}>{event.title}</div>
-                       <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                         🕒 {formatDate(event.startTime)}
-                       </div>
-                    </div>
-
-                    <div className={styles.bottomBarStat}>
-                      <span className={styles.bottomBarLabel}>🎟️ {t('events.booking_total_selected_seats')}</span>
-                      <span className={styles.bottomBarValue} style={{ fontSize: '1.05rem' }}>{getTotalSeatsCount()} {t('events.detail_tickets').toLowerCase().includes('tickets') ? 'seats' : 'ghế'}</span>
-                    </div>
-                    <div className={styles.bottomBarStat}>
-                      <span className={styles.bottomBarLabel}>💺 {t('events.booking_selected_positions')}</span>
-                      <div className={styles.bottomBarValue} style={{ fontSize: '1rem', color: '#00B46E', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                        {getAllSelectedSeatNames().length > 0
-                          ? getAllSelectedSeatNames().map((name, index) => (
-                              <div key={index}>{name}</div>
-                            ))
-                          : <span style={{ color: '#94a3b8' }}>{t('events.booking_no_seats_selected')}</span>}
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+                    {Object.keys(selectedTickets).length === 0 ? (
+                      <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '2rem' }}>
+                        <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ margin: '0 auto 10px', display: 'block' }}>
+                          <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <p style={{ fontSize: '0.88rem' }}>Chưa có vé nào được chọn</p>
                       </div>
-                    </div>
-
-                    {/* Urgency / Note */}
-                    <div style={{ marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.78rem', color: '#92400e', display: 'flex', gap: '8px', alignItems: 'flex-start', lineHeight: '1.4' }}>
-                      <span style={{ fontSize: '1.1rem' }}>⏱️</span>
-                      <span>Ghế đã chọn sẽ được <strong>giữ trong 10 phút</strong> kể từ lúc bạn nhấn Tiếp tục. Vui lòng thanh toán sớm để không mất chỗ!</span>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '1rem' }}>
+                        {Object.entries(selectedTickets).map(([typeId, qty]) => {
+                          const tt = filteredTicketTypes.find(t => t.id == typeId);
+                          if (!tt) return null;
+                          return (
+                            <div key={typeId} style={{ background: '#fff', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontWeight: 700, color: '#1e293b' }}>{tt.name}</span>
+                                <span style={{ fontWeight: 700, color: '#00B46E' }}>{qty}x</span>
+                              </div>
+                              
+                              {/* Hiển thị danh sách ghế đã chọn cho loại vé này */}
+                              {selectedSeatObjects[typeId] && selectedSeatObjects[typeId].length > 0 && (
+                                <div style={{ marginBottom: '8px', fontSize: '0.8rem', color: '#4a5568' }}>
+                                  <strong>Ghế: </strong> 
+                                  {selectedSeatObjects[typeId].map(s => s.name).join(', ')}
+                                </div>
+                              )}
+                              
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #e2e8f0' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Thành tiền:</span>
+                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPrice(tt.price * qty)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Bottom Section: Total Price & Button */}
-                  <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '1rem', borderTop: '2px dashed #e2e8f0' }}>
-                    <div className={styles.totalSection}>
-                      <span className={styles.totalLabel}>{t('events.booking_total_amount')}</span>
-                      <span className={styles.totalAmount}>{formatPrice(calculateTotal())}</span>
+                  <div style={{ padding: '1.5rem', background: '#fff', borderTop: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.88rem', color: '#64748b' }}>
+                      <span>Tổng cộng</span>
+                      <span>{getTotalSeatsCount()} vé</span>
                     </div>
-                    <button
-                      className={styles.paymentBtn}
-                      style={{ width: '100%' }}
-                      onClick={() => { 
-                        setError(''); 
-                        setBookingStep('confirm'); 
-                        setSeatLockStartTime(Date.now());
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>Tạm tính</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>{formatPrice(calculateTotal())}</span>
+                    </div>
+                    <button 
+                      className={`${styles.btn} ${styles.btnPrimary}`} 
+                      style={{ width: '100%', padding: '14px', fontSize: '1.05rem', background: 'linear-gradient(135deg, #00B46E 0%, #00A060 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0, 180, 110, 0.2)' }}
+                      onClick={() => {
+                        if (getTotalSeatsCount() === 0) {
+                          setError('Vui lòng chọn ít nhất 1 vé để tiếp tục');
+                          return;
+                        }
+                        setError('');
+                        setBookingStep('confirm');
                       }}
-                      disabled={getTotalSeatsCount() === 0}
                     >
-                      {t('events.booking_next_step')} →
+                      Tiếp tục
                     </button>
                   </div>
                 </div>
@@ -1042,6 +1261,12 @@ export default function EventDetailPage({ params }) {
                         <div style={{ flex: 1 }}>
                           <p className={styles.confirmItemName}>{ticket?.name || 'Vé'}</p>
                           <p className={styles.confirmItemMeta}>{t('events.detail_tickets')}: {qty} × {formatPrice(ticket?.price || 0)}</p>
+                          {seatNames.length > 0 && (
+                            <div className={styles.summaryItem}>
+                              <span className={styles.summaryLabel}>Ngày áp dụng</span>
+                              <span className={styles.summaryValue}>{selectedDate ? new Date(selectedDate).toLocaleDateString('vi-VN') : 'Mặc định'}</span>
+                            </div>
+                          )}
                           {seatNames.length > 0 && (
                             <div className={styles.confirmSeatTags}>
                               <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '0.4rem' }}>{t('events.detail_tickets').toLowerCase().includes('tickets') ? 'Seats:' : 'Ghế:'}</span>
@@ -1306,6 +1531,42 @@ export default function EventDetailPage({ params }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className={styles.bookingModalOverlay} style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)' }} onClick={() => setShowLoginPrompt(false)}>
+          <div className={styles.bookingModal} style={{ width: '90%', maxWidth: '400px', padding: '2.5rem 2rem', textAlign: 'center', borderRadius: '24px', background: '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', transform: 'translateY(0)', animation: 'slideUp 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '64px', height: '64px', background: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <svg width="32" height="32" fill="none" stroke="#10b981" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0110 0v4"></path>
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Yêu cầu đăng nhập</h3>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.6' }}>
+              Bạn cần đăng nhập tài khoản để có thể tiếp tục thao tác mua vé và giữ chỗ cho sự kiện này.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setShowLoginPrompt(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={() => window.location.href = '/login'}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#00B46E', color: '#fff', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px 0 rgba(0, 180, 110, 0.39)' }}
+                onMouseOver={e => { e.currentTarget.style.background = '#00965A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseOut={e => { e.currentTarget.style.background = '#00B46E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                Đăng nhập
+              </button>
+            </div>
           </div>
         </div>
       )}

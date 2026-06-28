@@ -8,6 +8,12 @@
   flex-direction: column;
   align-items: center;
   max-width: 100%;
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.seatmap-container button,
+.seatmap-container input {
+  font-family: inherit;
 }
 
 .seatmap-grid-wrapper {

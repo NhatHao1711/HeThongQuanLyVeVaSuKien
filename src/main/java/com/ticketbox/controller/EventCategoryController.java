@@ -43,6 +43,7 @@ public class EventCategoryController {
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(ApiResponse.<List<EventCategoryResponse>>builder()
+            .success(true)
             .status(200)
             .message("Successfully fetched " + responses.size() + " categories")
             .data(responses)
@@ -61,6 +62,7 @@ public class EventCategoryController {
             .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
         
         return ResponseEntity.ok(ApiResponse.<EventCategoryResponse>builder()
+            .success(true)
             .status(200)
             .message("Category found")
             .data(mapToResponse(category))
@@ -76,11 +78,18 @@ public class EventCategoryController {
     public ResponseEntity<ApiResponse<EventCategoryResponse>> createCategory(
             @Valid @RequestBody EventCategoryRequest request) {
         
-        log.info("📝 Creating new category: {}", request.getName());
+        log.info("📝 Creating or getting category: {}", request.getName());
         
         // Check if category already exists
-        if (categoryRepository.existsByName(request.getName())) {
-            throw new BadRequestException("Category with name '" + request.getName() + "' already exists");
+        EventCategory existingCategory = categoryRepository.findByNameIgnoreCase(request.getName());
+        if (existingCategory != null) {
+            log.info("✅ Category already exists, returning existing one: {}", existingCategory.getId());
+            return ResponseEntity.ok(ApiResponse.<EventCategoryResponse>builder()
+                .success(true)
+                .status(200)
+                .message("Phân loại đã tồn tại, tự động chọn phân loại này")
+                .data(mapToResponse(existingCategory))
+                .build());
         }
         
         EventCategory category = EventCategory.builder()
@@ -94,8 +103,9 @@ public class EventCategoryController {
         log.info("✅ Category created successfully with id: {}", saved.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.<EventCategoryResponse>builder()
+                .success(true)
                 .status(201)
-                .message("Category created successfully")
+                .message("Đã tạo phân loại mới thành công")
                 .data(mapToResponse(saved))
                 .build());
     }

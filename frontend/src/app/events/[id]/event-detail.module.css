@@ -1,5 +1,5 @@
 .container {
-  padding-top: 64px;
+  padding-top: 0;
   min-height: 100vh;
 }
 
@@ -71,12 +71,14 @@
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 2rem;
+  align-items: start;
   position: relative;
   z-index: 2;
 }
 
 .mainSection { min-width: 0; }
-
+.mainSection > *:last-child { margin-bottom: 0 !important; }
+.sidebar > *:last-child { margin-bottom: 0 !important; }
 /* ===== EVENT HEADER ===== */
 .eventHeader {
   background: #fff;
@@ -176,7 +178,7 @@
 /* ===== SIDEBAR / BOOKING ===== */
 .sidebar {
   position: sticky;
-  top: 80px;
+  top: 130px;
   height: fit-content;
 }
 
@@ -257,6 +259,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
   overflow: hidden;
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Modal Header */
@@ -308,25 +311,34 @@
 /* ===== TICKET TYPE TABS ===== */
 .ticketTypeTabs {
   display: flex;
+  align-items: stretch;
+  height: 72px;
   gap: 0;
   padding: 0 1.5rem;
   background: #f8fafc;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
   overflow-x: auto;
   flex-shrink: 0;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+.ticketTypeTabs::-webkit-scrollbar {
+  display: none;
 }
 
 .ticketTypeTab {
   position: relative;
-  padding: 1rem 1.5rem;
+  padding: 0 1.5rem;
   background: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   cursor: pointer;
   font-family: 'Be Vietnam Pro', sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.2rem;
   min-width: 120px;
   transition: all 0.25s ease;
@@ -807,7 +819,7 @@
   }
   
   .ticketTypeTab {
-    padding: 0.8rem 1rem;
+    padding: 0 1rem;
     min-width: 100px;
   }
   

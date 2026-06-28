@@ -2,8 +2,8 @@ package com.ticketbox.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -32,6 +32,9 @@ public class TicketType {
 
     @Column(name = "available_quantity", nullable = false)
     private Integer availableQuantity;
+
+    @Column(name = "event_date")
+    private LocalDate eventDate;
 
     @OneToMany(mappedBy = "ticketType")
     private List<UserTicket> userTickets;

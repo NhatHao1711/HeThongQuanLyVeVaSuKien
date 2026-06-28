@@ -7,6 +7,8 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
+import java.time.LocalDate;
+
 @Data
 public class CreateTicketTypeRequest {
 
@@ -20,4 +22,6 @@ public class CreateTicketTypeRequest {
     @NotNull(message = "Total quantity không được để trống")
     @Positive(message = "Total quantity phải lớn hơn 0")
     private Integer totalQuantity;
+
+    private LocalDate eventDate;
 }

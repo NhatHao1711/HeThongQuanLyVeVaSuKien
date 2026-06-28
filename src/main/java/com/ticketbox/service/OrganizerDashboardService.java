@@ -15,11 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,9 +51,9 @@ public class OrganizerDashboardService {
         long unusedTickets = Math.max(0, ticketsSold - checkedInTickets);
         double attendanceRate = ticketsSold > 0 ? checkedInTickets * 100.0 / ticketsSold : 0.0;
 
-        java.math.BigDecimal totalRevenue = paidTickets.stream()
-                .map(t -> t.getTicketType() != null && t.getTicketType().getPrice() != null ? t.getTicketType().getPrice() : java.math.BigDecimal.ZERO)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        BigDecimal totalRevenue = paidTickets.stream()
+                .map(t -> t.getTicketType() != null && t.getTicketType().getPrice() != null ? t.getTicketType().getPrice() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         long pendingEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PENDING).count();
         long publishedEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PUBLISHED).count();
@@ -64,10 +66,10 @@ public class OrganizerDashboardService {
         List<SalesDailyResponse> salesByDate = new ArrayList<>();
         ordersByDate.forEach((dateStr, orders) -> {
             long dayTicketsSold = orders.stream().mapToLong(o -> o.getUserTickets().size()).sum();
-            java.math.BigDecimal dayRevenue = orders.stream()
+            BigDecimal dayRevenue = orders.stream()
                     .map(Order::getTotalAmount)
-                    .filter(java.util.Objects::nonNull)
-                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             salesByDate.add(SalesDailyResponse.builder()
                     .date(dateStr)
                     .ticketsSold(dayTicketsSold)
@@ -75,7 +77,7 @@ public class OrganizerDashboardService {
                     .ordersCount((long) orders.size())
                     .build());
         });
-        salesByDate.sort(Comparator.comparing(SalesDailyResponse::getDate));
+        salesByDate.sort(Comparator.comparing(s -> s.getDate()));
 
         return OrganizerStatsResponse.builder()
                 .totalViews(totalViews)

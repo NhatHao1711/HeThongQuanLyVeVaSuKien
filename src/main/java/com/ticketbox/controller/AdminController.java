@@ -15,11 +15,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
+
+import com.ticketbox.dto.response.EventResponse;
+import com.ticketbox.entity.Seat;
+import com.ticketbox.entity.UserTicket;
+import com.ticketbox.enums.AgencyStatus;
+import com.ticketbox.enums.EventStatus;
+import com.ticketbox.enums.PaymentStatus;
+import com.ticketbox.enums.SeatStatus;
+import com.ticketbox.service.EventService;
+import com.ticketbox.service.SeatService;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -35,51 +48,52 @@ public class AdminController {
     private final UserTicketRepository userTicketRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
-    private final com.ticketbox.service.SeatService seatService;
-    private final com.ticketbox.repository.SeatRepository seatRepository;
-    private final com.ticketbox.service.EventService eventService;
+    private final SeatService seatService;
+    private final SeatRepository seatRepository;
+    private final EventService eventService;
 
     // ========== Dashboard Stats ==========
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
-        
+
         long totalUsers = userRepository.count();
         long totalEvents = eventRepository.count();
         long totalOrders = orderRepository.count();
         long totalTicketsSold = userTicketRepository.findAll().stream()
-                .filter(ut -> ut.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
                 .count();
 
         BigDecimal totalRevenue = orderRepository.findAll().stream()
-                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
-                .map(Order::getTotalAmount)
-                .filter(java.util.Objects::nonNull)
+                .filter(o -> o.getPaymentStatus() == PaymentStatus.PAID)
+                .map(o -> o.getTotalAmount())
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         long pendingEvents = eventRepository.findAll().stream()
-                .filter(e -> e.getStatus() == com.ticketbox.enums.EventStatus.PENDING)
+                .filter(e -> e.getStatus() == EventStatus.PENDING)
                 .count();
 
         long publishedEvents = eventRepository.findAll().stream()
-                .filter(e -> e.getStatus() == com.ticketbox.enums.EventStatus.PUBLISHED)
+                .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
                 .count();
 
         long activeOrganizers = userRepository.findAll().stream()
-                .filter(u -> u.getRole() == com.ticketbox.enums.UserRole.ROLE_ORGANIZER && u.getAgencyStatus() == com.ticketbox.enums.AgencyStatus.APPROVED)
+                .filter(u -> u.getRole() == UserRole.ROLE_ORGANIZER && u.getAgencyStatus() == AgencyStatus.APPROVED)
                 .count();
 
         long pendingOrganizers = userRepository.findAll().stream()
-                .filter(u -> u.getAgencyStatus() == com.ticketbox.enums.AgencyStatus.PENDING)
+                .filter(u -> u.getAgencyStatus() == AgencyStatus.PENDING)
                 .count();
 
         // Thống kê doanh số theo ngày
-        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        java.util.Map<String, List<Order>> ordersByDate = orderRepository.findAll().stream()
-                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
-                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter), java.util.TreeMap::new, Collectors.toList()));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        Map<String, List<Order>> ordersByDate = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentStatus() == PaymentStatus.PAID)
+                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter), TreeMap::new,
+                        Collectors.toList()));
 
-        List<Map<String, Object>> salesByDate = new java.util.ArrayList<>();
+        List<Map<String, Object>> salesByDate = new ArrayList<>();
         ordersByDate.forEach((dateStr, dayOrders) -> {
             Map<String, Object> dayStats = new HashMap<>();
             dayStats.put("date", dateStr);
@@ -87,22 +101,25 @@ public class AdminController {
             long tickets = dayOrders.stream().mapToLong(o -> o.getUserTickets().size()).sum();
             dayStats.put("ticketsSold", tickets);
             BigDecimal dayRevenue = dayOrders.stream()
-                    .map(Order::getTotalAmount)
-                    .filter(java.util.Objects::nonNull)
+                    .map(o -> o.getTotalAmount())
+                    .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             dayStats.put("revenue", dayRevenue);
             salesByDate.add(dayStats);
         });
 
         // Phân loại theo danh mục sự kiện
-        java.util.Map<String, Long> categoryStats = eventRepository.findAll().stream()
+        Map<String, Long> categoryStats = eventRepository.findAll().stream()
                 .filter(e -> e.getCategory() != null)
                 .collect(Collectors.groupingBy(e -> e.getCategory().getName(), Collectors.counting()));
 
         // Phân phối số vé bán theo danh mục
-        java.util.Map<String, Long> categoryTicketSales = userTicketRepository.findAll().stream()
-                .filter(ut -> ut.getOrder() != null && ut.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID && ut.getTicketType() != null && ut.getTicketType().getEvent() != null && ut.getTicketType().getEvent().getCategory() != null)
-                .collect(Collectors.groupingBy(ut -> ut.getTicketType().getEvent().getCategory().getName(), Collectors.counting()));
+        Map<String, Long> categoryTicketSales = userTicketRepository.findAll().stream()
+                .filter(ut -> ut.getOrder() != null && ut.getOrder().getPaymentStatus() == PaymentStatus.PAID
+                        && ut.getTicketType() != null && ut.getTicketType().getEvent() != null
+                        && ut.getTicketType().getEvent().getCategory() != null)
+                .collect(Collectors.groupingBy(ut -> ut.getTicketType().getEvent().getCategory().getName(),
+                        Collectors.counting()));
 
         stats.put("totalUsers", totalUsers);
         stats.put("totalEvents", totalEvents);
@@ -131,12 +148,12 @@ public class AdminController {
             es.put("eventId", event.getId());
             es.put("title", event.getTitle());
             var orders = orderRepository.findAll().stream()
-                    .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
-                    .filter(o -> o.getUserTickets().stream().anyMatch(ut -> 
-                        ut.getTicketType().getEvent().getId().equals(event.getId())))
+                    .filter(o -> o.getPaymentStatus() == PaymentStatus.PAID)
+                    .filter(o -> o.getUserTickets().stream()
+                            .anyMatch(ut -> ut.getTicketType().getEvent().getId().equals(event.getId())))
                     .collect(Collectors.toList());
             BigDecimal revenue = orders.stream()
-                    .map(Order::getTotalAmount)
+                    .map(o -> o.getTotalAmount())
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             long ticketsSold = orders.stream()
                     .flatMap(o -> o.getUserTickets().stream())
@@ -148,22 +165,24 @@ public class AdminController {
         }).collect(Collectors.toList());
 
         BigDecimal totalRevenue = orderRepository.findAll().stream()
-                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
-                .map(Order::getTotalAmount)
+                .filter(o -> o.getPaymentStatus() == PaymentStatus.PAID)
+                .map(o -> o.getTotalAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Tính tổng phí sàn (20%) thu về từ các đơn hàng của Đại lý (có organizer)
         BigDecimal platformFee = orderRepository.findAll().stream()
-                .filter(o -> o.getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .filter(o -> o.getPaymentStatus() == PaymentStatus.PAID)
                 .filter(o -> o.getEvent() != null && o.getEvent().getOrganizer() != null)
                 .map(o -> {
                     BigDecimal rate = o.getEvent().getOrganizer().getCommissionRate();
-                    if (rate == null) rate = new BigDecimal("0.20");
+                    if (rate == null)
+                        rate = new BigDecimal("0.20");
                     return o.getTotalAmount().multiply(rate);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Tổng nợ chưa thanh toán cho đại lý = sum(balance + holdingBalance) của tất cả ROLE_ORGANIZER
+        // Tổng nợ chưa thanh toán cho đại lý = sum(balance + holdingBalance) của tất cả
+        // ROLE_ORGANIZER
         BigDecimal totalOrganizerDebt = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == UserRole.ROLE_ORGANIZER)
                 .map(u -> (u.getBalance() != null ? u.getBalance() : BigDecimal.ZERO)
@@ -224,8 +243,10 @@ public class AdminController {
             @PathVariable Long id, @RequestBody Map<String, String> body) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (body.containsKey("fullName")) user.setFullName(body.get("fullName"));
-        if (body.containsKey("email")) user.setEmail(body.get("email"));
+        if (body.containsKey("fullName"))
+            user.setFullName(body.get("fullName"));
+        if (body.containsKey("email"))
+            user.setEmail(body.get("email"));
         if (body.containsKey("password") && !body.get("password").isEmpty()) {
             user.setPasswordHash(passwordEncoder.encode(body.get("password")));
         }
@@ -300,8 +321,10 @@ public class AdminController {
             @PathVariable Long id, @RequestBody Map<String, Object> body) {
         TicketType tt = ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("TicketType not found"));
-        if (body.containsKey("name")) tt.setName((String) body.get("name"));
-        if (body.containsKey("price")) tt.setPrice(BigDecimal.valueOf(((Number) body.get("price")).doubleValue()));
+        if (body.containsKey("name"))
+            tt.setName((String) body.get("name"));
+        if (body.containsKey("price"))
+            tt.setPrice(BigDecimal.valueOf(((Number) body.get("price")).doubleValue()));
         if (body.containsKey("totalQuantity")) {
             int newTotal = ((Number) body.get("totalQuantity")).intValue();
             int diff = newTotal - tt.getTotalQuantity();
@@ -352,8 +375,8 @@ public class AdminController {
         TicketType tt = ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("TicketType not found"));
 
-        int rows  = body.containsKey("rows")  ? ((Number) body.get("rows")).intValue()  : 10;
-        int cols  = body.containsKey("cols")  ? ((Number) body.get("cols")).intValue()  : 10;
+        int rows = body.containsKey("rows") ? ((Number) body.get("rows")).intValue() : 10;
+        int cols = body.containsKey("cols") ? ((Number) body.get("cols")).intValue() : 10;
         int total = rows * cols;
 
         // Xóa ghế cũ nếu có
@@ -363,14 +386,14 @@ public class AdminController {
         }
 
         // Tạo ghế mới theo sơ đồ rows x cols
-        java.util.List<com.ticketbox.entity.Seat> seats = new java.util.ArrayList<>();
+        List<Seat> seats = new ArrayList<>();
         for (int r = 0; r < rows; r++) {
             String rowLabel = String.valueOf((char) ('A' + r));
             for (int c = 1; c <= cols; c++) {
-                seats.add(com.ticketbox.entity.Seat.builder()
+                seats.add(Seat.builder()
                         .ticketType(tt)
                         .name(rowLabel + String.format("%02d", c))
-                        .status(com.ticketbox.enums.SeatStatus.AVAILABLE)
+                        .status(SeatStatus.AVAILABLE)
                         .build());
             }
         }
@@ -409,13 +432,14 @@ public class AdminController {
                         map.put("userEmail", order.getUser().getEmail());
                         map.put("userPhone", order.getUser().getPhone());
                     }
-                    
+
                     // Lấy chi tiết vé trong đơn hàng
                     List<Map<String, Object>> tickets = order.getUserTickets().stream().map(t -> {
                         Map<String, Object> tMap = new HashMap<>();
                         tMap.put("id", t.getId());
                         tMap.put("qrToken", t.getQrToken());
-                        tMap.put("checkinStatus", t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED");
+                        tMap.put("checkinStatus",
+                                t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED");
                         tMap.put("checkinTime", t.getCheckinTime());
                         if (t.getTicketType() != null) {
                             tMap.put("ticketTypeName", t.getTicketType().getName());
@@ -431,7 +455,7 @@ public class AdminController {
                         }
                         return tMap;
                     }).collect(Collectors.toList());
-                    
+
                     map.put("tickets", tickets);
                     return map;
                 }).collect(Collectors.toList());
@@ -443,14 +467,14 @@ public class AdminController {
     public ResponseEntity<ApiResponse<String>> confirmPayment(@PathVariable Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setPaymentStatus(com.ticketbox.enums.PaymentStatus.PAID);
+        order.setPaymentStatus(PaymentStatus.PAID);
         orderRepository.save(order);
 
         // Ensure all seats associated with the order are marked as BOOKED
-        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
-            com.ticketbox.entity.Seat seat = ticket.getSeat();
+        for (UserTicket ticket : order.getUserTickets()) {
+            Seat seat = ticket.getSeat();
             if (seat != null) {
-                seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                seat.setStatus(SeatStatus.BOOKED);
                 seatRepository.save(seat);
             }
         }
@@ -465,15 +489,14 @@ public class AdminController {
                 var event = ticketType.getEvent();
 
                 emailService.sendBookingConfirmation(
-                    user.getEmail(),
-                    user.getFullName(),
-                    event.getTitle(),
-                    ticketType.getName(),
-                    tickets.size(),
-                    order.getTotalAmount(),
-                    order.getTransactionRef(),
-                    firstTicket.getQrToken()
-                );
+                        user.getEmail(),
+                        user.getFullName(),
+                        event.getTitle(),
+                        ticketType.getName(),
+                        tickets.size(),
+                        order.getTotalAmount(),
+                        order.getTransactionRef(),
+                        firstTicket.getQrToken());
                 log.info("📧 Payment confirmation email sent to {} for order #{}", user.getEmail(), order.getId());
             }
         } catch (Exception e) {
@@ -487,20 +510,20 @@ public class AdminController {
     public ResponseEntity<ApiResponse<String>> rejectPayment(@PathVariable Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setPaymentStatus(com.ticketbox.enums.PaymentStatus.FAILED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
         orderRepository.save(order);
 
         // Hoàn trả vé và ghế khi từ chối thanh toán
-        for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+        for (UserTicket ticket : order.getUserTickets()) {
             // Hoàn vé
-            com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+            TicketType ticketType = ticket.getTicketType();
             ticketType.setAvailableQuantity(ticketType.getAvailableQuantity() + 1);
             ticketTypeRepository.save(ticketType);
 
             // Hoàn ghế
-            com.ticketbox.entity.Seat seat = ticket.getSeat();
+            Seat seat = ticket.getSeat();
             if (seat != null) {
-                seat.setStatus(com.ticketbox.enums.SeatStatus.AVAILABLE);
+                seat.setStatus(SeatStatus.AVAILABLE);
                 seatRepository.save(seat);
                 ticket.setSeat(null); // Gỡ liên kết ghế để ghế khác có thể sử dụng (chống Duplicate entry)
                 userTicketRepository.save(ticket);
@@ -511,31 +534,31 @@ public class AdminController {
     }
 
     @PostMapping("/events/{id}/approve")
-    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> approveEvent(@PathVariable Long id) {
-        com.ticketbox.dto.response.EventResponse response = eventService.publishEvent(id);
+    public ResponseEntity<ApiResponse<EventResponse>> approveEvent(@PathVariable Long id) {
+        EventResponse response = eventService.publishEvent(id);
         return ResponseEntity.ok(ApiResponse.success("Phê duyệt sự kiện thành công và đã đăng tải", response));
     }
 
     @PostMapping("/events/{id}/reject")
-    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> rejectEvent(
+    public ResponseEntity<ApiResponse<EventResponse>> rejectEvent(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         String reason = body.get("rejectReason");
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("Lý do từ chối duyệt sự kiện không được để trống");
         }
-        com.ticketbox.dto.response.EventResponse response = eventService.rejectEvent(id, reason);
+        EventResponse response = eventService.rejectEvent(id, reason);
         return ResponseEntity.ok(ApiResponse.success("Từ chối duyệt sự kiện thành công", response));
     }
 
     @PostMapping("/events/{id}/featured")
-    public ResponseEntity<ApiResponse<com.ticketbox.dto.response.EventResponse>> setFeatured(
+    public ResponseEntity<ApiResponse<EventResponse>> setFeatured(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body) {
         String tag = body.containsKey("featuredTag") ? (String) body.get("featuredTag") : null;
         Boolean isFeatured = body.containsKey("isFeatured") ? (Boolean) body.get("isFeatured") : null;
-        
-        com.ticketbox.dto.response.EventResponse response = eventService.updateFeaturedTag(id, tag, isFeatured);
+
+        EventResponse response = eventService.updateFeaturedTag(id, tag, isFeatured);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật nhãn ưu tiên thành công", response));
     }
 }

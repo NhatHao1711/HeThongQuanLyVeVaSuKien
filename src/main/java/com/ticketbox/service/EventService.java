@@ -219,6 +219,7 @@ public class EventService {
                 .price(request.getPrice())
                 .totalQuantity(request.getTotalQuantity())
                 .availableQuantity(request.getTotalQuantity())
+                .eventDate(request.getEventDate() != null ? request.getEventDate() : event.getStartTime().toLocalDate())
                 .build();
 
         ticketType = ticketTypeRepository.save(ticketType);
@@ -252,14 +253,17 @@ public class EventService {
             return;
         }
 
-        if (event.getStatus() == EventStatus.PENDING) {
+        if (event.getStatus() == EventStatus.PENDING || event.getStatus() == EventStatus.CANCELLED) {
+            if (hasSoldTickets(event)) {
+                throw new IllegalArgumentException("Không thể xoá hoàn toàn sự kiện đã có vé bán ra");
+            }
             eventRepository.delete(event);
-            log.info("Deleted pending Event #{}", eventId);
+            log.info("Deleted Event #{} with status {}", eventId, event.getStatus());
             return;
         }
 
         if (event.getStatus() != EventStatus.DRAFT) {
-            throw new IllegalArgumentException("Chỉ sự kiện DRAFT mới có thể xoá");
+            throw new IllegalArgumentException("Không thể xoá sự kiện ở trạng thái này");
         }
 
         eventRepository.delete(event);
@@ -277,6 +281,9 @@ public class EventService {
         ticketType.setName(request.getName());
         ticketType.setPrice(request.getPrice());
         ticketType.setTotalQuantity(request.getTotalQuantity());
+        if (request.getEventDate() != null) {
+            ticketType.setEventDate(request.getEventDate());
+        }
         // Recalculate available quantity nếu total quantity tăng
         int sold = ticketType.getTotalQuantity() - ticketType.getAvailableQuantity();
         ticketType.setAvailableQuantity(request.getTotalQuantity() - sold);
@@ -526,6 +533,7 @@ public class EventService {
                 .price(ticketType.getPrice())
                 .totalQuantity(ticketType.getTotalQuantity())
                 .availableQuantity(ticketType.getAvailableQuantity())
+                .eventDate(ticketType.getEventDate())
                 .build();
     }
 

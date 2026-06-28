@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+import java.time.LocalDate;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,4 +20,5 @@ public class TicketTypeResponse {
     private BigDecimal price;
     private Integer totalQuantity;
     private Integer availableQuantity;
+    private LocalDate eventDate;
 }

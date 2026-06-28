@@ -34,7 +34,7 @@ public class SeatService {
     private static final String SEAT_LOCK_PREFIX = "seat:lock:";
     private static final long SEAT_LOCK_DURATION_MINUTES = 10;
 
-    public List<SeatResponse> getSeatsByTicketType(Long ticketTypeId) {
+    public List<SeatResponse> getSeatsByTicketType(Long ticketTypeId, Long currentUserId) {
         List<Seat> seats = seatRepository.findByTicketTypeId(ticketTypeId);
         
         return seats.stream().map(seat -> {
@@ -42,7 +42,11 @@ public class SeatService {
             // If it's available in DB, check if it's locked in Redis or has a pending order
             if (seat.getStatus() == SeatStatus.AVAILABLE) {
                 String lockKey = SEAT_LOCK_PREFIX + seat.getId();
-                if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey)) || 
+                String existingLockUser = redisTemplate.opsForValue().get(lockKey);
+                
+                boolean isLockedBySomeoneElse = existingLockUser != null && (currentUserId == null || !existingLockUser.equals(currentUserId.toString()));
+                
+                if (isLockedBySomeoneElse || 
                     userTicketRepository.existsBySeatIdAndOrderPaymentStatus(seat.getId(), com.ticketbox.enums.PaymentStatus.PENDING)) {
                     status = "LOCKED";
                 }
@@ -121,7 +125,7 @@ public class SeatService {
         }
     }
 
-    public List<com.ticketbox.dto.response.SeatGroupOptionResponse> findBestAvailableSeats(Long ticketTypeId, int quantity, List<Long> ignoreLockedSeatIds) {
+    public List<com.ticketbox.dto.response.SeatGroupOptionResponse> findBestAvailableSeats(Long ticketTypeId, int quantity, List<Long> ignoreLockedSeatIds, Long currentUserId) {
         if (quantity <= 0) {
             throw new BadRequestException("Số lượng ghế phải lớn hơn 0");
         }
@@ -133,10 +137,12 @@ public class SeatService {
         for (Seat seat : allSeats) {
             if (seat.getStatus() == SeatStatus.AVAILABLE) {
                 String lockKey = SEAT_LOCK_PREFIX + seat.getId();
-                boolean isLockedInRedis = Boolean.TRUE.equals(redisTemplate.hasKey(lockKey));
+                String existingLockUser = redisTemplate.opsForValue().get(lockKey);
+                
+                boolean isLockedBySomeoneElse = existingLockUser != null && (currentUserId == null || !existingLockUser.equals(currentUserId.toString()));
                 boolean isPending = userTicketRepository.existsBySeatIdAndOrderPaymentStatus(seat.getId(), com.ticketbox.enums.PaymentStatus.PENDING);
                 
-                if (isLockedInRedis || isPending) {
+                if (isLockedBySomeoneElse || isPending) {
                     // Nếu ghế này bị khóa, nhưng nó nằm trong danh sách "cho phép bỏ qua" (tức là ghế của chính user hiện tại đang click)
                     // thì KHÔNG đưa vào actualLockedSeatIds
                     if (ignoreLockedSeatIds == null || !ignoreLockedSeatIds.contains(seat.getId())) {
