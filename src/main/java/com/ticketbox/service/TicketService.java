@@ -2,10 +2,13 @@ package com.ticketbox.service;
 
 import com.ticketbox.dto.response.TicketResponse;
 import com.ticketbox.entity.UserTicket;
+import com.ticketbox.exception.ResourceNotFoundException;
 import com.ticketbox.repository.UserTicketRepository;
+import com.ticketbox.util.AESUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,10 +24,12 @@ public class TicketService {
     private final UserTicketRepository userTicketRepository;
     private final QRCodeService qrCodeService;
     private final PaymentService paymentService;
+    private final AESUtil aesUtil;
 
     /**
      * Lấy danh sách vé của user
      */
+    @Transactional
     public List<TicketResponse> getUserTickets(Long userId) {
         List<UserTicket> tickets = userTicketRepository.findByUserIdOrderByCreatedAtDesc(userId);
         
@@ -48,18 +53,31 @@ public class TicketService {
     /**
      * Lấy chi tiết vé theo ID
      */
+    @Transactional
     public TicketResponse getTicketById(Long ticketId) {
         UserTicket ticket = userTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
         return toResponse(ticket);
     }
 
-    private TicketResponse toResponse(UserTicket ticket) {
+    @Transactional
+    public TicketResponse getTicketByIdForUser(Long ticketId, Long userId) {
+        UserTicket ticket = userTicketRepository.findByIdAndUserId(ticketId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("UserTicket", "id", ticketId));
+        return toResponse(ticket);
+    }
+
+    @Transactional
+    public TicketResponse toResponse(UserTicket ticket) {
         byte[] qrCode = null;
         String qrToken = null;
 
         // Chỉ hiển thị QR code nếu đã thanh toán
         if (ticket.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID) {
+            if (ticket.getQrToken() == null || ticket.getQrToken().isBlank()) {
+                ticket.setQrToken(aesUtil.generateQrTokenContent(ticket.getId(), ticket.getUser().getId()));
+                userTicketRepository.save(ticket);
+            }
             qrToken = ticket.getQrToken();
             if (qrToken != null) {
                 qrCode = qrCodeService.generateQRCode(qrToken);

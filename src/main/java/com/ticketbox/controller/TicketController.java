@@ -45,9 +45,13 @@ public class TicketController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TicketResponse>> getTicketDetail(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        TicketResponse ticket = ticketService.getTicketById(id);
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        TicketResponse ticket = ticketService.getTicketByIdForUser(id, user.getId());
 
         return ResponseEntity.ok(ApiResponse.success(ticket));
     }

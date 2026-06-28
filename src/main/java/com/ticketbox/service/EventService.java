@@ -245,6 +245,19 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->  new ResourceNotFoundException("Event", "id", eventId));
 
+        if (hasSoldTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
+            event.setStatus(EventStatus.CANCELLED);
+            eventRepository.save(event);
+            log.info("Cancelled Event #{} instead of hard delete because it has live data", eventId);
+            return;
+        }
+
+        if (event.getStatus() == EventStatus.PENDING) {
+            eventRepository.delete(event);
+            log.info("Deleted pending Event #{}", eventId);
+            return;
+        }
+
         if (event.getStatus() != EventStatus.DRAFT) {
             throw new IllegalArgumentException("Chỉ sự kiện DRAFT mới có thể xoá");
         }
@@ -303,12 +316,35 @@ public class EventService {
             throw new IllegalArgumentException("Bạn không có quyền xoá sự kiện này");
         }
 
+        if (hasSoldTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
+            event.setStatus(EventStatus.CANCELLED);
+            eventRepository.save(event);
+            log.info("Organizer {} cancelled Event #{} instead of hard delete because it has live data", userId, eventId);
+            return;
+        }
+
         if (event.getStatus() != EventStatus.DRAFT && event.getStatus() != EventStatus.PENDING) {
             throw new IllegalArgumentException("Chỉ sự kiện DRAFT hoặc PENDING mới có thể xoá");
         }
 
         eventRepository.delete(event);
         log.info("🗑️ Organizer {} deleted Event #{}", userId, eventId);
+    }
+
+    /**
+     * Cap nhat nhan noi bat cho su kien cua dai ly
+     */
+    @Transactional
+    public EventResponse updateMyFeaturedTag(Long userId, Long eventId, String featuredTag, Boolean isFeatured) {
+        requireApprovedOrganizer(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền cập nhật nhãn nổi bật của sự kiện này");
+        }
+
+        return updateFeaturedTag(eventId, featuredTag, isFeatured);
     }
 
     /**
@@ -557,6 +593,16 @@ public class EventService {
         log.info("⭐ Updated Featured Tag for Event #{}: tag={}, isFeatured={}", eventId, featuredTag, isFeatured);
 
         return toResponse(event);
+    }
+
+    private boolean hasSoldTickets(Event event) {
+        if (event.getTicketTypes() == null) {
+            return false;
+        }
+        return event.getTicketTypes().stream().anyMatch(ticketType ->
+                ticketType.getTotalQuantity() != null
+                        && ticketType.getAvailableQuantity() != null
+                        && ticketType.getTotalQuantity() > ticketType.getAvailableQuantity());
     }
 
     private User requireApprovedOrganizer(Long userId) {

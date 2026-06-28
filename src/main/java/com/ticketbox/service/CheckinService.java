@@ -1,11 +1,14 @@
 package com.ticketbox.service;
 
 import com.ticketbox.entity.UserTicket;
+import com.ticketbox.enums.AgencyStatus;
 import com.ticketbox.enums.CheckinStatus;
+import com.ticketbox.enums.UserRole;
 import com.ticketbox.exception.BadRequestException;
 import com.ticketbox.exception.InvalidQRTokenException;
 import com.ticketbox.exception.ResourceNotFoundException;
 import com.ticketbox.repository.UserTicketRepository;
+import com.ticketbox.repository.UserRepository;
 import com.ticketbox.util.AESUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +37,7 @@ import com.ticketbox.security.CustomUserDetails;
 public class CheckinService {
 
     private final UserTicketRepository userTicketRepository;
+    private final UserRepository userRepository;
     private final AESUtil aesUtil;
 
     @Transactional
@@ -92,12 +96,16 @@ public class CheckinService {
         }
 
         // 4.8. Validate Scanner Permission
-        com.ticketbox.entity.Event event = ticket.getOrder().getEvent();
         boolean isAdmin = scanner.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         
         if (!isAdmin) {
-            if (event.getOrganizer() == null || !event.getOrganizer().getId().equals(scanner.getId())) {
+            com.ticketbox.entity.User scannerUser = userRepository.findById(scanner.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", scanner.getId()));
+            boolean isApprovedOrganizer = scannerUser.getRole() == UserRole.ROLE_ORGANIZER
+                    && scannerUser.getAgencyStatus() == AgencyStatus.APPROVED;
+
+            if (!isApprovedOrganizer) {
                 throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền check-in vé của sự kiện này");
             }
         }
@@ -109,9 +117,15 @@ public class CheckinService {
         }
 
         // 6. Update status (Skip strict token comparison — AES decrypt success is enough)
-        ticket.setCheckinStatus(CheckinStatus.USED);
-        ticket.setCheckinTime(LocalDateTime.now());
-        userTicketRepository.save(ticket);
+        int updatedRows = userTicketRepository.markUsedOnce(
+                ticketId,
+                CheckinStatus.USED,
+                CheckinStatus.UNUSED,
+                LocalDateTime.now());
+
+        if (updatedRows != 1) {
+            throw new BadRequestException("Ve da duoc check-in boi mot thiet bi khac.");
+        }
 
         log.info("✅ Check-in SUCCESS: ticketId={}, userId={}, scannerId={}", ticketId, userId, scanner.getId());
 

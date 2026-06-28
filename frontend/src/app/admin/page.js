@@ -307,6 +307,9 @@ export default function AdminDashboard() {
 
   const startEditEvent = (ev) => {
     setEditingEvent(ev.id);
+    setShowCreateEvent(false);
+    setShowNewCategoryInput(false);
+    setNewCategoryName('');
     setEventForm({ title: ev.title || '', description: ev.description || '', location: ev.location || '', startTime: ev.startTime ? ev.startTime.substring(0, 16) : '', endTime: ev.endTime ? ev.endTime.substring(0, 16) : '', surveyUrl: ev.surveyUrl || '', categoryId: ev.category?.id || '' });
     clearImageSelection();
     if (ev.imageUrl) setImagePreview(`http://localhost:8080${ev.imageUrl}`);
@@ -412,7 +415,7 @@ export default function AdminDashboard() {
 
   const handleUpdateFeatured = async (id, tag) => {
     try {
-      const res = await apiRequest(`/admin/events/${id}/featured`, {
+      const res = await apiRequest(`/events/admin/${id}/featured`, {
         method: 'POST',
         body: JSON.stringify({
           featuredTag: tag || null,
@@ -428,23 +431,6 @@ export default function AdminDashboard() {
     } catch (e) {
       showMsg('error', 'Lỗi kết nối');
     }
-  };
-
-  const sendMarketingEmail = (id) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Gửi email quảng bá',
-      message: 'Gửi email quảng bá sự kiện này đến TẤT CẢ người dùng? Email sẽ được gửi ngay lập tức.',
-      onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, show: false }));
-        setFormLoading(true);
-        try {
-          const res = await apiRequest(`/events/admin/${id}/marketing`, { method: 'POST' });
-          if (res.success) showMsg('success', 'Đã gửi email quảng bá!');
-          else showMsg('error', res.message);
-        } catch { showMsg('error', 'Lỗi kết nối'); } finally { setFormLoading(false); }
-      }
-    });
   };
 
   const addTicketType = async (e) => {
@@ -1050,7 +1036,7 @@ export default function AdminDashboard() {
                               <tr key={order.id} className={styles.tableRow}>
                                 <td className={styles.td} style={{ fontWeight: 700 }}>#{order.id}</td>
                                 <td className={styles.td}>{order.userName || order.userEmail || 'Khách hàng'}</td>
-                                <td className={styles.td}>{getStatusBadge(order.paymentStatus)}</td>
+                                <td className={styles.td}>{getStatusBadge(order.paymentStatus ?? order.status)}</td>
                                 <td className={styles.td} style={{ textAlign: 'right', fontWeight: 700 }}>{formatMoney(order.totalAmount || 0)}</td>
                               </tr>
                             ))}
@@ -1077,7 +1063,7 @@ export default function AdminDashboard() {
                   <h1 className={styles.title}>Quản lý sự kiện</h1>
                   <p className={styles.description}>Tổng số sự kiện trên hệ thống: {events.length}</p>
                 </div>
-                <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => { setShowCreateEvent(!showCreateEvent); setEditingEvent(null); setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '', categoryId: '' }); }}>
+                <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => { setShowCreateEvent(!showCreateEvent); setEditingEvent(null); setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '', categoryId: '' }); clearImageSelection(); }}>
                   {showCreateEvent ? 'Đóng form' : '+ Tạo sự kiện mới'}
                 </button>
               </div>
@@ -1182,7 +1168,6 @@ export default function AdminDashboard() {
                         
                         {ev.status === 'DRAFT' && <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} onClick={() => publishEvent(ev.id)}>Publish</button>}
                         {(ev.status === 'PUBLISHED' || ev.status === 'ONGOING') && <button className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`} onClick={() => closeEvent(ev.id)}>Đóng</button>}
-                        {(ev.status === 'PUBLISHED' || ev.status === 'ONGOING') && <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`} onClick={() => sendMarketingEmail(ev.id)} disabled={formLoading}>Gửi quảng bá</button>}
                         <button className={`${styles.btn} ${styles.btnDanger} ${styles.btnSm}`} onClick={() => deleteEvent(ev.id)}>Xóa</button>
                       </div>
                     </div>

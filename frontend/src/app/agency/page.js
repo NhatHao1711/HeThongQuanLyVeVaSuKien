@@ -200,6 +200,12 @@ export default function AgencyDashboard() {
   // --- Event Management Functions ---
   const handleManageEvent = async (ev) => {
     setManagingEvent(ev);
+    setShowCreateEvent(false);
+    setShowTicketForm(false);
+    setSeatManagerTicket(null);
+    setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 });
+    clearImageSelection();
+    if (ev.imageUrl) setImagePreview(`${API_BASE.replace('/api', '')}${ev.imageUrl}`);
     setEventForm({
       id: ev.id,
       title: ev.title,
@@ -209,7 +215,6 @@ export default function AgencyDashboard() {
       endTime: ev.endTime ? ev.endTime.substring(0, 16) : '',
       surveyUrl: ev.surveyUrl || ''
     });
-    setShowCreateEvent(false);
     await loadTicketTypes(ev.id);
   };
 
@@ -296,6 +301,27 @@ export default function AgencyDashboard() {
     }
   };
 
+  const updateFeaturedTag = async (eventId, tag) => {
+    try {
+      const res = await apiRequest(`/events/my-events/${eventId}/featured`, {
+        method: 'POST',
+        body: JSON.stringify({
+          featuredTag: tag || null,
+          isFeatured: !!tag
+        })
+      });
+      if (res.success) {
+        alert('Đã cập nhật nhãn nổi bật.');
+        setManagingEvent(prev => prev?.id === eventId ? { ...prev, featuredTag: tag || null, isFeatured: !!tag } : prev);
+        loadAgencyData();
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      alert('Lỗi kết nối');
+    }
+  };
+
   const submitTicket = async (e) => {
     e.preventDefault();
     try {
@@ -312,7 +338,9 @@ export default function AgencyDashboard() {
       if (res.success) {
         alert(isUpdate ? 'Đã cập nhật vé!' : 'Đã thêm vé!');
         setShowTicketForm(false);
+        setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 });
         loadTicketTypes(managingEvent.id);
+        loadAgencyData();
       } else {
         alert(res.message);
       }
@@ -507,7 +535,7 @@ export default function AgencyDashboard() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="submit" style={{ ...s.btn, width: 'auto' }}>Lưu vé</button>
-            <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }} onClick={() => setShowTicketForm(false)}>Hủy</button>
+            <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }} onClick={() => { setShowTicketForm(false); setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0 }); }}>Hủy</button>
           </div>
         </form>
       )}
@@ -531,9 +559,9 @@ export default function AgencyDashboard() {
                 <td style={{ padding: '10px 0', color: '#0ea5e9', fontWeight: 600 }}>{Number(t.price).toLocaleString('vi-VN')} đ</td>
                 <td style={{ padding: '10px 0' }}>{t.totalQuantity} (Còn {t.availableQuantity})</td>
                 <td style={{ padding: '10px 0', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => openSeatManager(t)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Tạo ghế</button>
-                  <button onClick={() => { setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
-                  <button onClick={() => deleteTicketType(t.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
+                  <button type="button" onClick={() => openSeatManager(t)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Tạo ghế</button>
+                  <button type="button" onClick={() => { setSeatManagerTicket(null); setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
+                  <button type="button" onClick={() => deleteTicketType(t.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
                 </td>
               </tr>
             ))}
@@ -1027,8 +1055,18 @@ export default function AgencyDashboard() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Quản lý: {managingEvent.title}</h3>
-                    <div>
-                      {(managingEvent.status === 'DRAFT' || managingEvent.status === 'PENDING') && (
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select
+                        value={managingEvent.featuredTag || ''}
+                        onChange={(e) => updateFeaturedTag(managingEvent.id, e.target.value)}
+                        style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, background: '#fff' }}
+                      >
+                        <option value="">Không nổi bật</option>
+                        <option value="HOT">HOT</option>
+                        <option value="TRENDING">TRENDING</option>
+                        <option value="SPONSORED">SPONSORED</option>
+                      </select>
+                      {(
                         <>
                           <button onClick={() => deleteEvent(managingEvent.id)} style={{ ...s.btn, background: '#ef4444', width: 'auto', marginRight: 10 }}>Xóa Sự Kiện</button>
                         </>
@@ -1053,7 +1091,10 @@ export default function AgencyDashboard() {
                     {events.map(ev => (
                       <div key={ev.id} style={{ ...s.card, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <h4 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 5 }}>{ev.title}</h4>
+                          <h4 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 5 }}>
+                            {ev.title}
+                            {ev.featuredTag && <span style={s.badge('#fee2e2', '#b91c1c')}>{ev.featuredTag}</span>}
+                          </h4>
                           <p style={{ fontSize: '0.85rem', color: '#4a5568' }}>Trạng thái: 
                             <span style={s.badge(
                               ev.status === 'PUBLISHED' ? 'rgba(0,180,110,0.1)' : ev.status === 'DRAFT' ? 'rgba(59,130,246,0.1)' : ev.status === 'PENDING' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
@@ -1061,7 +1102,17 @@ export default function AgencyDashboard() {
                             )}>{ev.status}</span>
                           </p>
                         </div>
-                        <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <select
+                            value={ev.featuredTag || ''}
+                            onChange={(e) => updateFeaturedTag(ev.id, e.target.value)}
+                            style={{ padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, background: '#fff' }}
+                          >
+                            <option value="">Không nổi bật</option>
+                            <option value="HOT">HOT</option>
+                            <option value="TRENDING">TRENDING</option>
+                            <option value="SPONSORED">SPONSORED</option>
+                          </select>
                           <button onClick={() => handleManageEvent(ev)} style={{ padding: '8px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
                             Quản lý
                           </button>

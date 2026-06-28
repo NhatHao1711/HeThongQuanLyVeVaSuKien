@@ -24,6 +24,7 @@ public class OrderController {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final com.ticketbox.repository.SeatRepository seatRepository;
+    private final com.ticketbox.service.TicketService ticketService;
 
     @org.springframework.beans.factory.annotation.Autowired
     private com.ticketbox.service.PaymentService paymentService;
@@ -63,16 +64,9 @@ public class OrderController {
             map.put("updatedAt", order.getUpdatedAt());
 
             // Include ticket details
-            var tickets = order.getUserTickets().stream().map(t -> {
-                Map<String, Object> ticketMap = new HashMap<>();
-                ticketMap.put("id", t.getId());
-                ticketMap.put("ticketTypeName", t.getTicketType().getName());
-                ticketMap.put("eventTitle", t.getTicketType().getEvent().getTitle());
-                ticketMap.put("eventId", t.getTicketType().getEvent().getId());
-                ticketMap.put("checkinStatus", t.getCheckinStatus().name());
-                ticketMap.put("price", t.getTicketType().getPrice());
-                return ticketMap;
-            }).collect(Collectors.toList());
+            var tickets = order.getUserTickets().stream()
+                    .map(ticketService::toResponse)
+                    .collect(Collectors.toList());
             map.put("tickets", tickets);
             map.put("ticketCount", tickets.size());
 

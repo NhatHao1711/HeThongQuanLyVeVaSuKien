@@ -20,6 +20,7 @@ export default function CheckinPage() {
   const html5QrCodeRef = useRef(null);
   const processingRef = useRef(false);
   const selectedCameraIdRef = useRef('');
+  const lastScannedTokenRef = useRef('');
 
   useEffect(() => {
     selectedCameraIdRef.current = selectedCameraId;
@@ -47,9 +48,13 @@ export default function CheckinPage() {
   const backLabel = currentUser?.role === 'ROLE_ADMIN' ? 'Quản trị' : 'Kênh đại lý';
 
   const getQrConfig = () => ({
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
+    fps: 15,
+    qrbox: { width: 280, height: 280 },
     aspectRatio: 1,
+    disableFlip: false,
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true,
+    },
   });
 
   const getCameraErrorMessage = (err) => {
@@ -96,6 +101,9 @@ export default function CheckinPage() {
 
   const handleScan = async (token) => {
     if (!token || !token.trim() || processingRef.current) return;
+    const normalizedToken = token.trim();
+    if (lastScannedTokenRef.current === normalizedToken) return;
+    lastScannedTokenRef.current = normalizedToken;
     processingRef.current = true;
     setProcessing(true);
 
@@ -106,7 +114,7 @@ export default function CheckinPage() {
     } catch {}
 
     try {
-      const trimmedToken = token.trim();
+      const trimmedToken = normalizedToken;
       const res = await apiRequest('/checkin/scan', {
         method: 'POST',
         body: JSON.stringify({ qrToken: trimmedToken }),
@@ -129,6 +137,7 @@ export default function CheckinPage() {
       processingRef.current = false;
       setProcessing(false);
       setTimeout(() => {
+        lastScannedTokenRef.current = '';
         try {
           if (html5QrCodeRef.current?.resume) {
             html5QrCodeRef.current.resume();
@@ -151,7 +160,10 @@ export default function CheckinPage() {
       setScanning(true);
       await waitForQrReader();
 
-      const html5QrCode = new Html5Qrcode('qr-reader');
+      const readerElement = document.getElementById('qr-reader');
+      if (readerElement) readerElement.innerHTML = '';
+
+      const html5QrCode = new Html5Qrcode('qr-reader', { verbose: false });
       html5QrCodeRef.current = html5QrCode;
 
       const availableCameras = await Html5Qrcode.getCameras().catch(() => []);
@@ -166,22 +178,35 @@ export default function CheckinPage() {
         setSelectedCameraId(preferredCameraId);
       }
 
-      const cameraConfig = preferredCameraId || { facingMode: 'environment' };
+      const cameraConfigs = preferredCameraId
+        ? [
+            { deviceId: { exact: preferredCameraId } },
+            preferredCameraId,
+            { facingMode: { ideal: 'environment' } },
+            { facingMode: 'user' },
+          ]
+        : [
+            { facingMode: { ideal: 'environment' } },
+            { facingMode: 'environment' },
+            { facingMode: 'user' },
+          ];
 
-      await html5QrCode.start(
-        cameraConfig,
-        getQrConfig(),
-        decodedText => handleScan(decodedText),
-        () => {}
-      ).catch(async (err) => {
-        if (preferredCameraId) throw err;
-        await html5QrCode.start(
-          { facingMode: 'user' },
-          getQrConfig(),
-          decodedText => handleScan(decodedText),
-          () => {}
-        );
-      });
+      let lastError = null;
+      for (const cameraConfig of cameraConfigs) {
+        try {
+          await html5QrCode.start(
+            cameraConfig,
+            getQrConfig(),
+            decodedText => handleScan(decodedText),
+            () => {}
+          );
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (lastError) throw lastError;
     } catch (err) {
       console.error('Camera error:', err);
       await stopCamera();

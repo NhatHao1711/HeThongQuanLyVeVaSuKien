@@ -147,6 +147,39 @@ Khi làm xong, tắt theo thứ tự:
 docker-compose -f docker-compose.dev.yml stop
 ```
 
+> `stop` chỉ dừng container, không xóa dữ liệu. Docker Desktop vẫn có thể hiện "Engine running" vì Docker Desktop là ứng dụng nền riêng.
+
+## Vì sao tắt theo hướng dẫn rồi Docker vẫn còn chạy?
+
+Docker Desktop có 2 lớp khác nhau:
+
+| Bạn tắt gì? | Kết quả |
+|:---|:---|
+| `Ctrl + C` ở frontend/backend | Chỉ tắt web Next.js và backend Spring Boot |
+| `docker-compose -f docker-compose.dev.yml stop` | Dừng container Redis + RabbitMQ của bản dev |
+| Docker Desktop vẫn mở | Góc trái vẫn hiện **Engine running**, đây là bình thường |
+| Container project vẫn màu xanh | Có thể bạn đã từng chạy bản full `docker-compose.yml` hoặc bấm Start trong Docker Desktop |
+
+Nếu Docker Desktop vẫn hiện project/container đang chạy, chạy thêm lệnh này để dừng cả bản full nếu lỡ mở:
+
+```
+docker-compose -f docker-compose.yml stop
+```
+
+Nếu muốn gỡ container khỏi danh sách đang chạy nhưng vẫn giữ dữ liệu volume:
+
+```
+docker-compose -f docker-compose.dev.yml down
+docker-compose -f docker-compose.yml down
+```
+
+Nếu muốn tắt luôn Docker Desktop:
+
+1. Nhấn chuột phải icon Docker ở thanh taskbar
+2. Chọn **Quit Docker Desktop**
+
+> ⚠️ Tuyệt đối không dùng `docker-compose down -v` nếu không hiểu rõ. Flag `-v` sẽ xóa Docker volumes, có thể làm mất dữ liệu MySQL nếu đang dùng MySQL trong Docker.
+
 Lần sau mở lại, chỉ cần làm lại **Phần 3** từ đầu.
 
 > ✅ Dữ liệu **KHÔNG BỊ MẤT** khi tắt. Yên tâm!
@@ -259,6 +292,8 @@ git push
 | 7 | `git push` bị từ chối | Có code mới trên GitHub | Chạy `git pull` trước, rồi `git push` |
 | 8 | `npm install` bị lỗi | Node.js quá cũ | Cài Node.js phiên bản 20 trở lên |
 | 9 | Database bị mất dữ liệu | Đã chạy `docker-compose.yml` thay vì bản dev | Backend sẽ tự nạp dữ liệu mẫu. Lần sau dùng đúng lệnh ở Phần 3 |
+| 10 | Tắt dự án rồi Docker Desktop vẫn còn xanh | Docker Desktop là ứng dụng nền riêng, hoặc bản full `docker-compose.yml` vẫn đang chạy | Chạy thêm `docker-compose -f docker-compose.yml stop`, hoặc Quit Docker Desktop nếu muốn tắt hẳn |
+| 11 | Lỡ bấm Start container trong Docker Desktop | Docker có thể start lại cả MySQL/backend/frontend của bản full | Dừng bằng terminal: `docker-compose -f docker-compose.yml stop`; lần sau chỉ dùng lệnh bản dev |
 
 ---
 
@@ -282,6 +317,9 @@ git push
 │     T3: Ctrl + C                                            │
 │     T2: Ctrl + C                                            │
 │     T1: docker-compose -f docker-compose.dev.yml stop       │
+│     Nếu Docker vẫn xanh:                                    │
+│     docker-compose -f docker-compose.yml stop               │
+│     Muốn tắt Docker hẳn: Quit Docker Desktop                │
 │                                                             │
 │  📥 Lấy code mới:     git pull                              │
 │  📤 Đẩy code lên:                                           │

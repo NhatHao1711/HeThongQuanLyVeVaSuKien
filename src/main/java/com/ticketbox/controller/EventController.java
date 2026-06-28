@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 import com.ticketbox.repository.EventRepository;
 import com.ticketbox.repository.UserRepository;
@@ -135,9 +136,12 @@ public class EventController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<EventResponse>> setFeaturedEvent(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "true") boolean featured) {
+            @RequestParam(required = false) Boolean featured,
+            @RequestBody(required = false) Map<String, Object> body) {
+        String featuredTag = readFeaturedTag(body);
+        Boolean isFeatured = readFeaturedFlag(body, featured, featuredTag);
         log.info("⭐ Admin setting featured={} for event: {}", featured, id);
-        EventResponse event = eventService.setFeaturedEvent(id, featured);
+        EventResponse event = eventService.updateFeaturedTag(id, featuredTag, isFeatured);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái nổi bật thành công", event));
     }
 
@@ -226,6 +230,21 @@ public class EventController {
         log.info("🗑️ User {} deleting event with id: {}", userDetails.getId(), id);
         eventService.deleteMyEvent(userDetails.getId(), id);
         return ResponseEntity.ok(ApiResponse.success("Xoá sự kiện thành công", (Void) null));
+    }
+
+    /**
+     * POST /api/events/my-events/{id}/featured - Dai ly cap nhat nhan noi bat cho su kien cua minh
+     */
+    @PostMapping("/my-events/{id}/featured")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<ApiResponse<EventResponse>> setMyFeaturedEvent(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.ticketbox.security.CustomUserDetails userDetails,
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        String featuredTag = readFeaturedTag(body);
+        Boolean isFeatured = readFeaturedFlag(body, null, featuredTag);
+        EventResponse event = eventService.updateMyFeaturedTag(userDetails.getId(), id, featuredTag, isFeatured);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật nhãn nổi bật thành công", event));
     }
 
     /**
@@ -408,5 +427,27 @@ public class EventController {
              }
         }
         return ResponseEntity.ok(ApiResponse.success("Đã đưa vào hàng đợi gửi email thành công", (String) null));
+    }
+
+    private String readFeaturedTag(Map<String, Object> body) {
+        if (body == null || body.get("featuredTag") == null) {
+            return null;
+        }
+        String tag = String.valueOf(body.get("featuredTag")).trim();
+        return tag.isEmpty() ? null : tag;
+    }
+
+    private Boolean readFeaturedFlag(Map<String, Object> body, Boolean fallback, String featuredTag) {
+        if (body != null && body.containsKey("isFeatured")) {
+            Object value = body.get("isFeatured");
+            if (value instanceof Boolean boolValue) {
+                return boolValue;
+            }
+            return Boolean.parseBoolean(String.valueOf(value));
+        }
+        if (fallback != null) {
+            return fallback;
+        }
+        return featuredTag != null;
     }
 }

@@ -398,7 +398,9 @@ public class AdminController {
                     map.put("transactionRef", order.getTransactionRef());
                     map.put("totalAmount", order.getTotalAmount());
                     map.put("paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "VNPAY");
-                    map.put("status", order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "PENDING");
+                    String paymentStatus = order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "PENDING";
+                    map.put("status", paymentStatus);
+                    map.put("paymentStatus", paymentStatus);
                     map.put("createdAt", order.getCreatedAt());
                     map.put("voucherCode", order.getVoucherCode());
                     map.put("discountAmount", order.getDiscountAmount());

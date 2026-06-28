@@ -403,7 +403,7 @@ export default function MyTicketsPage() {
                                 <div style={{ padding: '1.25rem', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                   {order.paymentStatus === 'PAID' ? (
                                     <>
-                                      <div style={{ width: 100, height: 100, marginBottom: '1rem', background: '#fff', padding: '4px', borderRadius: '8px' }}>
+                                      <div style={{ width: 180, height: 180, marginBottom: '1rem', background: '#fff', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         {tItem.qrCode ? (
                                           <img src={`data:image/png;base64,${tItem.qrCode}`} alt="QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                         ) : (

@@ -749,12 +749,12 @@ export default function EventDetailPage({ params }) {
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>{ticket.name}</span>
-                          <span style={{ background: ticket.remaining > 0 ? '#ecfdf5' : '#fef2f2', color: ticket.remaining > 0 ? '#059669' : '#dc2626', padding: '2px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 700 }}>
-                            {ticket.remaining > 0 ? `Còn ${ticket.remaining} vé` : 'Hết vé'}
+                          <span style={{ background: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#ecfdf5' : '#fef2f2', color: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#059669' : '#dc2626', padding: '2px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 700 }}>
+                            {(ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? `Còn ${ticket.availableQuantity ?? ticket.remaining} vé` : 'Hết vé'}
                           </span>
                         </div>
                         <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
-                          Số lượng phát hành: {ticket.quantity} vé
+                          Số lượng phát hành: {ticket.totalQuantity ?? ticket.quantity ?? 0} vé
                         </p>
                       </div>
                       <div style={{ textAlign: 'right' }}>
