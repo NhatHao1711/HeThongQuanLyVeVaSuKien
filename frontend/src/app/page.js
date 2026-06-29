@@ -122,6 +122,7 @@ export default function Home() {
   };
 
   const filteredEventsList = getFilteredEvents();
+  const highlightedVoucher = vouchers[0];
 
   return (
     <>
@@ -237,8 +238,67 @@ export default function Home() {
         )}
       </section>
 
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 820px) {
+          .home-voucher-banner { grid-template-columns: 1fr !important; padding: 22px !important; }
+          .home-voucher-actions { justify-content: flex-start !important; }
+        }
+      ` }} />
+      <section style={{ background: '#faf6ee', padding: '2.5rem 0 0' }}>
+        <div className="container">
+          <div className="home-voucher-banner" style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.3fr) minmax(260px, 0.7fr)',
+            gap: '24px',
+            alignItems: 'center',
+            padding: '28px',
+            borderRadius: '24px',
+            background: 'linear-gradient(135deg, #052e2b 0%, #047857 58%, #10b981 100%)',
+            color: '#fff',
+            boxShadow: '0 24px 60px -32px rgba(4, 120, 87, 0.75)',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.22)', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Voucher sinh viên
+              </div>
+              <h2 style={{ margin: '14px 0 8px', fontSize: 'clamp(1.65rem, 3vw, 2.6rem)', lineHeight: 1.08, fontWeight: 900 }}>
+                Săn ưu đãi vé sự kiện ngay hôm nay
+              </h2>
+              <p style={{ margin: 0, maxWidth: 680, color: 'rgba(255,255,255,0.82)', fontSize: '1rem', lineHeight: 1.6 }}>
+                {highlightedVoucher
+                  ? `Dùng mã ${highlightedVoucher.code} khi thanh toán để nhận ưu đãi phù hợp cho đơn vé của bạn.`
+                  : 'Theo dõi mã giảm giá mới và áp dụng trực tiếp ở bước thanh toán vé.'}
+              </p>
+              <div className="home-voucher-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '20px' }}>
+                <Link href="/events" style={{ textDecoration: 'none', color: '#064e3b', background: '#fff', padding: '12px 18px', borderRadius: '999px', fontWeight: 900 }}>
+                  Khám phá sự kiện
+                </Link>
+                <button type="button" onClick={() => handleSubNavbarClick('VOUCHERS')} style={{ border: '1px solid rgba(255,255,255,0.32)', background: 'rgba(255,255,255,0.12)', color: '#fff', padding: '12px 18px', borderRadius: '999px', fontWeight: 800, cursor: 'pointer' }}>
+                  Xem voucher
+                </button>
+              </div>
+            </div>
+
+            <div style={{ position: 'relative', zIndex: 1, justifySelf: 'stretch' }}>
+              <div style={{ background: '#fff', color: '#0f172a', borderRadius: '20px', padding: '22px', boxShadow: '0 18px 44px -26px rgba(15,23,42,0.7)' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 900, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mã ưu đãi</div>
+                <div style={{ marginTop: '10px', padding: '14px 16px', borderRadius: '14px', background: '#ecfdf5', border: '1px dashed #10b981', fontSize: '1.55rem', fontWeight: 900, letterSpacing: '0.04em', textAlign: 'center' }}>
+                  {highlightedVoucher?.code || 'TRIVENT'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px', color: '#475569', fontSize: '0.86rem', fontWeight: 700 }}>
+                  <span style={{ padding: '10px', borderRadius: '12px', background: '#f8fafc', textAlign: 'center' }}>Áp dụng nhanh</span>
+                  <span style={{ padding: '10px', borderRadius: '12px', background: '#f8fafc', textAlign: 'center' }}>Thanh toán vé</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 3. MAIN EVENTS LIST (With Tabs Filter) */}
-      <section className="section" id="events-section" style={{ background: '#faf6ee', padding: '5rem 0' }}>
+      <section className="section" id="events-section" style={{ background: '#faf6ee', padding: '4rem 0 5rem' }}>
         <div className="container">
           <div className="section-header" style={{ marginBottom: '3rem', textAlign: 'center' }}>
             <h2 style={{ fontSize: '2.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', color: '#0f172a' }}>{t('home.explore_section_title')}</h2>

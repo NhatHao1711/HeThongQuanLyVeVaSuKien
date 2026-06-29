@@ -20,7 +20,6 @@
   background: var(--admin-bg);
   font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--admin-text-main);
-  padding-top: 64px; /* for main navbar */
 }
 
 /* ========== SIDEBAR (TEXT ONLY) ========== */
@@ -33,8 +32,8 @@
   justify-content: space-between;
   flex-shrink: 0;
   position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
+  top: 0;
+  height: 100vh;
   overflow-y: auto;
   padding: 2rem 0;
   box-sizing: border-box;
@@ -44,6 +43,43 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.roleCard {
+  margin: 0 1rem 1.5rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  box-shadow: 0 14px 28px -18px rgba(15, 23, 42, 0.6);
+}
+
+.roleIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.roleName {
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.roleMeta {
+  margin-top: 0.15rem;
+  font-size: 0.74rem;
+  color: #cbd5e1;
+  line-height: 1.35;
 }
 
 .sidebarTitle {
@@ -111,15 +147,15 @@
 /* ========== MAIN CONTENT & HEADER ========== */
 .mainContent {
   flex: 1;
-  padding: 2.5rem;
-  max-width: 1440px;
-  margin: 0 auto;
+  padding: 2.5rem clamp(2rem, 4vw, 4rem);
+  max-width: none;
+  margin: 0;
   width: 100%;
   box-sizing: border-box;
 }
 
 .header {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -184,6 +220,8 @@
 .statCardGreen::before { background: var(--admin-primary); }
 .statCardYellow::before { background: var(--admin-warning); }
 .statCardRed::before { background: var(--admin-danger); }
+.statCardPurple::before { background: #8b5cf6; }
+.statCardOrange::before { background: #f97316; }
 
 .statLabel {
   font-size: 0.75rem;
@@ -203,7 +241,7 @@
 
 .commandGrid {
   display: grid;
-  grid-template-columns: minmax(280px, 1.2fr) minmax(280px, 1fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(300px, 1.1fr) minmax(300px, 1fr) minmax(300px, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -295,6 +333,16 @@
   gap: 0.75rem;
   padding: 0.75rem 0;
   border-bottom: 1px solid #e2e8f0;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .actionRow:last-child {
@@ -311,6 +359,145 @@
   font-size: 0.76rem;
   color: var(--admin-text-sub);
   margin-top: 0.15rem;
+  display: block;
+}
+
+.actionCount,
+.actionArrow {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.gateFlow {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.gateFlow span {
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.checkinChartGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.chartPanel {
+  background: #ffffff;
+  border: 1px solid var(--admin-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.24);
+}
+
+.donutWrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 1rem auto;
+}
+
+.donutSvg {
+  transform: rotate(-90deg);
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 48px;
+  border-radius: 999px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.donutCenter strong {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--admin-text-main);
+}
+
+.donutCenter span {
+  font-size: 0.76rem;
+  color: var(--admin-text-sub);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  color: var(--admin-text-sub);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.chartLegend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+.barList {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.barMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--admin-text-main);
+  font-size: 0.86rem;
+  font-weight: 750;
+  margin-bottom: 0.45rem;
+}
+
+.barMeta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  height: 9px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--admin-primary), #2563eb);
+}
+
+.emptyChart {
+  padding: 1.5rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: var(--admin-text-sub);
+  font-weight: 700;
+  text-align: center;
 }
 
 /* ========== CARDS & TABLES ========== */

@@ -33,7 +33,9 @@ public class OrganizerDashboardService {
     private final UserTicketRepository userTicketRepository;
 
     public OrganizerStatsResponse getOrganizerStats(Long organizerId) {
-        List<Event> events = eventRepository.findByOrganizerId(organizerId);
+        List<Event> events = eventRepository.findByOrganizerId(organizerId).stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .collect(Collectors.toList());
 
         long totalViews = events.stream().mapToLong(e -> e.getViews() != null ? e.getViews() : 0L).sum();
         long totalCapacity = events.stream()
@@ -97,7 +99,9 @@ public class OrganizerDashboardService {
 
     public List<OrganizerCustomerResponse> getOrganizerCustomers(Long organizerId) {
         List<UserTicket> tickets = userTicketRepository.findPaidTicketsByOrganizerId(organizerId);
-        return tickets.stream().map(t -> OrganizerCustomerResponse.builder()
+        return tickets.stream()
+                .filter(this::belongsToVisibleEvent)
+                .map(t -> OrganizerCustomerResponse.builder()
                 .customerName(t.getUser().getFullName())
                 .customerEmail(t.getUser().getEmail())
                 .customerPhone(t.getUser().getPhone())
@@ -112,9 +116,18 @@ public class OrganizerDashboardService {
         ).collect(Collectors.toList());
     }
 
+    private boolean belongsToVisibleEvent(UserTicket ticket) {
+        return ticket.getTicketType() != null
+                && ticket.getTicketType().getEvent() != null
+                && ticket.getTicketType().getEvent().getStatus() != EventStatus.CANCELLED;
+    }
+
     public String exportCustomersCsv(Long eventId, Long organizerId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Khong tim thay su kien"));
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            throw new RuntimeException("Su kien da bi xoa");
+        }
 
         if (!event.getOrganizer().getId().equals(organizerId)) {
             throw new RuntimeException("Ban khong co quyen xuat danh sach cua su kien nay");

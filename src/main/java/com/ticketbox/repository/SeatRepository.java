@@ -12,4 +12,5 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     List<Seat> findByTicketTypeId(Long ticketTypeId);
     Optional<Seat> findByTicketTypeIdAndName(Long ticketTypeId, String name);
     long countByTicketTypeId(Long ticketTypeId);
+    void deleteByTicketTypeId(Long ticketTypeId);
 }

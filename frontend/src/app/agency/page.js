@@ -103,7 +103,7 @@ export default function AgencyDashboard() {
     try {
       const eRes = await apiRequest('/events/my-events');
       if (eRes.success) {
-        setEvents(eRes.data || []);
+        setEvents((eRes.data || []).filter(event => event.status !== 'CANCELLED'));
       }
       
       const statsRes = await apiRequest('/organizers/stats');
@@ -155,6 +155,31 @@ export default function AgencyDashboard() {
     setImagePreview(null);
   };
 
+  const getMinDateTimeLocal = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+
+  const validateEventSchedule = (allowExistingPastStart = false) => {
+    if (!eventForm.startTime || !eventForm.endTime) return true;
+
+    const start = new Date(eventForm.startTime);
+    const end = new Date(eventForm.endTime);
+
+    if (!allowExistingPastStart && start < new Date()) {
+      alert('Thời gian bắt đầu phải nằm trong tương lai.');
+      return false;
+    }
+
+    if (end <= start) {
+      alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return false;
+    }
+
+    return true;
+  };
+
   const uploadEventImage = async (eventId, file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -171,6 +196,7 @@ export default function AgencyDashboard() {
   };
 
   const proceedSubmitEvent = async () => {
+    if (!validateEventSchedule()) return;
     setFormLoading(true);
     try {
       const payload = { ...eventForm };
@@ -246,6 +272,7 @@ export default function AgencyDashboard() {
   };
 
   const proceedUpdateEvent = async () => {
+    if (!validateEventSchedule(true)) return;
     setFormLoading(true);
     try {
       const payload = { ...eventForm };
@@ -283,8 +310,7 @@ export default function AgencyDashboard() {
 
   const updateEvent = async (e) => {
     e.preventDefault();
-    setWarningAction(() => () => proceedUpdateEvent());
-    setShowPublishWarning(true);
+    await proceedUpdateEvent();
   };
 
   const deleteEvent = async (eventId) => {
@@ -293,6 +319,7 @@ export default function AgencyDashboard() {
       const res = await apiRequest(`/events/my-events/${eventId}`, { method: 'DELETE' });
       if (res.success) {
         alert('Đã xóa sự kiện.');
+        setEvents(prev => prev.filter(event => event.id !== eventId));
         setManagingEvent(null);
         loadAgencyData();
       } else {
@@ -472,10 +499,12 @@ export default function AgencyDashboard() {
   const renderEventForm = () => {
     const isEdit = !!managingEvent;
     return (
-      <div style={{ ...s.card, maxWidth: '780px', margin: '0 auto 2.5rem', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
-        <h4 style={{ fontWeight: 800, marginBottom: '0.25rem', fontSize: '1.3rem', color: '#0f172a' }}>{isEdit ? 'Chỉnh sửa thông tin sự kiện' : 'Tạo sự kiện mới'}</h4>
-        <p style={{ margin: '0 0 2rem 0', fontSize: '0.85rem', color: '#64748b' }}>Đại lý vui lòng cung cấp thông tin sự kiện chi tiết để gửi duyệt đăng tải</p>
-        
+      <div style={{ ...s.card, width: '100%', maxWidth: 'none', margin: '0 0 2.5rem', padding: 0, borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ background: '#f8fafc', padding: '1.5rem 2rem', borderBottom: '1px solid #e2e8f0' }}>
+          <h4 style={{ fontWeight: 800, marginBottom: '0.25rem', fontSize: '1.3rem', color: '#0f172a' }}>{isEdit ? 'Chỉnh sửa thông tin sự kiện' : 'Tạo sự kiện mới'}</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Đại lý vui lòng cung cấp thông tin sự kiện chi tiết để gửi duyệt đăng tải</p>
+        </div>
+        <div style={{ padding: '2rem' }}>
         <form onSubmit={isEdit ? updateEvent : submitEvent}>
           {/* Section 1: Basic Info */}
           <div style={{ marginBottom: '2rem' }}>
@@ -510,25 +539,20 @@ export default function AgencyDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div>
                 <label style={s.label}>Thời gian bắt đầu</label>
-                <input style={s.input} type="datetime-local" required value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} />
+                <input style={s.input} type="datetime-local" required min={getMinDateTimeLocal()} value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} />
               </div>
               <div>
                 <label style={s.label}>Thời gian kết thúc</label>
-                <input style={s.input} type="datetime-local" required value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} />
+                <input style={s.input} type="datetime-local" required min={eventForm.startTime || getMinDateTimeLocal()} value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} />
               </div>
             </div>
           </div>
 
-          {/* Section 3: Media & Survey */}
+          {/* Section 3: Media */}
           <div style={{ marginBottom: '2.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00B46E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00B46E' }}></span>
-              Hình ảnh & Khảo sát
-            </div>
-
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={s.label}>Link Google Forms khảo sát ý kiến (tùy chọn)</label>
-              <input style={s.input} type="url" placeholder="https://forms.gle/..." value={eventForm.surveyUrl} onChange={e => setEventForm(prev => ({ ...prev, surveyUrl: e.target.value }))} />
+              Hình ảnh Banner
             </div>
 
             <div>
@@ -557,6 +581,7 @@ export default function AgencyDashboard() {
             <button type="submit" style={{ ...s.btn, width: 'auto', padding: '10px 30px' }} disabled={formLoading}>{formLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo sự kiện')}</button>
           </div>
         </form>
+        </div>
       </div>
     );
   };
@@ -718,12 +743,21 @@ export default function AgencyDashboard() {
   );
 
   const s = {
-    page: { display: 'flex', minHeight: 'calc(100vh - 60px)', paddingTop: 64, background: '#f8fafc', color: '#1a1a2e' },
-    sidebar: { width: 240, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' },
-    sidebarTitle: { padding: '1.5rem', fontSize: '1.1rem', fontWeight: 800, color: '#1a1a2e', borderBottom: '1px solid #f0f0f5' },
+    page: { display: 'flex', minHeight: '100vh', background: '#f8fafc', color: '#1a1a2e' },
+    sidebar: { width: 260, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' },
+    sidebarTitle: { padding: '1rem 1.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' },
+    roleCard: { margin: '1.25rem 1rem 1rem', padding: '1rem', borderRadius: 16, background: 'linear-gradient(135deg, #064e3b 0%, #00B46E 100%)', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 14px 28px -18px rgba(6, 78, 59, 0.65)' },
+    roleIcon: { width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', fontSize: '0.78rem', fontWeight: 900, letterSpacing: '0.08em' },
+    roleName: { fontSize: '0.95rem', fontWeight: 850 },
+    roleMeta: { marginTop: 2, fontSize: '0.74rem', color: '#dcfce7', lineHeight: 1.35 },
     navItem: (active) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 1.2rem', fontSize: '0.88rem', fontWeight: active ? 600 : 400, color: active ? '#00B46E' : '#4a5568', background: active ? 'rgba(0,180,110,0.06)' : 'transparent', borderTop: 'none', borderRight: 'none', borderBottom: 'none', borderLeft: active ? '3px solid #00B46E' : '3px solid transparent', cursor: 'pointer', transition: 'all 0.15s', width: '100%', textAlign: 'left', fontFamily: 'inherit' }),
-    main: { flex: 1, padding: '2rem', maxWidth: 1360, width: '100%', margin: '0 auto' },
+    main: { flex: 1, padding: '2rem clamp(2rem, 4vw, 4rem)', maxWidth: 'none', width: '100%', margin: 0 },
     card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '2rem', marginBottom: '1rem' },
+    commandGrid: { display: 'grid', gridTemplateColumns: 'minmax(280px, 1.1fr) minmax(260px, 0.9fr) minmax(260px, 0.9fr)', gap: '1.25rem', marginBottom: '2rem' },
+    commandPanel: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: '1.25rem', boxShadow: '0 10px 24px -18px rgba(15,23,42,0.24)' },
+    commandDark: { background: '#0f172a', color: '#fff', borderColor: '#0f172a' },
+    panelLabel: { fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b', marginBottom: 7 },
+    actionRow: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #e2e8f0', textDecoration: 'none', color: 'inherit', background: 'transparent', width: '100%', borderTop: 0, borderLeft: 0, borderRight: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' },
     input: { width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', fontFamily: 'inherit', outline: 'none', marginBottom: '1rem' },
     label: { display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#4a5568', marginBottom: 4 },
     btn: { padding: '10px 16px', background: '#00B46E', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', width: '100%' },
@@ -994,11 +1028,19 @@ export default function AgencyDashboard() {
       <Navbar />
       <div style={s.page}>
         <aside style={s.sidebar}>
-          <div style={s.sidebarTitle}>Kênh Đại Lý</div>
+          <div style={s.roleCard}>
+            <div style={s.roleIcon}>AG</div>
+            <div>
+              <div style={s.roleName}>Kênh Đại Lý</div>
+              <div style={s.roleMeta}>{userProfile?.fullName || 'Nhà tổ chức'} đang quản lý sự kiện</div>
+            </div>
+          </div>
+          <div style={s.sidebarTitle}>Vận hành đại lý</div>
           <button onClick={() => setActiveTab('dashboard')} style={s.navItem(activeTab === 'dashboard')}>Tổng quan</button>
           <button onClick={() => setActiveTab('revenue')} style={s.navItem(activeTab === 'revenue')}>Doanh thu & Báo cáo</button>
           <button onClick={() => setActiveTab('events')} style={s.navItem(activeTab === 'events')}>Quản lý Sự kiện</button>
           <button onClick={() => setActiveTab('customers')} style={s.navItem(activeTab === 'customers')}>Danh sách Khách hàng</button>
+          <button onClick={() => setActiveTab('checkin')} style={s.navItem(activeTab === 'checkin')}>Check-in / Check-out</button>
           <Link href="/admin/checkin" style={{ display: 'block', padding: '10px 1.2rem', fontSize: '0.88rem', fontWeight: 600, color: '#fff', background: '#00B46E', borderRadius: 8, margin: '1rem', textDecoration: 'none', textAlign: 'center' }}>
             Quét QR Check-in
           </Link>
@@ -1048,15 +1090,73 @@ export default function AgencyDashboard() {
                 </button>
               </div>
 
+              <div style={s.commandGrid}>
+                <div style={{ ...s.commandPanel, ...s.commandDark }}>
+                  <div style={{ ...s.panelLabel, color: '#94a3b8' }}>Trung tâm đại lý</div>
+                  <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 850 }}>Agency Operations</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                    <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 800, textTransform: 'uppercase' }}>Đang bán</div>
+                      <div style={{ fontSize: '1.45rem', fontWeight: 900 }}>{dashboardStats?.publishedEvents || 0}</div>
+                    </div>
+                    <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 800, textTransform: 'uppercase' }}>Chờ duyệt</div>
+                      <div style={{ fontSize: '1.45rem', fontWeight: 900 }}>{dashboardStats?.pendingEvents || 0}</div>
+                    </div>
+                    <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 800, textTransform: 'uppercase' }}>Khách hàng</div>
+                      <div style={{ fontSize: '1.45rem', fontWeight: 900 }}>{customers.length}</div>
+                    </div>
+                    <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 800, textTransform: 'uppercase' }}>Check-in</div>
+                      <div style={{ fontSize: '1.45rem', fontWeight: 900 }}>{dashboardStats?.checkedInTickets || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={s.commandPanel}>
+                  <div style={s.panelLabel}>Tác vụ nhanh</div>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.05rem', fontWeight: 850 }}>Quản lý trong ngày</h3>
+                  <div>
+                    <button style={s.actionRow} onClick={() => setActiveTab('events')}>
+                      <span><strong>Quản lý sự kiện</strong><span style={{ display: 'block', color: '#64748b', fontSize: '0.78rem', marginTop: 2 }}>Sửa nội dung, vé, ghế và trạng thái</span></span>
+                      <span style={{ color: '#047857', fontWeight: 850 }}>Mở</span>
+                    </button>
+                    <Link href="/admin/checkin" style={s.actionRow}>
+                      <span><strong>Quét QR check-in</strong><span style={{ display: 'block', color: '#64748b', fontSize: '0.78rem', marginTop: 2 }}>Camera, ảnh QR hoặc nhập mã</span></span>
+                      <span style={{ color: '#047857', fontWeight: 850 }}>Mở</span>
+                    </Link>
+                    <button style={s.actionRow} onClick={() => setActiveTab('customers')}>
+                      <span><strong>Danh sách khách</strong><span style={{ display: 'block', color: '#64748b', fontSize: '0.78rem', marginTop: 2 }}>Theo dõi người mua và trạng thái tham dự</span></span>
+                      <span style={{ color: '#047857', fontWeight: 850 }}>Xem</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div style={s.commandPanel}>
+                  <div style={s.panelLabel}>Sau sự kiện</div>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.05rem', fontWeight: 850 }}>Chăm sóc người tham dự</h3>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ padding: 12, borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <strong style={{ display: 'block', marginBottom: 4 }}>Theo dõi phản hồi sau sự kiện</strong>
+                      <span style={{ color: '#64748b', fontSize: '0.82rem' }}>Tổng hợp danh sách khách đã tham dự để gửi thông báo hoặc chăm sóc sau chương trình.</span>
+                    </div>
+                    <div style={{ padding: 12, borderRadius: 12, background: '#ecfdf5', border: '1px solid #bbf7d0', color: '#047857', fontWeight: 800 }}>
+                      {events.filter(e => e.status === 'CLOSED').length} sự kiện đã đóng cần theo dõi phản hồi
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #8b5cf6', margin: 0 }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Doanh thu đại lý</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tổng doanh thu</div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#8b5cf6', marginTop: 8 }}>
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dashboardStats?.totalRevenue || 0)}
                   </div>
                 </div>
                 <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #10b981', margin: 0 }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vé đã bán</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vé đã bán / sức chứa</div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: 8 }}>
                     {dashboardStats?.ticketsSold || 0} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#64748b' }}>/ {dashboardStats?.totalCapacity || 0} vé</span>
                   </div>
@@ -1066,7 +1166,7 @@ export default function AgencyDashboard() {
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', marginTop: 8 }}>{dashboardStats?.checkedInTickets || 0}</div>
                 </div>
                 <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #00B46E', margin: 0 }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tỷ lệ tham dự</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tỷ lệ tham dự thực tế</div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#00B46E', marginTop: 8 }}>{Math.round(dashboardStats?.attendanceRate || 0)}%</div>
                 </div>
               </div>
@@ -1243,6 +1343,127 @@ export default function AgencyDashboard() {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'checkin' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 850, marginBottom: '0.4rem' }}>Check-in / Check-out sự kiện</h2>
+                  <p style={{ color: '#64748b', margin: 0 }}>Theo dõi vé đã quét, khách chưa đến và mở trình quét QR cho cổng sự kiện.</p>
+                </div>
+                <Link href="/admin/checkin" style={{ ...s.btn, width: 'auto', textDecoration: 'none', padding: '10px 18px' }}>Mở máy quét QR</Link>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #10b981', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Đã check-in</div>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 900, color: '#10b981', marginTop: 8 }}>{dashboardStats?.checkedInTickets || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #3b82f6', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Vé đã bán</div>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 900, color: '#3b82f6', marginTop: 8 }}>{dashboardStats?.ticketsSold || 0}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #f59e0b', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Chưa đến</div>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 900, color: '#f59e0b', marginTop: 8 }}>{Math.max((dashboardStats?.ticketsSold || 0) - (dashboardStats?.checkedInTickets || 0), 0)}</div>
+                </div>
+                <div style={{ ...s.card, padding: '1.5rem', borderLeft: '4px solid #8b5cf6', margin: 0 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Tỷ lệ tham dự</div>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 900, color: '#8b5cf6', marginTop: 8 }}>{Math.round(dashboardStats?.attendanceRate || 0)}%</div>
+                </div>
+              </div>
+
+              {(() => {
+                const sold = Number(dashboardStats?.ticketsSold || 0);
+                const checked = Number(dashboardStats?.checkedInTickets || 0);
+                const total = Math.max(sold, checked, 1);
+                const checkedPct = Math.round((checked / total) * 100);
+                const rows = getEventPerformanceRows().slice(0, 6);
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                    <div style={{ ...s.card, padding: '1.5rem', margin: 0 }}>
+                      <div style={s.panelLabel}>Biểu đồ tham dự</div>
+                      <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 850 }}>Tổng quan check-in</h3>
+                      <div style={{ position: 'relative', width: 220, height: 220, margin: '0 auto 1rem' }}>
+                        <svg width="220" height="220" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
+                          <circle cx="60" cy="60" r="48" fill="none" stroke="#e2e8f0" strokeWidth="14" />
+                          <circle cx="60" cy="60" r="48" fill="none" stroke="#10b981" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${checkedPct * 3.016} ${301.6 - checkedPct * 3.016}`} />
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 48, borderRadius: '50%', display: 'grid', placeContent: 'center', textAlign: 'center', background: '#fff', boxShadow: 'inset 0 0 0 1px #e2e8f0' }}>
+                          <strong style={{ fontSize: '1.8rem', fontWeight: 900 }}>{checkedPct}%</strong>
+                          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Đã check-in</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', color: '#64748b', fontSize: '0.82rem', fontWeight: 800 }}>
+                        <span><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 99, background: '#10b981', marginRight: 6 }} />Đã check-in: {checked}</span>
+                        <span><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 99, background: '#e2e8f0', marginRight: 6 }} />Chưa đến: {Math.max(sold - checked, 0)}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ ...s.card, padding: '1.5rem', margin: 0 }}>
+                      <div style={s.panelLabel}>Theo sự kiện</div>
+                      <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 850 }}>Tỷ lệ tham dự từng sự kiện</h3>
+                      {rows.length === 0 ? (
+                        <div style={{ padding: '1.5rem', border: '1px dashed #cbd5e1', borderRadius: 12, color: '#64748b', fontWeight: 700, textAlign: 'center' }}>Chưa có dữ liệu check-in.</div>
+                      ) : rows.map(ev => {
+                        const rate = ev.ticketsSold > 0 ? Math.round((ev.checkedIn / ev.ticketsSold) * 100) : 0;
+                        return (
+                          <div key={ev.id} style={{ marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: 7, fontSize: '0.86rem', fontWeight: 800 }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
+                              <strong>{rate}%</strong>
+                            </div>
+                            <div style={{ height: 9, borderRadius: 99, background: '#e2e8f0', overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(rate, 100)}%`, height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, #10b981, #2563eb)' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div style={{ ...s.commandGrid, display: 'none' }}>
+                <div style={{ ...s.commandPanel, ...s.commandDark }}>
+                  <div style={{ ...s.panelLabel, color: '#94a3b8' }}>Quy trình cổng</div>
+                  <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 850 }}>Kiểm soát vé hợp lệ</h3>
+                  {['Quét QR trên vé', 'Xác thực token', 'Chặn check-in 2 lần', 'Ghi nhận người tham dự'].map(step => (
+                    <div key={step} style={{ padding: '0.7rem 0.8rem', borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 10, fontWeight: 750 }}>{step}</div>
+                  ))}
+                </div>
+                <div style={{ ...s.commandPanel, gridColumn: 'span 2' }}>
+                  <div style={s.panelLabel}>Hiệu suất sự kiện</div>
+                  <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 850 }}>Bảng check-in theo sự kiện</h3>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '12px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Sự kiện</th>
+                          <th style={{ textAlign: 'center', padding: '12px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Vé bán</th>
+                          <th style={{ textAlign: 'center', padding: '12px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Check-in</th>
+                          <th style={{ textAlign: 'right', padding: '12px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Tỷ lệ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getEventPerformanceRows().map(ev => {
+                          const rate = ev.ticketsSold > 0 ? Math.round((ev.checkedIn / ev.ticketsSold) * 100) : 0;
+                          return (
+                            <tr key={ev.id} style={{ borderTop: '1px solid #e2e8f0' }}>
+                              <td style={{ padding: '12px', fontWeight: 800 }}>{ev.title}</td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>{ev.ticketsSold}</td>
+                              <td style={{ padding: '12px', textAlign: 'center', color: '#10b981', fontWeight: 850 }}>{ev.checkedIn}</td>
+                              <td style={{ padding: '12px', textAlign: 'right', fontWeight: 850 }}>{rate}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

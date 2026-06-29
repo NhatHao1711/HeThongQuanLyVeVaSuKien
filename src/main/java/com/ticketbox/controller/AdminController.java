@@ -57,11 +57,18 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
 
+        List<com.ticketbox.entity.Event> activeEvents = eventRepository.findAll().stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .collect(Collectors.toList());
+
         long totalUsers = userRepository.count();
-        long totalEvents = eventRepository.count();
+        long totalEvents = activeEvents.size();
         long totalOrders = orderRepository.count();
         long totalTicketsSold = userTicketRepository.findAll().stream()
                 .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
+                .filter(ut -> ut.getTicketType() != null
+                        && ut.getTicketType().getEvent() != null
+                        && ut.getTicketType().getEvent().getStatus() != EventStatus.CANCELLED)
                 .count();
 
         BigDecimal totalRevenue = orderRepository.findAll().stream()
@@ -70,11 +77,11 @@ public class AdminController {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        long pendingEvents = eventRepository.findAll().stream()
+        long pendingEvents = activeEvents.stream()
                 .filter(e -> e.getStatus() == EventStatus.PENDING)
                 .count();
 
-        long publishedEvents = eventRepository.findAll().stream()
+        long publishedEvents = activeEvents.stream()
                 .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
                 .count();
 
@@ -109,7 +116,7 @@ public class AdminController {
         });
 
         // Phân loại theo danh mục sự kiện
-        Map<String, Long> categoryStats = eventRepository.findAll().stream()
+        Map<String, Long> categoryStats = activeEvents.stream()
                 .filter(e -> e.getCategory() != null)
                 .collect(Collectors.groupingBy(e -> e.getCategory().getName(), Collectors.counting()));
 
@@ -117,6 +124,7 @@ public class AdminController {
         Map<String, Long> categoryTicketSales = userTicketRepository.findAll().stream()
                 .filter(ut -> ut.getOrder() != null && ut.getOrder().getPaymentStatus() == PaymentStatus.PAID
                         && ut.getTicketType() != null && ut.getTicketType().getEvent() != null
+                        && ut.getTicketType().getEvent().getStatus() != EventStatus.CANCELLED
                         && ut.getTicketType().getEvent().getCategory() != null)
                 .collect(Collectors.groupingBy(ut -> ut.getTicketType().getEvent().getCategory().getName(),
                         Collectors.counting()));
@@ -143,7 +151,9 @@ public class AdminController {
         Map<String, Object> result = new HashMap<>();
 
         // Revenue by event
-        List<Map<String, Object>> eventStats = eventRepository.findAll().stream().map(event -> {
+        List<Map<String, Object>> eventStats = eventRepository.findAll().stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .map(event -> {
             Map<String, Object> es = new HashMap<>();
             es.put("eventId", event.getId());
             es.put("title", event.getTitle());
@@ -282,6 +292,7 @@ public class AdminController {
     @GetMapping("/events")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllEvents() {
         List<Map<String, Object>> events = eventRepository.findAll().stream()
+                .filter(event -> event.getStatus() != com.ticketbox.enums.EventStatus.CANCELLED)
                 .map(event -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("id", event.getId());

@@ -63,6 +63,7 @@ public class EventService {
         requireApprovedOrganizer(organizerId);
         return eventRepository.findByOrganizerId(organizerId)
                 .stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -74,6 +75,9 @@ public class EventService {
     public EventResponse getEventById(Long eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            throw new ResourceNotFoundException("Event", "id", eventId);
+        }
         if (event.getViews() == null) {
             event.setViews(0L);
         }
@@ -104,7 +108,7 @@ public class EventService {
             organizer = userRepository.findById(userId).orElse(null);
             if (organizer != null) {
                 if (organizer.getRole() == UserRole.ROLE_ADMIN) {
-                    status = EventStatus.DRAFT;
+                    status = EventStatus.PUBLISHED;
                 } else {
                     requireApprovedOrganizer(organizer);
                     status = EventStatus.PENDING;
@@ -149,6 +153,12 @@ public class EventService {
             EventCategory category = eventCategoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.getCategoryId()));
             event.setCategory(category);
+        }
+
+        if (event.getOrganizer() != null
+                && event.getOrganizer().getRole() == UserRole.ROLE_ADMIN
+                && (event.getStatus() == EventStatus.DRAFT || event.getStatus() == EventStatus.PENDING)) {
+            event.setStatus(EventStatus.PUBLISHED);
         }
 
         event = eventRepository.save(event);
@@ -246,7 +256,7 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->  new ResourceNotFoundException("Event", "id", eventId));
 
-        if (hasSoldTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
+        if (hasSoldTickets(event) || hasIssuedTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
             event.setStatus(EventStatus.CANCELLED);
             eventRepository.save(event);
             log.info("Cancelled Event #{} instead of hard delete because it has live data", eventId);
@@ -254,9 +264,10 @@ public class EventService {
         }
 
         if (event.getStatus() == EventStatus.PENDING || event.getStatus() == EventStatus.CANCELLED) {
-            if (hasSoldTickets(event)) {
+            if (hasSoldTickets(event) || hasIssuedTickets(event)) {
                 throw new IllegalArgumentException("Không thể xoá hoàn toàn sự kiện đã có vé bán ra");
             }
+            deleteEventSeats(event);
             eventRepository.delete(event);
             log.info("Deleted Event #{} with status {}", eventId, event.getStatus());
             return;
@@ -266,6 +277,7 @@ public class EventService {
             throw new IllegalArgumentException("Không thể xoá sự kiện ở trạng thái này");
         }
 
+        deleteEventSeats(event);
         eventRepository.delete(event);
         log.info("🗑️ Deleted Event #{}", eventId);
     }
@@ -323,7 +335,7 @@ public class EventService {
             throw new IllegalArgumentException("Bạn không có quyền xoá sự kiện này");
         }
 
-        if (hasSoldTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
+        if (hasSoldTickets(event) || hasIssuedTickets(event) || event.getStatus() == EventStatus.PUBLISHED || event.getStatus() == EventStatus.CLOSED) {
             event.setStatus(EventStatus.CANCELLED);
             eventRepository.save(event);
             log.info("Organizer {} cancelled Event #{} instead of hard delete because it has live data", userId, eventId);
@@ -334,6 +346,7 @@ public class EventService {
             throw new IllegalArgumentException("Chỉ sự kiện DRAFT hoặc PENDING mới có thể xoá");
         }
 
+        deleteEventSeats(event);
         eventRepository.delete(event);
         log.info("🗑️ Organizer {} deleted Event #{}", userId, eventId);
     }
@@ -611,6 +624,25 @@ public class EventService {
                 ticketType.getTotalQuantity() != null
                         && ticketType.getAvailableQuantity() != null
                         && ticketType.getTotalQuantity() > ticketType.getAvailableQuantity());
+    }
+
+    private boolean hasIssuedTickets(Event event) {
+        if (event.getTicketTypes() == null) {
+            return false;
+        }
+        return event.getTicketTypes().stream()
+                .anyMatch(ticketType -> ticketType.getUserTickets() != null && !ticketType.getUserTickets().isEmpty());
+    }
+
+    private void deleteEventSeats(Event event) {
+        if (event.getTicketTypes() == null) {
+            return;
+        }
+        event.getTicketTypes().forEach(ticketType -> {
+            if (ticketType.getId() != null) {
+                seatRepository.deleteByTicketTypeId(ticketType.getId());
+            }
+        });
     }
 
     private User requireApprovedOrganizer(Long userId) {

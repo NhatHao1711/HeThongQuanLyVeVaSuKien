@@ -96,7 +96,7 @@ export default function AdminDashboard() {
       if (s.success) setStats(s.data);
       if (op.success) setOperationsStats(op.data);
       if (u.success) setUsers(u.data);
-      if (e.success) setEvents(e.data);
+      if (e.success) setEvents((e.data || []).filter(event => event.status !== 'CANCELLED'));
       if (o.success) setOrders(o.data);
       if (c.success) setCategories(c.data || []);
     } catch (err) { console.error(err); }
@@ -287,8 +287,35 @@ export default function AdminDashboard() {
 
   const clearImageSelection = () => { setSelectedImage(null); setImagePreview(null); };
 
+  const getMinDateTimeLocal = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+
+  const validateEventSchedule = (allowExistingPastStart = false) => {
+    if (!eventForm.startTime || !eventForm.endTime) return true;
+
+    const start = new Date(eventForm.startTime);
+    const end = new Date(eventForm.endTime);
+
+    if (!allowExistingPastStart && start < new Date()) {
+      showMsg('error', 'Thời gian bắt đầu phải nằm trong tương lai.');
+      return false;
+    }
+
+    if (end <= start) {
+      showMsg('error', 'Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return false;
+    }
+
+    return true;
+  };
+
   const createEvent = async (e) => {
-    e.preventDefault(); setFormLoading(true);
+    e.preventDefault();
+    if (!validateEventSchedule()) return;
+    setFormLoading(true);
     try {
       const payload = { ...eventForm, categoryId: eventForm.categoryId || null };
       const res = await apiRequest('/events/admin/create', { method: 'POST', body: JSON.stringify(payload) });
@@ -324,7 +351,9 @@ export default function AdminDashboard() {
   };
 
   const saveEditEvent = async (e) => {
-    e.preventDefault(); setFormLoading(true);
+    e.preventDefault();
+    if (!validateEventSchedule(true)) return;
+    setFormLoading(true);
     try {
       const payload = { ...eventForm, categoryId: eventForm.categoryId || null };
       const res = await apiRequest(`/events/admin/${editingEvent}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -378,7 +407,12 @@ export default function AdminDashboard() {
         setConfirmDialog(prev => ({ ...prev, show: false }));
         try {
           const res = await apiRequest(`/events/admin/${id}`, { method: 'DELETE' });
-          if (res.success) { showMsg('success', 'Đã xóa sự kiện!'); await loadAll(); }
+          if (res.success) {
+            setEvents(prev => prev.filter(event => event.id !== id));
+            if (editingEvent === id) setEditingEvent(null);
+            showMsg('success', 'Đã xóa sự kiện!');
+            await loadAll();
+          }
           else showMsg('error', res.message || 'Lỗi khi xóa');
         } catch (e) { showMsg('error', 'Lỗi kết nối'); }
       }
@@ -577,20 +611,21 @@ export default function AdminDashboard() {
   const systemTabs = [
     { id: 'dashboard', label: 'Tổng quan' },
     { id: 'revenue', label: 'Doanh thu & Báo cáo' },
+    { id: 'events', label: 'Quản lý sự kiện' },
     { id: 'users', label: 'Người dùng' },
+    { id: 'checkin', label: 'Check-in / Check-out' },
     { id: 'orders', label: 'Đơn hàng' },
     { id: 'vouchers', label: 'Mã giảm giá' },
   ];
 
   const agencyTabs = [
     { id: 'agencies', label: 'Phê duyệt đại lý' },
-    { id: 'events', label: 'Phê duyệt sự kiện' },
   ];
 
   if (loading) return (<><Navbar /><div style={{ display: 'flex', minHeight: '100vh', paddingTop: 64, alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}><div className="spinner" style={{ width: 40, height: 40 }}></div></div></>);
 
   const renderEventForm = (onSubmit, isEdit) => (
-    <div className={styles.card} style={{ maxWidth: '780px', margin: '0 auto 2.5rem', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)', border: '1px solid var(--admin-border)' }}>
+    <div className={styles.card} style={{ width: '100%', maxWidth: 'none', margin: '0 0 2.5rem', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)', border: '1px solid var(--admin-border)' }}>
       <div className={styles.cardHeader} style={{ background: '#f8fafc', padding: '1.5rem 2rem', borderBottom: '1px solid var(--admin-border)' }}>
         <h4 className={styles.cardTitle} style={{ fontSize: '1.25rem', fontWeight: 800 }}>{isEdit ? 'Chỉnh sửa thông tin sự kiện' : 'Tạo sự kiện mới'}</h4>
         <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem', color: 'var(--admin-text-sub)' }}>Điền thông tin chi tiết để hiển thị sự kiện trên hệ thống bán vé</p>
@@ -653,25 +688,20 @@ export default function AdminDashboard() {
             <div className={styles.editFormGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Thời gian bắt đầu</label>
-                <input className={styles.input} type="datetime-local" required value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} />
+                <input className={styles.input} type="datetime-local" required min={getMinDateTimeLocal()} value={eventForm.startTime} onChange={e => setEventForm(prev => ({ ...prev, startTime: e.target.value }))} />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Thời gian kết thúc</label>
-                <input className={styles.input} type="datetime-local" required value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} />
+                <input className={styles.input} type="datetime-local" required min={eventForm.startTime || getMinDateTimeLocal()} value={eventForm.endTime} onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))} />
               </div>
             </div>
           </div>
 
-          {/* Section 3: Media & Survey */}
+          {/* Section 3: Media */}
           <div style={{ marginBottom: '2.5rem', borderTop: '1px solid var(--admin-border)', paddingTop: '1.5rem' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--admin-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--admin-primary)' }}></span>
-              Hình ảnh & Khảo sát
-            </div>
-
-            <div className={styles.formGroup} style={{ marginBottom: '1.25rem' }}>
-              <label className={styles.label}>Đường dẫn khảo sát ý kiến (Google Forms)</label>
-              <input className={styles.input} type="url" placeholder="https://docs.google.com/forms/d/..." value={eventForm.surveyUrl} onChange={e => setEventForm(prev => ({ ...prev, surveyUrl: e.target.value }))} />
+              Hình ảnh Banner
             </div>
 
             <div className={styles.formGroup}>
@@ -862,7 +892,14 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         <aside className={styles.sidebar}>
           <div className={styles.sidebarMenu}>
-            <div className={styles.sidebarTitle}>Hệ thống</div>
+            <div className={styles.roleCard}>
+              <div className={styles.roleIcon}>AD</div>
+              <div>
+                <div className={styles.roleName}>Admin TRIVENT</div>
+                <div className={styles.roleMeta}>Trung tâm điều hành hệ thống</div>
+              </div>
+            </div>
+            <div className={styles.sidebarTitle}>Hệ thống TRIVENT</div>
             {systemTabs.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)} className={`${styles.sidebarItem} ${activeTab === t.id ? styles.sidebarItemActive : ''}`}>
                 {t.label}
@@ -970,6 +1007,88 @@ export default function AdminDashboard() {
                   <div className={`${styles.statCard} ${styles.statCardOrange}`}>
                     <div className={styles.statLabel}>Đại lý chờ duyệt</div>
                     <div className={styles.statValue}>{stats.pendingOrganizers || 0}</div>
+                  </div>
+                </div>
+
+                <div className={styles.commandGrid}>
+                  <div className={`${styles.commandPanel} ${styles.commandPanelDark}`}>
+                    <div className={styles.panelEyebrow}>Trung tâm vận hành</div>
+                    <h3 className={styles.panelTitle}>Admin Control Room</h3>
+                    <div className={styles.miniMetricGrid}>
+                      <div className={styles.miniMetric}>
+                        <div className={styles.miniMetricLabel}>Sự kiện chờ duyệt</div>
+                        <div className={styles.miniMetricValue}>{events.filter(e => e.status === 'PENDING').length}</div>
+                      </div>
+                      <div className={styles.miniMetric}>
+                        <div className={styles.miniMetricLabel}>Đơn đang chờ</div>
+                        <div className={styles.miniMetricValue}>{orders.filter(o => ['PENDING', 'PROCESSING'].includes(o.paymentStatus || o.status)).length}</div>
+                      </div>
+                      <div className={styles.miniMetric}>
+                        <div className={styles.miniMetricLabel}>Vé đã check-in</div>
+                        <div className={styles.miniMetricValue}>{operationsStats?.totalCheckedIn || 0}</div>
+                      </div>
+                      <div className={styles.miniMetric}>
+                        <div className={styles.miniMetricLabel}>Tỷ lệ tham dự</div>
+                        <div className={styles.miniMetricValue}>{Math.round(operationsStats?.attendanceRate || 0)}%</div>
+                      </div>
+                    </div>
+                    <button
+                      className={`${styles.btn} ${styles.btnPrimary}`}
+                      style={{ marginTop: '1rem', width: '100%' }}
+                      onClick={() => {
+                        setActiveTab('events');
+                        setShowCreateEvent(true);
+                        setEditingEvent(null);
+                        setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '', categoryId: '' });
+                        clearImageSelection();
+                      }}
+                    >
+                      + Tạo sự kiện mới
+                    </button>
+                  </div>
+
+                  <div className={styles.commandPanel}>
+                    <div className={styles.panelEyebrow}>Cần xử lý</div>
+                    <h3 className={styles.panelTitle}>Hàng đợi quản trị</h3>
+                    <div className={styles.actionList}>
+                      <button className={styles.actionRow} onClick={() => {
+                        setActiveTab('events');
+                        setShowCreateEvent(true);
+                        setEditingEvent(null);
+                        setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '', categoryId: '' });
+                        clearImageSelection();
+                      }}>
+                        <span><span className={styles.actionLabel}>Tạo sự kiện mới</span><span className={styles.actionMeta}>Admin tạo trực tiếp và cấu hình vé/ghế</span></span>
+                        <span className={styles.actionArrow}>Tạo</span>
+                      </button>
+                      <button className={styles.actionRow} onClick={() => setActiveTab('events')}>
+                        <span><span className={styles.actionLabel}>Duyệt sự kiện</span><span className={styles.actionMeta}>{events.filter(e => e.status === 'PENDING').length} hồ sơ cần xem</span></span>
+                        <span className={styles.actionCount}>{events.filter(e => e.status === 'PENDING').length}</span>
+                      </button>
+                      <button className={styles.actionRow} onClick={() => setActiveTab('agencies')}>
+                        <span><span className={styles.actionLabel}>Duyệt đại lý</span><span className={styles.actionMeta}>{stats.pendingOrganizers || 0} yêu cầu đối tác</span></span>
+                        <span className={styles.actionCount}>{stats.pendingOrganizers || 0}</span>
+                      </button>
+                      <button className={styles.actionRow} onClick={() => setActiveTab('orders')}>
+                        <span><span className={styles.actionLabel}>Kiểm tra đơn hàng</span><span className={styles.actionMeta}>Thanh toán, hoàn tất và lỗi giao dịch</span></span>
+                        <span className={styles.actionCount}>{orders.length}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.commandPanel}>
+                    <div className={styles.panelEyebrow}>Check-in / Check-out</div>
+                    <h3 className={styles.panelTitle}>Kiểm soát cổng sự kiện</h3>
+                    <div className={styles.actionList}>
+                      <Link href="/admin/checkin" className={styles.actionRow}>
+                        <span><span className={styles.actionLabel}>Mở máy quét QR</span><span className={styles.actionMeta}>Camera, upload ảnh QR hoặc nhập mã thủ công</span></span>
+                        <span className={styles.actionArrow}>Mở</span>
+                      </Link>
+                      <button className={styles.actionRow} onClick={() => setActiveTab('checkin')}>
+                        <span><span className={styles.actionLabel}>Báo cáo check-in</span><span className={styles.actionMeta}>Theo dõi tỷ lệ tham dự từng sự kiện</span></span>
+                        <span className={styles.actionArrow}>Xem</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1318,6 +1437,178 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               {events.length === 0 && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--admin-text-sub)' }}>Chưa có sự kiện nào. Hãy nhấn nút phía trên để tạo sự kiện mới.</div>}
+            </>
+          )}
+
+          {/* CHECK-IN / CHECK-OUT */}
+          {activeTab === 'checkin' && (
+            <>
+              <div className={styles.header}>
+                <div className={styles.headerTitleGroup}>
+                  <h1 className={styles.title}>Quản lý Check-in / Check-out</h1>
+                  <p className={styles.description}>Theo dõi cổng vào sự kiện, tỷ lệ tham dự và thao tác quét QR cho toàn hệ thống.</p>
+                </div>
+                <Link href="/admin/checkin" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Mở trình quét QR
+                </Link>
+              </div>
+
+              <div className={styles.statsGrid}>
+                <div className={`${styles.statCard} ${styles.statCardGreen}`}>
+                  <div className={styles.statLabel}>Tổng vé đã check-in</div>
+                  <div className={styles.statValue}>{operationsStats?.totalCheckedIn || 0}</div>
+                </div>
+                <div className={`${styles.statCard} ${styles.statCardBlue}`}>
+                  <div className={styles.statLabel}>Vé đã bán</div>
+                  <div className={styles.statValue}>{stats?.totalTicketsSold || 0}</div>
+                </div>
+                <div className={`${styles.statCard} ${styles.statCardYellow}`}>
+                  <div className={styles.statLabel}>Tỷ lệ tham dự</div>
+                  <div className={styles.statValue}>{Math.round(operationsStats?.attendanceRate || 0)}%</div>
+                </div>
+                <div className={`${styles.statCard} ${styles.statCardRed}`}>
+                  <div className={styles.statLabel}>Chưa check-in</div>
+                  <div className={styles.statValue}>{Math.max((stats?.totalTicketsSold || 0) - (operationsStats?.totalCheckedIn || 0), 0)}</div>
+                </div>
+              </div>
+
+              {(() => {
+                const sold = Number(stats?.totalTicketsSold || 0);
+                const checked = Number(operationsStats?.totalCheckedIn || 0);
+                const pending = Math.max(sold - checked, 0);
+                const total = Math.max(sold, checked, 1);
+                const checkedPct = Math.round((checked / total) * 100);
+                const pendingPct = Math.max(100 - checkedPct, 0);
+                const topEvents = (operationsStats?.eventStats || []).slice(0, 6);
+                return (
+                  <div className={styles.checkinChartGrid}>
+                    <div className={styles.chartPanel}>
+                      <div className={styles.panelEyebrow}>Biểu đồ tham dự</div>
+                      <h3 className={styles.panelTitle}>Tổng quan Check-in</h3>
+                      <div className={styles.donutWrap}>
+                        <svg width="220" height="220" viewBox="0 0 120 120" className={styles.donutSvg}>
+                          <circle cx="60" cy="60" r="48" fill="none" stroke="#e2e8f0" strokeWidth="14" />
+                          <circle cx="60" cy="60" r="48" fill="none" stroke="#10b981" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${checkedPct * 3.016} ${301.6 - checkedPct * 3.016}`} />
+                        </svg>
+                        <div className={styles.donutCenter}>
+                          <strong>{checkedPct}%</strong>
+                          <span>Đã check-in</span>
+                        </div>
+                      </div>
+                      <div className={styles.chartLegend}>
+                        <span><i style={{ background: '#10b981' }} />Đã check-in: {checked}</span>
+                        <span><i style={{ background: '#e2e8f0' }} />Chưa đến: {pending}</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.chartPanel}>
+                      <div className={styles.panelEyebrow}>Theo sự kiện</div>
+                      <h3 className={styles.panelTitle}>Top tỷ lệ tham dự</h3>
+                      <div className={styles.barList}>
+                        {topEvents.length === 0 ? (
+                          <div className={styles.emptyChart}>Chưa có dữ liệu check-in để hiển thị biểu đồ.</div>
+                        ) : topEvents.map((event, index) => {
+                          const rate = Math.min(Number(event.attendanceRate || 0), 100);
+                          return (
+                            <div key={`${event.title}-${index}`} className={styles.barRow}>
+                              <div className={styles.barMeta}>
+                                <span>{event.title}</span>
+                                <strong>{rate.toFixed(1)}%</strong>
+                              </div>
+                              <div className={styles.barTrack}>
+                                <div className={styles.barFill} style={{ width: `${rate}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className={styles.commandGrid} style={{ display: 'none' }}>
+                <div className={`${styles.commandPanel} ${styles.commandPanelDark}`}>
+                  <div className={styles.panelEyebrow}>Quy trình cổng</div>
+                  <h3 className={styles.panelTitle}>Luồng kiểm soát vé</h3>
+                  <div className={styles.gateFlow}>
+                    <span>Quét QR</span>
+                    <span>Xác thực vé</span>
+                    <span>Chống quét lại</span>
+                    <span>Ghi nhận tham dự</span>
+                  </div>
+                </div>
+                <div className={styles.commandPanel}>
+                  <div className={styles.panelEyebrow}>Công cụ</div>
+                  <h3 className={styles.panelTitle}>Tác vụ nhanh</h3>
+                  <div className={styles.actionList}>
+                    <Link href="/admin/checkin" className={styles.actionRow}>
+                      <span><span className={styles.actionLabel}>Quét bằng camera</span><span className={styles.actionMeta}>Dành cho cổng vào chính</span></span>
+                      <span className={styles.actionArrow}>Mở</span>
+                    </Link>
+                    <button className={styles.actionRow} onClick={loadAll}>
+                      <span><span className={styles.actionLabel}>Làm mới báo cáo</span><span className={styles.actionMeta}>Cập nhật dữ liệu check-in mới nhất</span></span>
+                      <span className={styles.actionArrow}>Tải lại</span>
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.commandPanel}>
+                  <div className={styles.panelEyebrow}>Cảnh báo</div>
+                  <h3 className={styles.panelTitle}>Điểm cần theo dõi</h3>
+                  <div className={styles.actionList}>
+                    <div className={styles.actionRow}>
+                      <span><span className={styles.actionLabel}>Double-scan</span><span className={styles.actionMeta}>Backend đã chặn vé quét lại bằng cập nhật atomic</span></span>
+                    </div>
+                    <div className={styles.actionRow}>
+                      <span><span className={styles.actionLabel}>Sai quyền sự kiện</span><span className={styles.actionMeta}>Admin và đại lý được duyệt có quyền quét theo luồng hiện tại</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {operationsStats && operationsStats.eventStats && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h3 className={styles.cardTitle}>Báo cáo tham dự theo sự kiện</h3>
+                    <button className={`${styles.btn} ${styles.btnOutline} ${styles.btnSm}`} onClick={loadAll}>Làm mới</button>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.tableResponsive}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th className={styles.th}>Tên sự kiện</th>
+                            <th className={styles.th} style={{ textAlign: 'center' }}>Vé đã bán</th>
+                            <th className={styles.th} style={{ textAlign: 'center' }}>Đã check-in</th>
+                            <th className={styles.th}>Tỷ lệ tham dự</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {operationsStats.eventStats.map((e, idx) => (
+                            <tr key={idx} className={styles.tableRow}>
+                              <td className={styles.td} style={{ fontWeight: 700 }}>{e.title}</td>
+                              <td className={styles.td} style={{ textAlign: 'center' }}>{e.ticketsSold}</td>
+                              <td className={styles.td} style={{ textAlign: 'center', color: 'var(--admin-primary)', fontWeight: 800 }}>{e.checkedIn}</td>
+                              <td className={styles.td}>
+                                <div className={styles.progressLabelGroup}>
+                                  <span>Tham dự thực tế</span>
+                                  <span className={styles.progressValue}>{Number(e.attendanceRate || 0).toFixed(1)}%</span>
+                                </div>
+                                <div className={styles.progressTrack}>
+                                  <div className={styles.progressBar} style={{ width: `${Math.min(Number(e.attendanceRate || 0), 100)}%` }} />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {operationsStats.eventStats.length === 0 && (
+                            <tr><td colSpan={4} className={styles.td} style={{ textAlign: 'center', color: 'var(--admin-text-sub)' }}>Chưa có dữ liệu check-in</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
