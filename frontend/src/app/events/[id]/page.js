@@ -44,7 +44,7 @@ export default function EventDetailPage({ params }) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [payOSData, setPayOSData] = useState(null);
   const [payOSLoading, setPayOSLoading] = useState(false);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600); // 10 phút
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(180); // 3 phút
   const [seatLockStartTime, setSeatLockStartTime] = useState(null);
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [showVouchersDropdown, setShowVouchersDropdown] = useState(false);
@@ -145,12 +145,12 @@ export default function EventDetailPage({ params }) {
     if (bookingStep === 'payment' && seatLockStartTime) {
       timer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - seatLockStartTime) / 1000);
-        const remaining = Math.max(0, 600 - elapsed);
+        const remaining = Math.max(0, 180 - elapsed);
         setPaymentTimeLeft(remaining);
         
         if (remaining === 0) {
           clearInterval(timer);
-          setError('Đã hết thời gian thanh toán (10 phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.');
+          setError('Đã hết thời gian thanh toán (3 phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.');
         }
       }, 1000);
     }

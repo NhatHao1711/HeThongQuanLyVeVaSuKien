@@ -139,8 +139,8 @@ export default function MyTicketsPage() {
   const filteredOrders = orders.filter(order => {
     if (activeTab === 'ALL') return true;
     if (activeTab === 'SUCCESS') return order.paymentStatus === 'PAID';
-    if (activeTab === 'PENDING') return order.paymentStatus === 'PENDING';
-    if (activeTab === 'CANCELLED') return order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED';
+    if (activeTab === 'PENDING') return order.paymentStatus === 'PENDING' || order.paymentStatus === 'PARTIAL_PAID';
+    if (activeTab === 'CANCELLED') return order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED' || order.paymentStatus === 'REFUNDED';
     return true;
   });
 
@@ -214,6 +214,31 @@ export default function MyTicketsPage() {
                 <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Đơn hàng của tôi</h1>
               </div>
 
+              {/* Partial Paid Banner */}
+              {orders.some(o => o.paymentStatus === 'PARTIAL_PAID') && (
+                <div style={{
+                  background: '#fee2e2',
+                  border: '1px solid #ef4444',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <div style={{ fontSize: '1.5rem' }}>⚠️</div>
+                  <div>
+                    <h3 style={{ margin: '0 0 6px 0', color: '#dc2626', fontSize: '1.05rem', fontWeight: 700 }}>
+                      Cảnh báo: Đơn hàng bị treo do sai số tiền thanh toán
+                    </h3>
+                    <p style={{ margin: 0, color: '#991b1b', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                      Bạn có đơn hàng (Mã GD: <strong>{orders.filter(o => o.paymentStatus === 'PARTIAL_PAID').map(o => o.transactionRef || o.id).join(', ')}</strong>) đang bị tạm giữ do số tiền chuyển khoản không khớp với hệ thống.<br/>
+                      Vui lòng liên hệ Hotline <strong>1900 xxxx</strong> hoặc gửi email về <strong>cskh@trivent.vn</strong> để cung cấp biên lai và nhận hỗ trợ (hoàn tiền hoặc bù vé).
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Status Tabs */}
               <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem', flexWrap: 'wrap' }}>
                 <button 
@@ -255,13 +280,23 @@ export default function MyTicketsPage() {
                         <div style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>Mã đơn: #{order.id}</h3>
+                              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                                Mã đơn: #{order.id} <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>(Mã GD: {order.transactionRef || 'N/A'})</span>
+                              </h3>
                               <span style={{ 
-                                padding: '4px 12px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700,
-                                background: order.paymentStatus === 'PAID' ? '#dcfce7' : order.paymentStatus === 'PENDING' ? '#fef3c7' : '#fee2e2',
-                                color: order.paymentStatus === 'PAID' ? '#166534' : order.paymentStatus === 'PENDING' ? '#92400e' : '#991b1b'
+                                padding: '6px 12px', 
+                                borderRadius: '50px', 
+                                fontSize: '0.85rem', 
+                                fontWeight: 600,
+                                background: order.paymentStatus === 'PAID' ? '#dcfce7' : order.paymentStatus === 'PENDING' ? '#fef9c3' : order.paymentStatus === 'PARTIAL_PAID' ? '#fee2e2' : '#f1f5f9',
+                                color: order.paymentStatus === 'PAID' ? '#16a34a' : order.paymentStatus === 'PENDING' ? '#ca8a04' : order.paymentStatus === 'PARTIAL_PAID' ? '#dc2626' : '#64748b'
                               }}>
-                                {order.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : order.paymentStatus === 'PENDING' ? 'CHỜ THANH TOÁN' : 'ĐÃ HỦY'}
+                                {order.paymentStatus === 'PAID' ? 'Thành công' : 
+                                 order.paymentStatus === 'PENDING' ? 'Chờ thanh toán' : 
+                                 order.paymentStatus === 'PARTIAL_PAID' ? 'Lỗi thanh toán' : 
+                                 order.paymentStatus === 'CANCELLED' ? 'Đã hủy' : 
+                                 order.paymentStatus === 'REFUNDED' ? 'Đã hoàn tiền' :
+                                 'Thất bại'}
                               </span>
 
                             </div>
@@ -485,7 +520,7 @@ export default function MyTicketsPage() {
       {/* Payment Modal */}
       {showPaymentModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div style={{ background: '#fff', borderRadius: '24px', width: '100%', maxWidth: '800px', height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+          <div style={{ background: '#fff', borderRadius: '24px', width: '100%', maxWidth: '450px', height: '650px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>Thanh toán đơn hàng</h3>
               <button 

@@ -393,4 +393,79 @@ public class EmailService {
             log.error("❌ Failed to send welcome email to {}: {}", toEmail, e.getMessage());
         }
     }
+
+    @Async
+    public void sendPaymentExceptionEmail(String toEmail, String fullName, String transactionRef, BigDecimal expectedAmount, BigDecimal actualAmount, String reason) {
+        if (mailSender == null) {
+            log.warn("📧 Mail sender not configured. Skipping payment exception email to {}", toEmail);
+            return;
+        }
+
+        if (fromEmail == null || fromEmail.isBlank()) {
+            log.error("❌ From email is not configured (spring.mail.username). Skipping email.");
+            return;
+        }
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🎫 TRIVENT - Quan trọng: Sự cố thanh toán đơn hàng #" + transactionRef);
+
+            NumberFormat vndFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            String formattedExpected = vndFormat.format(expectedAmount);
+            String formattedActual = vndFormat.format(actualAmount);
+
+            String htmlContent = """
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 0;">
+                  <div style="background: linear-gradient(135deg, #1a1a2e 0%%, #16213e 100%%); padding: 30px; text-align: center;">
+                    <h1 style="color: #ff4757; margin: 0; font-size: 28px;">🎪 TRIVENT</h1>
+                    <p style="color: rgba(255,255,255,0.7); margin: 8px 0 0;">Cảnh báo: Sự cố thanh toán</p>
+                  </div>
+                  
+                  <div style="background: #fff; padding: 30px; border-radius: 0 0 12px 12px;">
+                    <h2 style="color: #1a1a2e; margin: 0 0 8px;">Xin chào %s,</h2>
+                    <p style="color: #6b7280; line-height: 1.6;">Hệ thống TRIVENT đã ghi nhận khoản chuyển khoản của bạn cho đơn hàng <strong>#%s</strong>. Tuy nhiên, giao dịch không thể hoàn tất vì lý do: <strong style="color: #e11d48;">%s</strong>.</p>
+                    
+                    <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                      <table style="width: 100%%; border-collapse: collapse;">
+                        <tr>
+                          <td style="padding: 8px 0; color: #6b7280;">Số tiền cần thanh toán:</td>
+                          <td style="padding: 8px 0; color: #1a1a2e; font-weight: 700; text-align: right;">%s</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 8px 0; color: #6b7280;">Số tiền thực nhận:</td>
+                          <td style="padding: 8px 0; color: #e11d48; font-weight: 700; text-align: right;">%s</td>
+                        </tr>
+                      </table>
+                    </div>
+                    
+                    <p style="color: #6b7280; font-weight: bold;">Trạng thái đơn hàng: <span style="color: #e11d48;">Đang bị tạm giữ (Lỗi thanh toán)</span></p>
+
+                    <h3 style="color: #1a1a2e; margin-top: 24px;">Cách xử lý:</h3>
+                    <p style="color: #6b7280; line-height: 1.6;">Vui lòng liên hệ với bộ phận CSKH của TRIVENT qua:</p>
+                    <ul style="color: #6b7280; line-height: 1.6;">
+                      <li>Hotline: <strong>1900 xxxx</strong></li>
+                      <li>Email: <strong>cskh@trivent.vn</strong></li>
+                    </ul>
+                    <p style="color: #6b7280; line-height: 1.6;">Vui lòng chuẩn bị sẵn hình ảnh biên lai chuyển khoản thành công để nhân viên hỗ trợ bạn hoàn tiền hoặc xuất bù vé.</p>
+                    
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                      <p style="color: #1a1a2e; font-weight: 600; margin: 0 0 4px;">Đội ngũ TRIVENT</p>
+                      <p style="color: #6b7280; font-size: 14px; margin: 0;">Email tự động, vui lòng không trả lời.</p>
+                    </div>
+                  </div>
+                </div>
+                """.formatted(fullName, transactionRef, reason, formattedExpected, formattedActual);
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("📧 Payment exception email sent to {}", toEmail);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to send payment exception email to {}: {}", toEmail, e.getMessage());
+        }
+    }
 }

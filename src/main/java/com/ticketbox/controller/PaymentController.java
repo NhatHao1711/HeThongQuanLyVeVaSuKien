@@ -117,6 +117,25 @@ public class PaymentController {
         }
     }
 
+    /**
+     * POST /api/payment/mock-webhook - Dành riêng cho Demo GVHD (Bỏ qua chữ ký)
+     */
+    @PostMapping("/payment/mock-webhook")
+    public ResponseEntity<Map<String, Object>> mockWebhook(@RequestBody Map<String, Object> body) {
+        try {
+            long orderCode = Long.parseLong(body.get("orderCode").toString());
+            int amount = Integer.parseInt(body.get("amount").toString());
+            
+            paymentService.processWebhookLogic(orderCode, amount);
+            
+            return ResponseEntity.ok(Map.of("success", true, "message", "Mock Webhook processed successfully"));
+        } catch (Exception e) {
+            log.error("❌ Lỗi xử lý Mock Webhook: ", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
     private String getClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {

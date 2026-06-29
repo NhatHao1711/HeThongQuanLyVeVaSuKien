@@ -31,14 +31,14 @@ public class OrderCleanupService {
     @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
     @Transactional
     public void cleanupPendingOrders() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(15);
+        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(3);
         List<Order> pendingOrders = orderRepository.findByPaymentStatusAndCreatedAtBefore(PaymentStatus.PENDING, cutoffTime);
 
         if (pendingOrders.isEmpty()) {
             return;
         }
 
-        log.info("🗑️ Found {} PENDING orders older than 15 minutes. Cancelling...", pendingOrders.size());
+        log.info("🗑️ Found {} PENDING orders older than 3 minutes. Cancelling...", pendingOrders.size());
 
         for (Order order : pendingOrders) {
             order.setPaymentStatus(PaymentStatus.FAILED);
@@ -53,6 +53,7 @@ public class OrderCleanupService {
                 // Hoàn ghế (nếu có)
                 Seat seat = ticket.getSeat();
                 if (seat != null) {
+                    ticket.setOriginalSeatId(seat.getId()); // Lưu lại lịch sử để hồi sinh
                     seat.setStatus(SeatStatus.AVAILABLE);
                     seatRepository.save(seat);
                     ticket.setSeat(null); // Gỡ liên kết ghế để ghế khác có thể sử dụng (chống Duplicate entry)

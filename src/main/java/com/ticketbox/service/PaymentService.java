@@ -35,6 +35,10 @@ public class PaymentService {
     private final RabbitTemplate rabbitTemplate;
     private final UserRepository userRepository;
     private final com.ticketbox.repository.LedgerEntryRepository ledgerEntryRepository;
+    private final com.ticketbox.repository.PaymentExceptionLogRepository paymentExceptionLogRepository;
+    private final EmailService emailService;
+    private final com.ticketbox.repository.TicketTypeRepository ticketTypeRepository;
+    private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
     @Value("${rabbitmq.exchange.ticket}")
     private String ticketExchange;
@@ -255,6 +259,12 @@ public class PaymentService {
         long orderCode = webhookData.getOrderCode();
         int amountPaid = webhookData.getAmount();
 
+        processWebhookLogic(orderCode, amountPaid);
+    }
+
+    @Transactional
+    public void processWebhookLogic(long orderCode, int amountPaid) {
+
         // 2. Tìm kiếm đơn hàng
         java.util.List<Order> orders = orderRepository.findByTransactionRef(String.valueOf(orderCode));
         if (orders.isEmpty()) {
@@ -272,14 +282,132 @@ public class PaymentService {
         int expectedAmount = orders.stream().mapToInt(o -> o.getTotalAmount().intValue()).sum();
         if (amountPaid != expectedAmount) {
             log.error("❌ Số tiền thanh toán không khớp! Thực tế: {}, Kì vọng: {}", amountPaid, expectedAmount);
-            throw new IllegalArgumentException("Số tiền thanh toán không khớp");
+            
+            // Log ngoại lệ vào Database
+            com.ticketbox.entity.PaymentExceptionLog exceptionLog = com.ticketbox.entity.PaymentExceptionLog.builder()
+                    .transactionRef(String.valueOf(orderCode))
+                    .expectedAmount(java.math.BigDecimal.valueOf(expectedAmount))
+                    .actualAmount(java.math.BigDecimal.valueOf(amountPaid))
+                    .reason("Khách hàng chuyển khoản sai số tiền")
+                    .status("UNRESOLVED")
+                    .build();
+            paymentExceptionLogRepository.save(exceptionLog);
+            
+            // Send email to the customer
+            if (!orders.isEmpty() && orders.get(0).getUser() != null) {
+                User user = orders.get(0).getUser();
+                emailService.sendPaymentExceptionEmail(
+                    user.getEmail(), 
+                    user.getFullName(), 
+                    String.valueOf(orderCode), 
+                    java.math.BigDecimal.valueOf(expectedAmount), 
+                    java.math.BigDecimal.valueOf(amountPaid),
+                    "Khách hàng chuyển khoản sai số tiền"
+                );
+            }
+            
+            // Cập nhật trạng thái PARTIAL_PAID
+            for (Order order : orders) {
+                order.setPaymentStatus(PaymentStatus.PARTIAL_PAID);
+                orderRepository.save(order);
+            }
+            
+            // Thay vì throw Exception (sẽ làm Spring Rollback lại toàn bộ Database)
+            // Ta return luôn để Transaction được Commit thành công
+            log.warn("Đã lưu log ngoại lệ và đánh dấu PARTIAL_PAID. Ngừng xử lý đơn hàng.");
+            return;
         }
 
         for (Order order : orders) {
-            // Lũy đẳng (Idempotency check)
+            // Lũy đẳng (Double Payment check)
             if (order.getPaymentStatus() == PaymentStatus.PAID) {
-                log.info("⚡ Idempotency: Giao dịch đơn hàng {} đã ở trạng thái PAID. Bỏ qua.", order.getId());
+                log.warn("⚡ Double Payment: Giao dịch đơn hàng {} đã ở trạng thái PAID. Khách chuyển tiền 2 lần.", order.getId());
+                com.ticketbox.entity.PaymentExceptionLog exceptionLog = com.ticketbox.entity.PaymentExceptionLog.builder()
+                        .transactionRef(String.valueOf(orderCode))
+                        .expectedAmount(java.math.BigDecimal.valueOf(expectedAmount))
+                        .actualAmount(java.math.BigDecimal.valueOf(amountPaid))
+                        .reason("Thanh toán trùng lặp (Double Payment) cho đơn hàng đã hoàn tất")
+                        .status("UNRESOLVED")
+                        .build();
+                paymentExceptionLogRepository.save(exceptionLog);
+                
+                if (order.getUser() != null) {
+                    User user = order.getUser();
+                    emailService.sendPaymentExceptionEmail(
+                        user.getEmail(), 
+                        user.getFullName(), 
+                        String.valueOf(orderCode), 
+                        java.math.BigDecimal.valueOf(expectedAmount), 
+                        java.math.BigDecimal.valueOf(amountPaid),
+                        "Thanh toán trùng lặp (Double Payment) cho đơn hàng đã hoàn tất"
+                    );
+                }
+                
                 continue;
+            }
+
+            // Quá hạn (Late Payment check)
+            if (order.getPaymentStatus() == PaymentStatus.FAILED) {
+                log.warn("⏳ Late Payment: Giao dịch đơn hàng {} đã bị Hủy/Quá hạn nhưng khách vẫn chuyển tiền. Kiểm tra khả năng hồi sinh...", order.getId());
+                boolean canResurrect = true;
+                
+                // Kiểm tra xem tất cả các ghế/vé có còn trống không
+                for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                    if (ticket.getOriginalSeatId() != null) {
+                        com.ticketbox.entity.Seat originalSeat = seatRepository.findById(ticket.getOriginalSeatId()).orElse(null);
+                        if (originalSeat == null || originalSeat.getStatus() != com.ticketbox.enums.SeatStatus.AVAILABLE) {
+                            canResurrect = false;
+                            break;
+                        }
+                    } else {
+                        com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+                        if (ticketType.getAvailableQuantity() <= 0) {
+                            canResurrect = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (canResurrect) {
+                    log.info("🌟 Resurrecting Order {}: Ghế/Vé vẫn còn trống. Tự động hồi sinh đơn hàng!", order.getId());
+                    for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                        if (ticket.getOriginalSeatId() != null) {
+                            com.ticketbox.entity.Seat originalSeat = seatRepository.findById(ticket.getOriginalSeatId()).get();
+                            originalSeat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                            seatRepository.save(originalSeat);
+                            ticket.setSeat(originalSeat);
+                        } else {
+                            com.ticketbox.entity.TicketType ticketType = ticket.getTicketType();
+                            ticketType.setAvailableQuantity(ticketType.getAvailableQuantity() - 1);
+                            ticketTypeRepository.save(ticketType);
+                        }
+                        userTicketRepository.save(ticket);
+                    }
+                    // Bỏ qua tạo Exception, để vòng lặp tiếp tục cập nhật trạng thái PAID bên dưới
+                } else {
+                    log.warn("❌ Không thể hồi sinh đơn hàng {}: Ghế hoặc vé đã bị mua mất.", order.getId());
+                    com.ticketbox.entity.PaymentExceptionLog exceptionLog = com.ticketbox.entity.PaymentExceptionLog.builder()
+                            .transactionRef(String.valueOf(orderCode))
+                            .expectedAmount(java.math.BigDecimal.valueOf(expectedAmount))
+                            .actualAmount(java.math.BigDecimal.valueOf(amountPaid))
+                            .reason("Thanh toán quá hạn - Ghế đã bị người khác mua")
+                            .status("UNRESOLVED")
+                            .build();
+                    paymentExceptionLogRepository.save(exceptionLog);
+                    
+                    if (order.getUser() != null) {
+                        User user = order.getUser();
+                        emailService.sendPaymentExceptionEmail(
+                            user.getEmail(), 
+                            user.getFullName(), 
+                            String.valueOf(orderCode), 
+                            java.math.BigDecimal.valueOf(expectedAmount), 
+                            java.math.BigDecimal.valueOf(amountPaid),
+                            "Thanh toán quá hạn - Ghế đã bị người khác mua"
+                        );
+                    }
+                    continue; // Bỏ qua đơn hàng này
+                }
             }
 
             // 5. Cập nhật trạng thái đơn hàng và chia sẻ doanh thu 80%
@@ -296,7 +424,8 @@ public class PaymentService {
                     java.math.BigDecimal organizerShare = total.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
                     
                     // Cập nhật holdingBalance
-                    organizer.setHoldingBalance(organizer.getHoldingBalance().add(organizerShare));
+                    java.math.BigDecimal currentBalance = organizer.getHoldingBalance() != null ? organizer.getHoldingBalance() : java.math.BigDecimal.ZERO;
+                    organizer.setHoldingBalance(currentBalance.add(organizerShare));
                     userRepository.save(organizer);
                     
                     // Tạo Ledger Entry

@@ -44,6 +44,9 @@ public class UserTicket {
     @JoinColumn(name = "seat_id")
     private Seat seat;
 
+    @Column(name = "original_seat_id")
+    private Long originalSeatId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

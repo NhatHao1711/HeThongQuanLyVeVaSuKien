@@ -42,6 +42,9 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [agencies, setAgencies] = useState([]);
+  const [paymentExceptions, setPaymentExceptions] = useState([]);
+  const [reconciliationData, setReconciliationData] = useState(null);
+  const [resolveConfirmId, setResolveConfirmId] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [timeFilter, setTimeFilter] = useState("28days"); // '7days' | '28days' | 'thismonth'
   const [showFullReport, setShowFullReport] = useState(false);
@@ -135,6 +138,12 @@ export default function AdminDashboard() {
         if (res.success) setVouchers(res.data);
       });
     }
+    if (activeTab === "paymentExceptions") {
+      loadPaymentExceptions();
+    }
+    if (activeTab === "revenue") {
+      loadReconciliation();
+    }
     if (activeTab === "agencies") {
       loadAgencies();
     }
@@ -170,6 +179,38 @@ export default function AdminDashboard() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReconciliation = async () => {
+    try {
+      const res = await apiRequest("/admin/reconciliation");
+      if (res.success) setReconciliationData(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadPaymentExceptions = async () => {
+    try {
+      const res = await apiRequest("/admin/payment-exceptions");
+      if (res.success) setPaymentExceptions(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleResolveException = async () => {
+    try {
+      const res = await apiRequest(`/admin/payment-exceptions/${resolveConfirmId}/resolve`, {
+        method: "PUT",
+      });
+      if (res.success) {
+        setResolveConfirmId(null);
+        loadPaymentExceptions();
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -947,6 +988,7 @@ export default function AdminDashboard() {
     { id: "checkin", label: "Check-in / Check-out" },
     { id: "orders", label: "Đơn hàng" },
     { id: "vouchers", label: "Mã giảm giá" },
+      { id: "paymentExceptions", label: "Ngoại lệ thanh toán" },
   ];
 
   const agencyTabs = [{ id: "agencies", label: "Phê duyệt đại lý" }];
@@ -2405,6 +2447,22 @@ export default function AdminDashboard() {
                         {stats.publishedEvents || 0}
                       </div>
                     </div>
+                    {reconciliationData && (
+                      <>
+                        <div className={`${styles.statCard} ${styles.statCardRed}`}>
+                          <div className={styles.statLabel}>Tiền treo / Ngoại lệ</div>
+                          <div className={styles.statValue} style={{ fontSize: "1.65rem", paddingTop: "0.45rem" }}>
+                            {reconciliationData?.totalExceptionAmount?.toLocaleString("vi-VN") || 0}đ
+                          </div>
+                        </div>
+                        <div className={`${styles.statCard} ${styles.statCardOrange}`}>
+                          <div className={styles.statLabel}>Đã hoàn trả</div>
+                          <div className={styles.statValue} style={{ fontSize: "1.65rem", paddingTop: "0.45rem" }}>
+                            {reconciliationData?.totalRefundedAmount?.toLocaleString("vi-VN") || 0}đ
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {renderDailySalesChart()}
@@ -4311,7 +4369,102 @@ export default function AdminDashboard() {
           )}
 
           {/* AGENCIES */}
-          {activeTab === "agencies" && (
+          {activeTab === "paymentExceptions" && (
+            <div className={styles.card} style={{ marginBottom: "2rem" }}>
+              <div className={styles.cardHeader}>
+                <h4 className={styles.cardTitle}>Ngoại lệ thanh toán</h4>
+              </div>
+              <div className={styles.cardBody} style={{ overflowX: "auto" }}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.th}>Mã đơn (Ref)</th>
+                      <th className={styles.th}>Khách hàng</th>
+                      <th className={styles.th}>Lý do</th>
+                      <th className={styles.th}>Số tiền mong đợi</th>
+                      <th className={styles.th}>Số tiền thực tế</th>
+                      <th className={styles.th}>Trạng thái</th>
+                      <th className={styles.th}>Thời gian</th>
+                      <th className={styles.th} style={{ textAlign: "right" }}>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentExceptions.map((ex) => (
+                      <tr key={ex.id} className={styles.tr}>
+                        <td className={styles.td}>
+                          <span style={{ fontWeight: 600, color: "#1e293b" }}>#{ex.transactionRef}</span>
+                        </td>
+                        <td className={styles.td}>
+                          <div style={{ fontSize: "0.85rem" }}>
+                            <div style={{ fontWeight: 600, color: "#1e293b" }}>{ex.customerName || "N/A"}</div>
+                            <div style={{ color: "#64748b" }}>{ex.customerEmail || "N/A"}</div>
+                          </div>
+                        </td>
+                        <td className={styles.td}>
+                          <span style={{ fontSize: "0.82rem", color: "#92400e", fontWeight: 500 }}>{ex.reason || "Chuyển sai số tiền"}</span>
+                        </td>
+                        <td className={styles.td}>
+                          {ex.expectedAmount.toLocaleString("vi-VN")} đ
+                        </td>
+                        <td className={styles.td}>
+                          <span style={{ color: "#ef4444", fontWeight: 600 }}>
+                            {ex.actualAmount.toLocaleString("vi-VN")} đ
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span style={{
+                            padding: "4px 8px", borderRadius: "12px", fontSize: "0.8rem", fontWeight: 600,
+                            background: ex.status === "RESOLVED" ? "#dcfce7" : "#fee2e2",
+                            color: ex.status === "RESOLVED" ? "#166534" : "#991b1b"
+                          }}>
+                            {ex.status === "RESOLVED" ? "Đã xử lý" : "Chờ xử lý"}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                            {new Date(ex.createdAt).toLocaleString("vi-VN")}
+                          </span>
+                        </td>
+                        <td className={styles.td} style={{ textAlign: "right" }}>
+                          {ex.status !== "RESOLVED" && (
+                            <button
+                              onClick={() => setResolveConfirmId(ex.id)}
+                              style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: "#f59e0b", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: "0.85rem" }}
+                            >
+                              Xử lý xong
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {paymentExceptions.length === 0 && (
+                      <tr>
+                        <td colSpan="8" style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
+                          Không có ngoại lệ thanh toán nào
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+        )}
+
+        {/* Popup xác nhận xử lý ngoại lệ */}
+        {resolveConfirmId && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+            <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", maxWidth: "400px", width: "90%" }}>
+              <h3 style={{ margin: "0 0 12px 0" }}>Xác nhận xử lý</h3>
+              <p style={{ color: "#64748b", margin: "0 0 20px 0" }}>Bạn có chắc chắn đã hoàn tiền cho khách hàng và muốn đánh dấu ngoại lệ này là đã xử lý?</p>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button onClick={() => setResolveConfirmId(null)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}>Hủy</button>
+                <button onClick={handleResolveException} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "#f59e0b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Xác nhận</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "agencies" && (
             <>
               <div className={styles.header}>
                 <div className={styles.headerTitleGroup}>
