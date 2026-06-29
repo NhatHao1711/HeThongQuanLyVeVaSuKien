@@ -146,13 +146,13 @@ export default function Navbar() {
           {/* Phải: Actions (Không có icon trang trí) */}
           <div className="navbar-auth" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', width: 'auto', justifyContent: 'flex-end' }}>
             
-            {/* Nút Tạo sự kiện trỏ vào trang đăng ký đại lý (/agency) */}
-            <Link href="/agency" className="navbar-create-btn">
-              {t('nav.create_event')}
+            {/* Nút Tạo sự kiện trỏ vào trang đăng ký đại lý (/agency) hoặc Admin */}
+            <Link href={user?.role === 'ROLE_ADMIN' ? "/admin" : "/agency"} className="navbar-create-btn">
+              {user?.role === 'ROLE_ADMIN' ? "Trang Quản Trị" : t('nav.create_event')}
             </Link>
 
             {/* Nút Vé của tôi (có icon ticket như Ticketbox) */}
-            <Link href={loggedIn ? "/my-tickets" : "/login"} className="navbar-tickets-link" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
+            <Link href={loggedIn ? "/my-tickets?view=tickets" : "/login"} className="navbar-tickets-link" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/>
               </svg>
@@ -245,33 +245,36 @@ export default function Navbar() {
                       background: 'var(--bg-card)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                       border: '1px solid var(--border)', zIndex: 1000, overflow: 'hidden', marginTop: 6
                     }}>
-                      <Link href="/my-tickets" onClick={() => setShowUserMenu(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
-                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
-                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/></svg>
-                        Vé của tôi
-                      </Link>
+                      {user?.role === 'ROLE_ADMIN' ? (
+                        <Link href="/admin" onClick={() => setShowUserMenu(false)} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                          color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem', transition: 'background 0.15s'
+                        }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                          Trang Quản Trị
+                        </Link>
+                      ) : (
+                        <Link href="/agency" onClick={() => setShowUserMenu(false)} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                          color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem', transition: 'background 0.15s'
+                        }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+                          {user?.role === 'ROLE_ORGANIZER' ? "Kênh Đại Lý" : "Đăng ký Đại Lý"}
+                        </Link>
+                      )}
                       <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
                         display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
                         color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
-                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/></svg>
-                        Thẻ thành viên
-                      </Link>
-                      <Link href="/agency" onClick={() => setShowUserMenu(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
-                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', transition: 'background 0.15s'
-                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
-                        Sự kiện của tôi
-                      </Link>
-                      <Link href="/profile" onClick={() => setShowUserMenu(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
-                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
                       }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Tài khoản của tôi
+                      </Link>
+                      <Link href="/my-tickets?view=orders" onClick={() => setShowUserMenu(false)} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1rem', textDecoration: 'none',
+                        color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid var(--border)', transition: 'background 0.15s'
+                      }} onMouseEnter={e => e.currentTarget.style.background='var(--primary-glow)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/></svg>
+                        Đơn hàng của tôi
                       </Link>
                       <button onClick={handleLogout} style={{
                         display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%',

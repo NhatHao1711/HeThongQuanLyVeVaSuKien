@@ -312,6 +312,7 @@ public class AdminController {
                         ttMap.put("price", tt.getPrice());
                         ttMap.put("totalQuantity", tt.getTotalQuantity());
                         ttMap.put("availableQuantity", tt.getAvailableQuantity());
+                        ttMap.put("eventDate", tt.getEventDate());
                         return ttMap;
                     }).collect(Collectors.toList());
                     map.put("ticketTypes", tts);

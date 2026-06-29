@@ -13,6 +13,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestQuantity, setSuggestQuantity] = useState(2);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [showMaxSeatsPrompt, setShowMaxSeatsPrompt] = useState(false);
 
   const showToast = (message, type = 'error') => {
     setToast({ show: true, message, type });
@@ -115,7 +116,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
 
   const handleSuggest = async (qty) => {
     if (qty > 20) {
-      showToast("Quý khách vui lòng chọn tối đa 20 ghế cho mỗi lần gợi ý để có trải nghiệm tốt nhất nhé.", "warning");
+      setShowMaxSeatsPrompt(true);
       return;
     }
     
@@ -286,6 +287,32 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
         </div>
       </div>
       
+      {/* Max Seats Prompt Modal */}
+      {showMaxSeatsPrompt && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)' }} onClick={() => setShowMaxSeatsPrompt(false)}>
+          <div style={{ width: '90%', maxWidth: '400px', padding: '2.5rem 2rem', textAlign: 'center', borderRadius: '24px', background: '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', transform: 'translateY(0)', animation: 'fadeInDown 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '64px', height: '64px', background: '#fff7ed', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <svg width="32" height="32" fill="none" stroke="#ea580c" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Giới hạn chọn ghế</h3>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.6' }}>
+              Vui lòng chọn tối đa 20 ghế cho mỗi lần gợi ý.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowMaxSeatsPrompt(false)}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#00B46E', color: '#fff', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px 0 rgba(0, 180, 110, 0.39)' }}
+                onMouseOver={e => { e.currentTarget.style.background = '#00965A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseOut={e => { e.currentTarget.style.background = '#00B46E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -46,6 +46,8 @@ export default function EventDetailPage({ params }) {
   const [payOSLoading, setPayOSLoading] = useState(false);
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(600); // 10 phút
   const [seatLockStartTime, setSeatLockStartTime] = useState(null);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [showVouchersDropdown, setShowVouchersDropdown] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const calendarRef = useRef(null);
@@ -63,10 +65,7 @@ export default function EventDetailPage({ params }) {
     loadEvent();
     loadReviews();
     loadRelatedEvents();
-
-
-    loadReviews();
-    loadRelatedEvents();
+    loadActiveVouchers();
 
     const handleMessage = (event) => {
       if (event.data?.type === 'PAYOS_REDIRECT') {
@@ -208,6 +207,17 @@ export default function EventDetailPage({ params }) {
         setRelatedEvents(related.length > 0 ? related : (res.data || []).filter(e => e.id !== parseInt(id)).slice(0, 3));
       }
     } catch (e) {}
+  };
+
+  const loadActiveVouchers = async () => {
+    try {
+      const res = await apiRequest('/vouchers/active');
+      if (res.success) {
+        setAvailableVouchers(res.data || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch vouchers", e);
+    }
   };
 
   const loadEvent = async () => {
@@ -398,6 +408,7 @@ export default function EventDetailPage({ params }) {
           orderId: allOrderIds.join(', ')
         });
         setBookingStep('payment');
+        setSeatLockStartTime(Date.now());
 
         // Gọi API tạo link thanh toán PayOS
         setPayOSLoading(true);
@@ -1046,35 +1057,56 @@ export default function EventDetailPage({ params }) {
               <div style={{ background: '#ffffff', borderRadius: 14, padding: '1.25rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Loại vé & Giá vé</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {ticketTypes.map((ticket, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1rem',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0',
-                      transition: 'transform 0.15s'
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{ticket.name}</span>
-                          <span style={{ background: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#ecfdf5' : '#fef2f2', color: (ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? '#059669' : '#dc2626', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>
-                            {(ticket.availableQuantity ?? ticket.remaining ?? 0) > 0 ? `Còn ${ticket.availableQuantity ?? ticket.remaining}` : 'Hết'}
+                  {(() => {
+                    const uniqueTickets = [];
+                    const seenNames = new Set();
+                    ticketTypes.forEach(tt => {
+                      if (!seenNames.has(tt.name)) {
+                        seenNames.add(tt.name);
+                        uniqueTickets.push({ 
+                          ...tt, 
+                          totalAgg: tt.totalQuantity ?? tt.quantity ?? 0,
+                          availAgg: tt.availableQuantity ?? tt.remaining ?? 0
+                        });
+                      } else {
+                        const existing = uniqueTickets.find(u => u.name === tt.name);
+                        if (existing) {
+                          existing.totalAgg += (tt.totalQuantity ?? tt.quantity ?? 0);
+                          existing.availAgg += (tt.availableQuantity ?? tt.remaining ?? 0);
+                        }
+                      }
+                    });
+
+                    return uniqueTickets.map((ticket, index) => (
+                      <div key={index} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '1rem',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        transition: 'transform 0.15s'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{ticket.name}</span>
+                            <span style={{ background: ticket.availAgg > 0 ? '#ecfdf5' : '#fef2f2', color: ticket.availAgg > 0 ? '#059669' : '#dc2626', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>
+                              {ticket.availAgg > 0 ? `Còn ${ticket.availAgg}` : 'Hết'}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
+                            Tổng số lượng: {ticket.totalAgg}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>
+                            {formatPrice(ticket.price)}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
-                          Số lượng: {ticket.totalQuantity ?? ticket.quantity ?? 0}
-                        </p>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>
-                          {formatPrice(ticket.price)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
             )}
@@ -1283,14 +1315,26 @@ export default function EventDetailPage({ params }) {
                 </div>
 
                 {/* Voucher Section */}
-                <div className={styles.confirmVoucherSection}>
-                  <p className={styles.confirmVoucherLabel}>{t('events.voucher_label')}</p>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                <div className={styles.confirmVoucherSection} style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p className={styles.confirmVoucherLabel}>{t('events.voucher_label')}</p>
+                    {availableVouchers.length > 0 && (
+                      <span 
+                        style={{ fontSize: '0.8rem', color: '#00B46E', cursor: 'pointer', fontWeight: 'bold' }}
+                        onClick={() => setShowVouchersDropdown(!showVouchersDropdown)}
+                      >
+                        {showVouchersDropdown ? 'Ẩn mã' : 'Xem mã khả dụng'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 6, position: 'relative' }}>
                     <input
                       type="text"
                       placeholder={t('events.voucher_placeholder')}
                       value={voucherCode}
                       onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
+                      onFocus={() => setShowVouchersDropdown(true)}
                       className={styles.voucherInput}
                       style={{ flex: 1 }}
                     />
@@ -1298,6 +1342,7 @@ export default function EventDetailPage({ params }) {
                       onClick={async () => {
                         if (!voucherCode.trim()) return;
                         setVoucherLoading(true);
+                        setShowVouchersDropdown(false);
                         try {
                            const res = await apiRequest('/vouchers/apply', {
                             method: 'POST',
@@ -1317,6 +1362,44 @@ export default function EventDetailPage({ params }) {
                       {voucherLoading ? '...' : t('events.voucher_apply')}
                     </button>
                   </div>
+                  
+                  {/* Dropdown mã giảm giá khả dụng */}
+                  {showVouchersDropdown && availableVouchers.length > 0 && (
+                    <div style={{ 
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                      background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)', marginTop: '4px', maxHeight: '200px', overflowY: 'auto'
+                    }}>
+                      {availableVouchers.map(v => (
+                        <div 
+                          key={v.code} 
+                          onClick={() => {
+                            setVoucherCode(v.code);
+                            setShowVouchersDropdown(false);
+                            setVoucherResult(null);
+                          }}
+                          style={{ 
+                            padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                            transition: 'background 0.2s', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{v.code}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{v.description}</div>
+                          </div>
+                          <button style={{ 
+                            background: '#eff6ff', color: '#3b82f6', border: 'none', 
+                            padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' 
+                          }}>
+                            Chọn
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {voucherResult && (
                     <div className={`${styles.voucherMsg} ${voucherResult.success ? styles.voucherSuccess : styles.voucherFail}`} style={{ marginTop: 8 }}>
                       {voucherResult.success

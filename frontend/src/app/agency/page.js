@@ -5,11 +5,30 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { API_BASE, apiRequest, isLoggedIn, setUser } from '@/lib/api';
 
+const parseDateSafe = (dateVal) => {
+  if (!dateVal) return null;
+  if (Array.isArray(dateVal)) {
+    const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
+    return new Date(y, m - 1, d, h, min, s);
+  }
+  return new Date(dateVal);
+};
+
+const formatDateTimeLocalSafe = (dateVal) => {
+  const d = parseDateSafe(dateVal);
+  if (!d || isNaN(d)) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 const getDatesBetween = (startStr, endStr) => {
   const dates = [];
   if (!startStr || !endStr) return dates;
-  let current = new Date(startStr);
-  const end = new Date(endStr);
+  let current = parseDateSafe(startStr);
+  const end = parseDateSafe(endStr);
+  
+  if (!current || isNaN(current) || !end || isNaN(end)) return dates;
+  
   current.setHours(0,0,0,0);
   end.setHours(0,0,0,0);
   
@@ -39,6 +58,7 @@ export default function AgencyDashboard() {
   const [events, setEvents] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [expandedTicketGroups, setExpandedTicketGroups] = useState({});
   
 
   // Event Creation
@@ -57,10 +77,16 @@ export default function AgencyDashboard() {
   // Seat Management
   const [seatManagerTicket, setSeatManagerTicket] = useState(null);
   const [seatConfig, setSeatConfig] = useState({ rows: 10, cols: 10 });
-  const [seatsList, setSeatsList] = useState([]);
+  const [applySeatToAll, setApplySeatToAll] = useState(true);
   const [seatLoading, setSeatLoading] = useState(false);
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [warningAction, setWarningAction] = useState(null);
+
+  const [toast, setToast] = useState(null);
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -168,12 +194,12 @@ export default function AgencyDashboard() {
     const end = new Date(eventForm.endTime);
 
     if (!allowExistingPastStart && start < new Date()) {
-      alert('Thời gian bắt đầu phải nằm trong tương lai.');
+      showToast('Thời gian bắt đầu phải nằm trong tương lai.', 'error');
       return false;
     }
 
     if (end <= start) {
-      alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      showToast('Thời gian kết thúc phải sau thời gian bắt đầu.', 'error');
       return false;
     }
 
@@ -191,8 +217,8 @@ export default function AgencyDashboard() {
         body: formData
       });
       const data = await res.json();
-      if (!data.success) { alert(data.message); }
-    } catch (e) { alert('Lỗi upload ảnh'); }
+      if (!data.success) { showToast(data.message, 'error'); }
+    } catch (e) { showToast('Lỗi upload ảnh', 'error'); }
   };
 
   const proceedSubmitEvent = async () => {
@@ -255,8 +281,8 @@ export default function AgencyDashboard() {
       title: ev.title,
       description: ev.description,
       location: ev.location,
-      startTime: ev.startTime ? ev.startTime.substring(0, 16) : '',
-      endTime: ev.endTime ? ev.endTime.substring(0, 16) : '',
+      startTime: formatDateTimeLocalSafe(ev.startTime),
+      endTime: formatDateTimeLocalSafe(ev.endTime),
       surveyUrl: ev.surveyUrl || ''
     });
     await loadTicketTypes(ev.id);
@@ -371,11 +397,22 @@ export default function AgencyDashboard() {
     e.preventDefault();
     try {
       const isUpdate = !!ticketForm.id;
+      let createdTicket = null;
+      
+      console.log('DEBUG submitTicket:', {
+        isUpdate,
+        applyToAllDays: ticketForm.applyToAllDays,
+        startTime: managingEvent.startTime,
+        endTime: managingEvent.endTime
+      });
       
       if (!isUpdate && ticketForm.applyToAllDays && managingEvent.startTime && managingEvent.endTime) {
         const dates = getDatesBetween(managingEvent.startTime, managingEvent.endTime);
+        console.log('DEBUG dates:', dates);
         if (dates.length === 0) dates.push(null);
         
+        let successCount = 0;
+        let failCount = 0;
         for (const date of dates) {
           const payload = {
             name: ticketForm.name,
@@ -386,10 +423,14 @@ export default function AgencyDashboard() {
           const url = `/events/my-events/${managingEvent.id}/ticket-types`;
           const res = await apiRequest(url, { method: 'POST', body: JSON.stringify(payload) });
           if (!res.success) {
-            alert('Có lỗi khi tạo vé cho ngày ' + date + ': ' + res.message);
+            failCount++;
+            setToast({ message: 'Có lỗi khi tạo vé cho ngày ' + date + ': ' + res.message, type: 'error' });
+          } else {
+            successCount++;
+            if (!createdTicket) createdTicket = res.data;
           }
         }
-        alert(`Đã thêm vé cho ${dates.length} ngày!`);
+        setToast({ message: `Đã tạo ${successCount} vé (Lỗi: ${failCount}).`, type: 'success' });
       } else {
         const url = isUpdate ? `/events/my-events/ticket-types/${ticketForm.id}` : `/events/my-events/${managingEvent.id}/ticket-types`;
         const method = isUpdate ? 'PUT' : 'POST';
@@ -402,9 +443,10 @@ export default function AgencyDashboard() {
 
         const res = await apiRequest(url, { method, body: JSON.stringify(payload) });
         if (res.success) {
-          alert(isUpdate ? 'Đã cập nhật vé!' : 'Đã thêm vé!');
+          setToast({ message: isUpdate ? 'Đã cập nhật vé (Chỉ sửa 1 ngày)!' : 'Đã thêm vé (1 ngày)!', type: 'success' });
+          if (!isUpdate) createdTicket = res.data;
         } else {
-          alert(res.message);
+          setToast({ message: res.message, type: 'error' });
           return;
         }
       }
@@ -413,8 +455,10 @@ export default function AgencyDashboard() {
       setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
       loadTicketTypes(managingEvent.id);
       loadAgencyData();
+      if (createdTicket) openSeatManager(createdTicket);
     } catch (err) {
-      alert('Lỗi kết nối');
+      console.error(err);
+      setToast({ message: 'Lỗi kết nối', type: 'error' });
     }
   };
 
@@ -454,20 +498,30 @@ export default function AgencyDashboard() {
   const generateSeats = async () => {
     setSeatLoading(true);
     try {
-      const res = await apiRequest(`/events/my-events/ticket-types/${seatManagerTicket.id}/seats/generate`, {
-        method: 'POST',
-        body: JSON.stringify({ rows: Number(seatConfig.rows), cols: Number(seatConfig.cols) })
-      });
-      if (res.success) {
-        alert(res.message);
-        setSeatManagerTicket(prev => ({ ...prev, seatCount: res.data.seatsCreated }));
-        
-        // Tải lại danh sách ghế mới tạo
-        const seatsRes = await apiRequest(`/seats?ticketTypeId=${seatManagerTicket.id}`);
-        if (seatsRes.success) {
-          setSeatsList(seatsRes.data || []);
-        }
-      } else { alert(res.message); }
+      let matchingTickets = [seatManagerTicket];
+      if (applySeatToAll) {
+         if (managingEvent && ticketTypes) {
+           matchingTickets = ticketTypes.filter(t => t.name === seatManagerTicket.name);
+         }
+      }
+      
+      let sCount = 0;
+      let fCount = 0;
+      for (const tt of matchingTickets) {
+        const res = await apiRequest(`/events/my-events/ticket-types/${tt.id}/seats/generate`, {
+          method: 'POST',
+          body: JSON.stringify({ rows: Number(seatConfig.rows), cols: Number(seatConfig.cols) })
+        });
+        if (res.success) sCount++; else fCount++;
+      }
+      
+      alert(matchingTickets.length > 1 ? `Đã tạo sơ đồ cho ${sCount} loại vé (Lỗi: ${fCount})` : 'Đã tạo sơ đồ ghế');
+      
+      const seatsRes = await apiRequest(`/seats?ticketTypeId=${seatManagerTicket.id}`);
+      if (seatsRes.success) {
+        setSeatsList(seatsRes.data || []);
+        setSeatManagerTicket(prev => ({ ...prev, seatCount: seatsRes.data.length }));
+      }
     } catch (e) { alert('Lỗi tạo ghế'); }
     finally { setSeatLoading(false); }
   };
@@ -617,32 +671,81 @@ export default function AgencyDashboard() {
       {ticketTypes.length === 0 ? (
         <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>Sự kiện chưa có vé nào.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-              <th style={{ padding: '10px 0', color: '#4a5568' }}>Ngày</th>
-              <th style={{ padding: '10px 0', color: '#4a5568' }}>Tên vé</th>
-              <th style={{ padding: '10px 0', color: '#4a5568' }}>Giá</th>
-              <th style={{ padding: '10px 0', color: '#4a5568' }}>Số lượng</th>
-              <th style={{ padding: '10px 0', color: '#4a5568', textAlign: 'right' }}>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ticketTypes.map(t => (
-              <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '10px 0', fontWeight: 600 }}>{t.eventDate ? new Date(t.eventDate).toLocaleDateString('vi-VN') : 'Mặc định'}</td>
-                <td style={{ padding: '10px 0', fontWeight: 600 }}>{t.name}</td>
-                <td style={{ padding: '10px 0', color: '#0ea5e9', fontWeight: 600 }}>{Number(t.price).toLocaleString('vi-VN')} đ</td>
-                <td style={{ padding: '10px 0' }}>{t.totalQuantity} (Còn {t.availableQuantity})</td>
-                <td style={{ padding: '10px 0', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button type="button" onClick={() => openSeatManager(t)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Tạo ghế</button>
-                  <button type="button" onClick={() => { setSeatManagerTicket(null); setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity, eventDate: t.eventDate || '' }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
-                  <button type="button" onClick={() => deleteTicketType(t.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ marginTop: '1rem' }}>
+          {(() => {
+            const groupTicketsByDate = (tickets) => {
+              if (!tickets) return {};
+              const grouped = {};
+              tickets.forEach(tt => {
+                let dateStr = 'Mặc định';
+                if (tt.eventDate) {
+                  const d = parseDateSafe(tt.eventDate);
+                  if (d && !isNaN(d)) {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    dateStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+                  }
+                }
+                if (!grouped[dateStr]) grouped[dateStr] = [];
+                grouped[dateStr].push(tt);
+              });
+              return grouped;
+            };
+            const grouped = groupTicketsByDate(ticketTypes);
+            
+            // Sort dates
+            const sortedDates = Object.keys(grouped).sort((a, b) => {
+              if (a === 'Mặc định') return -1;
+              if (b === 'Mặc định') return 1;
+              const [d1, m1, y1] = a.split('/');
+              const [d2, m2, y2] = b.split('/');
+              return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
+            });
+
+            return sortedDates.map(dateStr => {
+              const tickets = grouped[dateStr];
+              const isExpanded = expandedTicketGroups[`agency_${dateStr}`] || false;
+              return (
+                <div key={dateStr} style={{ marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div 
+                    style={{ padding: '1rem', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => setExpandedTicketGroups(prev => ({ ...prev, [`agency_${dateStr}`]: !isExpanded }))}
+                  >
+                    <strong style={{ fontSize: '1.05rem', color: '#0f172a' }}>{dateStr !== 'Mặc định' ? `Ngày áp dụng: ${dateStr}` : 'Vé chung (Không chỉ định ngày)'}</strong>
+                    <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600 }}>{tickets.length} loại vé {isExpanded ? '▲' : '▼'}</span>
+                  </div>
+                  {isExpanded && (
+                    <div style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', background: '#fcfcfc' }}>
+                            <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Tên vé</th>
+                            <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Giá</th>
+                            <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Số lượng</th>
+                            <th style={{ padding: '10px 1rem', color: '#4a5568', textAlign: 'right' }}>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tickets.map(t => (
+                            <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '10px 1rem', fontWeight: 600 }}>{t.name}</td>
+                              <td style={{ padding: '10px 1rem', color: '#0ea5e9', fontWeight: 600 }}>{Number(t.price).toLocaleString('vi-VN')} đ</td>
+                              <td style={{ padding: '10px 1rem' }}>{t.totalQuantity} (Còn {t.availableQuantity})</td>
+                              <td style={{ padding: '10px 1rem', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button type="button" onClick={() => openSeatManager(t)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Tạo ghế</button>
+                                <button type="button" onClick={() => { setSeatManagerTicket(null); setTicketForm({ id: t.id, name: t.name, price: t.price, totalQuantity: t.totalQuantity, eventDate: t.eventDate || '' }); setShowTicketForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Sửa</button>
+                                <button type="button" onClick={() => deleteTicketType(t.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
+        </div>
       )}
 
       {/* Seat Manager UI */}
@@ -654,16 +757,25 @@ export default function AgencyDashboard() {
           <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '1rem' }}>
             Số lượng ghế hiện tại trong hệ thống: <strong style={{ color: '#10b981', fontSize: '1rem' }}>{seatManagerTicket.seatCount}</strong> ghế.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={s.label}>Số hàng ghế</label>
-              <input style={s.input} type="number" min="1" max="50" value={seatConfig.rows} onChange={e => setSeatConfig({...seatConfig, rows: e.target.value})} />
-            </div>
-            <div>
-              <label style={s.label}>Số ghế mỗi hàng</label>
-              <input style={s.input} type="number" min="1" max="50" value={seatConfig.cols} onChange={e => setSeatConfig({...seatConfig, cols: e.target.value})} />
+          
+          <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none', marginBottom: '1rem', padding: '0.75rem', background: '#e0e7ff', borderRadius: 8, color: '#3730a3', fontWeight: 500, fontSize: '0.9rem' }}>
+              <input type="checkbox" checked={applySeatToAll} onChange={e => setApplySeatToAll(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
+              Đồng thời áp dụng cấu hình này cho tất cả các ngày của loại vé "{seatManagerTicket.name}"
+            </label>
+            <p style={{ fontWeight: 700, fontSize: '0.88rem', margin: '0 0 1rem' }}>Cấu hình sơ đồ hàng & cột</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={s.label}>Số hàng ghế</label>
+                <input style={s.input} type="number" min="1" max="50" value={seatConfig.rows} onChange={e => setSeatConfig({...seatConfig, rows: e.target.value})} />
+              </div>
+              <div>
+                <label style={s.label}>Số ghế mỗi hàng</label>
+                <input style={s.input} type="number" min="1" max="50" value={seatConfig.cols} onChange={e => setSeatConfig({...seatConfig, cols: e.target.value})} />
+              </div>
             </div>
           </div>
+
           <div style={{ background: '#fffbeb', color: '#d97706', padding: '10px', borderRadius: 8, fontSize: '0.8rem', marginBottom: '1rem', border: '1px solid #fde68a' }}>
             <strong>Lưu ý:</strong> Hành động này sẽ xóa toàn bộ ghế cũ của loại vé này và tạo lại sơ đồ ghế mới. Sẽ tạo ra tổng cộng {Number(seatConfig.rows) * Number(seatConfig.cols)} ghế mới.
           </div>
@@ -1716,6 +1828,19 @@ export default function AgencyDashboard() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 99999,
+          background: toast.type === 'error' ? '#ef4444' : '#10b981',
+          color: 'white', padding: '12px 24px', borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontWeight: 600, fontSize: '0.9rem',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          {toast.type === 'error' ? '⚠️' : '✅'} {toast.message}
         </div>
       )}
     </>

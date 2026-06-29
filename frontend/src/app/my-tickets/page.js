@@ -8,7 +8,7 @@ import { useTranslation } from '@/context/TranslationContext';
 
 const calculateTicketTimeLeft = (createdAt) => {
   if (!createdAt) return '00:00';
-  const expireTime = new Date(createdAt).getTime() + 15 * 60000;
+  const expireTime = new Date(createdAt).getTime() + 10 * 60000;
   const now = new Date().getTime();
   const diff = expireTime - now;
   if (diff <= 0) return '00:00';
@@ -48,8 +48,32 @@ export default function MyTicketsPage() {
     const userInfo = getUser();
     if (userInfo) setUser(userInfo);
     
+    const params = new URLSearchParams(window.location.search);
+    const viewMode = params.get('view');
+    if (viewMode === 'tickets') {
+      setActiveTab('SUCCESS');
+    } else {
+      setActiveTab('ALL');
+    }
+
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const viewMode = params.get('view');
+      
+      if (viewMode === 'tickets') {
+        const latestSuccess = orders.find(o => o.paymentStatus === 'PAID');
+        if (latestSuccess) {
+          setExpandedOrderIds([latestSuccess.id]);
+        }
+      } else {
+        setExpandedOrderIds([]);
+      }
+    }
+  }, [orders]);
 
   const loadOrders = async () => {
     try {
