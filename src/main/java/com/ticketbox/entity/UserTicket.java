@@ -40,6 +40,9 @@ public class UserTicket {
     @Column(name = "checkin_time")
     private LocalDateTime checkinTime;
 
+    @Column(name = "checkout_time")
+    private LocalDateTime checkoutTime;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seat_id")
     private Seat seat;

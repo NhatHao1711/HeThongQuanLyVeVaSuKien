@@ -11,7 +11,6 @@ import com.ticketbox.repository.SeatRepository;
 import com.ticketbox.repository.TicketTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,7 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final TicketTypeRepository ticketTypeRepository;
-    private final StringRedisTemplate redisTemplate;
+    private final SeatHoldService seatHoldService;
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
     private final AdvancedSeatFinderService advancedSeatFinderService;
 
@@ -42,7 +41,7 @@ public class SeatService {
             // If it's available in DB, check if it's locked in Redis or has a pending order
             if (seat.getStatus() == SeatStatus.AVAILABLE) {
                 String lockKey = SEAT_LOCK_PREFIX + seat.getId();
-                String existingLockUser = redisTemplate.opsForValue().get(lockKey);
+                String existingLockUser = seatHoldService.getLockOwner(seat.getId());
                 
                 boolean isLockedBySomeoneElse = existingLockUser != null && (currentUserId == null || !existingLockUser.equals(currentUserId.toString()));
                 
@@ -73,7 +72,7 @@ public class SeatService {
             }
             
             String lockKey = SEAT_LOCK_PREFIX + seatId;
-            String existingLockUser = redisTemplate.opsForValue().get(lockKey);
+            String existingLockUser = seatHoldService.getLockOwner(seatId);
             
             // If locked by someone else
             if (existingLockUser != null && !existingLockUser.equals(userId.toString())) {
@@ -84,7 +83,7 @@ public class SeatService {
         // Lock all seats
         for (Long seatId : seatIds) {
             String lockKey = SEAT_LOCK_PREFIX + seatId;
-            redisTemplate.opsForValue().set(lockKey, userId.toString(), Duration.ofMinutes(SEAT_LOCK_DURATION_MINUTES));
+            seatHoldService.holdSeat(seatId, userId, Duration.ofMinutes(SEAT_LOCK_DURATION_MINUTES));
         }
         
         log.info("User {} locked seats: {}", userId, seatIds);
@@ -94,10 +93,7 @@ public class SeatService {
         List<Long> seatIds = request.getSeatIds();
         for (Long seatId : seatIds) {
             String lockKey = SEAT_LOCK_PREFIX + seatId;
-            String existingLockUser = redisTemplate.opsForValue().get(lockKey);
-            if (existingLockUser != null && existingLockUser.equals(userId.toString())) {
-                redisTemplate.delete(lockKey);
-            }
+            seatHoldService.releaseSeatIfOwner(seatId, userId);
         }
     }
 
@@ -137,7 +133,7 @@ public class SeatService {
         for (Seat seat : allSeats) {
             if (seat.getStatus() == SeatStatus.AVAILABLE) {
                 String lockKey = SEAT_LOCK_PREFIX + seat.getId();
-                String existingLockUser = redisTemplate.opsForValue().get(lockKey);
+                String existingLockUser = seatHoldService.getLockOwner(seat.getId());
                 
                 boolean isLockedBySomeoneElse = existingLockUser != null && (currentUserId == null || !existingLockUser.equals(currentUserId.toString()));
                 boolean isPending = userTicketRepository.existsBySeatIdAndOrderPaymentStatus(seat.getId(), com.ticketbox.enums.PaymentStatus.PENDING);

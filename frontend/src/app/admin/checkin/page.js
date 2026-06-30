@@ -6,8 +6,34 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest, getUser, isLoggedIn } from '@/lib/api';
 
+const MODE_CONFIG = {
+  checkin: {
+    label: 'Check-in',
+    endpoint: '/checkin/scan',
+    action: 'CHECK_IN',
+    successTitle: 'Check-in thành công!',
+    failTitle: 'Check-in thất bại!',
+  },
+  checkout: {
+    label: 'Check-out',
+    endpoint: '/checkin/checkout',
+    action: 'CHECK_OUT',
+    successTitle: 'Check-out thành công!',
+    failTitle: 'Check-out thất bại!',
+  },
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('vi-VN', { hour12: false });
+};
+
 export default function CheckinPage() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [scanMode, setScanMode] = useState('checkin');
+  const [clock, setClock] = useState(null);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [scanning, setScanning] = useState(false);
@@ -21,10 +47,21 @@ export default function CheckinPage() {
   const processingRef = useRef(false);
   const selectedCameraIdRef = useRef('');
   const lastScannedTokenRef = useRef('');
+  const scanModeRef = useRef('checkin');
 
   useEffect(() => {
     selectedCameraIdRef.current = selectedCameraId;
   }, [selectedCameraId]);
+
+  useEffect(() => {
+    scanModeRef.current = scanMode;
+  }, [scanMode]);
+
+  useEffect(() => {
+    setClock(new Date());
+    const timer = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -45,7 +82,9 @@ export default function CheckinPage() {
   }, []);
 
   const backHref = currentUser?.role === 'ROLE_ADMIN' ? '/admin' : '/agency';
-  const backLabel = currentUser?.role === 'ROLE_ADMIN' ? 'Quản trị' : 'Kênh đại lý';
+  const backLabel = currentUser?.role === 'ROLE_ADMIN' ? 'Quản trị hệ thống' : 'Kênh đại lý';
+
+  const getModeConfig = (mode = scanModeRef.current) => MODE_CONFIG[mode] || MODE_CONFIG.checkin;
 
   const getQrConfig = () => ({
     fps: 15,
@@ -103,6 +142,9 @@ export default function CheckinPage() {
     if (!token || !token.trim() || processingRef.current) return;
     const normalizedToken = token.trim();
     if (lastScannedTokenRef.current === normalizedToken) return;
+
+    const mode = scanModeRef.current;
+    const modeConfig = getModeConfig(mode);
     lastScannedTokenRef.current = normalizedToken;
     processingRef.current = true;
     setProcessing(true);
@@ -114,24 +156,36 @@ export default function CheckinPage() {
     } catch {}
 
     try {
-      const trimmedToken = normalizedToken;
-      const res = await apiRequest('/checkin/scan', {
+      const res = await apiRequest(modeConfig.endpoint, {
         method: 'POST',
-        body: JSON.stringify({ qrToken: trimmedToken }),
+        body: JSON.stringify({ qrToken: normalizedToken }),
       });
 
+      const data = res.data || {};
+      const recordedAt = data.recordedAt || data.checkoutTime || data.checkinTime || new Date();
+      const success = !!res.success;
+
       addHistoryEntry({
-        time: new Date().toLocaleTimeString('vi-VN'),
-        message: res.success ? (res.data || res.message || 'Check-in thành công!') : (res.message || 'Check-in thất bại'),
-        success: !!res.success,
-        token: trimmedToken.substring(0, 30) + '...',
+        action: data.action || modeConfig.action,
+        actionLabel: modeConfig.label,
+        time: formatDateTime(recordedAt),
+        checkinTime: formatDateTime(data.checkinTime),
+        checkoutTime: formatDateTime(data.checkoutTime),
+        message: success ? (data.message || res.message || modeConfig.successTitle) : (res.message || modeConfig.failTitle),
+        success,
+        token: `${normalizedToken.substring(0, 30)}...`,
+        attendeeName: data.attendeeName,
+        eventTitle: data.eventTitle,
+        ticketTypeName: data.ticketTypeName,
       });
-    } catch {
+    } catch (err) {
       addHistoryEntry({
-        time: new Date().toLocaleTimeString('vi-VN'),
-        message: 'Lỗi kết nối server',
+        action: modeConfig.action,
+        actionLabel: modeConfig.label,
+        time: formatDateTime(new Date()),
+        message: err?.message || 'Lỗi kết nối server',
         success: false,
-        token: token.trim().substring(0, 30) + '...',
+        token: `${normalizedToken.substring(0, 30)}...`,
       });
     } finally {
       processingRef.current = false;
@@ -211,7 +265,9 @@ export default function CheckinPage() {
       console.error('Camera error:', err);
       await stopCamera();
       setResult({
-        time: new Date().toLocaleTimeString('vi-VN'),
+        action: getModeConfig().action,
+        actionLabel: getModeConfig().label,
+        time: formatDateTime(new Date()),
         message: getCameraErrorMessage(err),
         success: false,
       });
@@ -249,7 +305,9 @@ export default function CheckinPage() {
     } catch (err) {
       console.error('QR image scan error:', err);
       addHistoryEntry({
-        time: new Date().toLocaleTimeString('vi-VN'),
+        action: getModeConfig().action,
+        actionLabel: getModeConfig().label,
+        time: formatDateTime(new Date()),
         message: 'Không đọc được QR từ ảnh này. Hãy chọn ảnh QR rõ hơn hoặc dán mã thủ công.',
         success: false,
         token: file.name,
@@ -265,23 +323,70 @@ export default function CheckinPage() {
     setManualToken('');
   };
 
+  const activeMode = getModeConfig(scanMode);
+  const successCount = history.filter(h => h.success).length;
+
   return (
     <>
       <Navbar />
-      <main style={{ paddingTop: '80px', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
+      <main style={{ paddingTop: '48px', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
         <section className="section">
-          <div className="container" style={{ maxWidth: '700px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div className="container" style={{ maxWidth: '860px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{backLabel}</Link>
-                <span> / Quét QR Check-in</span>
+                <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 700 }}>{backLabel}</Link>
+                <span> / Xác thực vé</span>
               </div>
-              <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Quay lại</Link>
+              <Link href={backHref} style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 700 }}>
+                Quay lại
+              </Link>
             </div>
 
-            <div className="section-header">
-              <h2>Quét QR Check-in</h2>
-              <p>Dùng camera, ảnh QR, hoặc mã token để xác nhận vé</p>
+            <div className="section-header" style={{ marginBottom: '1.25rem' }}>
+              <h2>Check-in / Check-out theo thời gian thực</h2>
+              <p>Quét QR để ghi nhận giờ vào và giờ ra của từng vé trên hệ thống.</p>
+            </div>
+
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: '1rem',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              marginBottom: '1.5rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '1rem',
+              alignItems: 'center',
+            }}>
+              <div style={{ display: 'flex', gap: '0.5rem', background: '#f1f5f9', padding: 6, borderRadius: 12 }}>
+                {Object.entries(MODE_CONFIG).map(([mode, config]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setScanMode(mode)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      borderRadius: 9,
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 800,
+                      color: scanMode === mode ? '#fff' : '#334155',
+                      background: scanMode === mode ? '#00B46E' : 'transparent',
+                    }}
+                  >
+                    {config.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Thời gian hệ thống
+                </div>
+                <div style={{ color: '#0f172a', fontWeight: 900, fontSize: '1.05rem' }}>
+                  {clock ? formatDateTime(clock) : 'Đang đồng bộ...'}
+                </div>
+              </div>
             </div>
 
             <div style={{
@@ -291,17 +396,19 @@ export default function CheckinPage() {
             }}>
               {!scanning ? (
                 <div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '1rem' }}>Camera</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                    Camera {activeMode.label}
+                  </div>
                   <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-                    Nhấn nút bên dưới để mở camera và quét mã QR trên vé
+                    Chọn chế độ ở trên, sau đó mở camera và quét mã QR trên vé.
                   </p>
                   <button
                     className="btn btn-primary"
                     onClick={() => startCamera()}
                     disabled={cameraLoading}
-                    style={{ padding: '14px 32px', fontSize: '1rem', fontWeight: 700 }}
+                    style={{ padding: '14px 32px', fontSize: '1rem', fontWeight: 800 }}
                   >
-                    {cameraLoading ? 'Đang mở camera...' : 'Mở Camera & Quét QR'}
+                    {cameraLoading ? 'Đang mở camera...' : `Mở Camera & ${activeMode.label}`}
                   </button>
                 </div>
               ) : (
@@ -322,7 +429,7 @@ export default function CheckinPage() {
                   <div style={{
                     position: 'relative',
                     width: '100%',
-                    maxWidth: 400,
+                    maxWidth: 420,
                     margin: '0 auto',
                     borderRadius: 16,
                     overflow: 'hidden',
@@ -335,9 +442,9 @@ export default function CheckinPage() {
                       <div style={{
                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                         background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: '1.1rem', fontWeight: 700
+                        color: '#fff', fontSize: '1.1rem', fontWeight: 800
                       }}>
-                        Đang xử lý...
+                        Đang xác thực...
                       </div>
                     )}
                   </div>
@@ -360,20 +467,28 @@ export default function CheckinPage() {
                 borderRadius: 16, padding: '1.5rem', marginBottom: '1.5rem',
                 textAlign: 'center',
               }}>
-                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem', color: result.success ? '#16a34a' : '#dc2626', fontWeight: 900 }}>
                   {result.success ? '[Thành công]' : '[Thất bại]'}
                 </div>
                 <h3 style={{
                   color: result.success ? '#16a34a' : '#dc2626',
-                  fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.3rem'
+                  fontSize: '1.2rem', fontWeight: 900, marginBottom: '0.3rem'
                 }}>
-                  {result.success ? 'Check-in thành công!' : 'Check-in thất bại!'}
+                  {result.success ? `${result.actionLabel} thành công!` : `${result.actionLabel} thất bại!`}
                 </h3>
-                <p style={{ color: result.success ? '#15803d' : '#991b1b', fontSize: '0.95rem' }}>
+                <p style={{ color: result.success ? '#15803d' : '#991b1b', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
                   {result.message}
                 </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', marginTop: '0.8rem', textAlign: 'left' }}>
+                  {result.eventTitle && <InfoPill label="Sự kiện" value={result.eventTitle} />}
+                  {result.attendeeName && <InfoPill label="Người tham dự" value={result.attendeeName} />}
+                  {result.ticketTypeName && <InfoPill label="Loại vé" value={result.ticketTypeName} />}
+                  <InfoPill label="Ghi nhận lúc" value={result.time} />
+                  {result.checkinTime && <InfoPill label="Check-in lúc" value={result.checkinTime} />}
+                  {result.checkoutTime && <InfoPill label="Check-out lúc" value={result.checkoutTime} />}
+                </div>
                 {result.token && (
-                  <p style={{ color: '#6b7280', fontSize: '0.72rem', fontFamily: 'monospace', marginTop: '0.3rem', wordBreak: 'break-all' }}>
+                  <p style={{ color: '#6b7280', fontSize: '0.72rem', fontFamily: 'monospace', marginTop: '0.8rem', wordBreak: 'break-all' }}>
                     Token: {result.token}
                   </p>
                 )}
@@ -384,23 +499,23 @@ export default function CheckinPage() {
               background: '#fff', borderRadius: 16, padding: '1.5rem',
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem'
             }}>
-              <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.8rem' }}>Quét không cần camera</h3>
+              <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.8rem' }}>Quét không cần camera</h3>
               <label className="btn btn-outline" style={{ display: 'inline-block', marginBottom: '1rem', cursor: 'pointer' }}>
                 Tải ảnh QR lên
                 <input type="file" accept="image/*" onChange={handleImageQrScan} style={{ display: 'none' }} />
               </label>
 
-              <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.8rem' }}>
+              <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.8rem' }}>
                 Nhập mã thủ công
               </h3>
-              <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
+              <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <input
                   type="text"
                   className="input"
                   placeholder="Dán mã QR token vào đây..."
                   value={manualToken}
                   onChange={(e) => setManualToken(e.target.value)}
-                  style={{ flex: 1, fontSize: '0.9rem' }}
+                  style={{ flex: '1 1 260px', fontSize: '0.9rem' }}
                 />
                 <button
                   type="submit"
@@ -408,7 +523,7 @@ export default function CheckinPage() {
                   disabled={processing || !manualToken.trim()}
                   style={{ whiteSpace: 'nowrap' }}
                 >
-                  Check-in
+                  {activeMode.label}
                 </button>
               </form>
             </div>
@@ -419,28 +534,38 @@ export default function CheckinPage() {
                 boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>Lịch sử check-in</h3>
+                  <h3 style={{ fontWeight: 900, fontSize: '1.05rem' }}>Lịch sử xác thực vé</h3>
                   <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    {history.filter(h => h.success).length} / {history.length} thành công
+                    {successCount} / {history.length} thành công
                   </span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '360px', overflow: 'auto' }}>
                   {history.map((item, index) => (
-                    <div key={index} style={{
+                    <div key={`${item.time}-${index}`} style={{
                       display: 'flex', alignItems: 'center', gap: '0.8rem',
-                      padding: '10px 14px', borderRadius: 10,
+                      padding: '12px 14px', borderRadius: 10,
                       background: item.success ? '#f0fdf4' : '#fef2f2',
                       border: `1px solid ${item.success ? '#bbf7d0' : '#fecaca'}`
                     }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: item.success ? '#16a34a' : '#dc2626' }}>
-                        {item.success ? 'Thành công' : 'Thất bại'}
+                      <span style={{
+                        fontSize: '0.76rem',
+                        fontWeight: 900,
+                        color: item.success ? '#16a34a' : '#dc2626',
+                        minWidth: 86,
+                      }}>
+                        {item.actionLabel}
                       </span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: item.success ? '#16a34a' : '#dc2626', margin: 0 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '0.86rem', fontWeight: 700, color: item.success ? '#16a34a' : '#dc2626', margin: 0 }}>
                           {item.message}
                         </p>
+                        {(item.attendeeName || item.eventTitle) && (
+                          <p style={{ fontSize: '0.76rem', color: '#64748b', margin: '3px 0 0' }}>
+                            {[item.attendeeName, item.eventTitle].filter(Boolean).join(' - ')}
+                          </p>
+                        )}
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.time}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.time}</span>
                     </div>
                   ))}
                 </div>
@@ -451,5 +576,18 @@ export default function CheckinPage() {
       </main>
       <Footer />
     </>
+  );
+}
+
+function InfoPill({ label, value }) {
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px' }}>
+      <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: 800, wordBreak: 'break-word' }}>
+        {value || 'Chưa có dữ liệu'}
+      </div>
+    </div>
   );
 }

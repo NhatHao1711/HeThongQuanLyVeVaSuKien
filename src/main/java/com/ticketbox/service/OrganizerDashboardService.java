@@ -109,6 +109,8 @@ public class OrganizerDashboardService {
                 .ticketPrice(t.getTicketType().getPrice())
                 .seatNumber(t.getSeat() != null ? t.getSeat().getName() : "Khong co")
                 .checkinStatus(t.getCheckinStatus())
+                .checkinTime(t.getCheckinTime())
+                .checkoutTime(t.getCheckoutTime())
                 .purchaseDate(t.getCreatedAt())
                 .eventTitle(t.getTicketType().getEvent().getTitle())
                 .eventId(t.getTicketType().getEvent().getId())
@@ -139,7 +141,7 @@ public class OrganizerDashboardService {
 
         StringBuilder csvContent = new StringBuilder();
         csvContent.append('\ufeff');
-        csvContent.append("Ho ten,Email,So dien thoai,Loai ve,So ghe,Trang thai Check-in,Ngay mua\n");
+        csvContent.append("Ho ten,Email,So dien thoai,Loai ve,So ghe,Trang thai Check-in,Check-in luc,Check-out luc,Ngay mua\n");
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         for (UserTicket t : tickets) {
@@ -149,10 +151,12 @@ public class OrganizerDashboardService {
             String type = t.getTicketType().getName() != null ? t.getTicketType().getName().replace(",", " ") : "";
             String seat = t.getSeat() != null ? t.getSeat().getName() : "Khong co";
             String checkin = t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED";
+            String checkinTime = t.getCheckinTime() != null ? t.getCheckinTime().format(formatter) : "";
+            String checkoutTime = t.getCheckoutTime() != null ? t.getCheckoutTime().format(formatter) : "";
             String date = t.getCreatedAt() != null ? t.getCreatedAt().format(formatter) : "";
 
-            csvContent.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                    name, email, phone, type, seat, checkin, date));
+            csvContent.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                    name, email, phone, type, seat, checkin, checkinTime, checkoutTime, date));
         }
 
         return csvContent.toString();

@@ -453,6 +453,7 @@ public class AdminController {
                         tMap.put("checkinStatus",
                                 t.getCheckinStatus() != null ? t.getCheckinStatus().name() : "UNUSED");
                         tMap.put("checkinTime", t.getCheckinTime());
+                        tMap.put("checkoutTime", t.getCheckoutTime());
                         if (t.getTicketType() != null) {
                             tMap.put("ticketTypeName", t.getTicketType().getName());
                             tMap.put("ticketPrice", t.getTicketType().getPrice());

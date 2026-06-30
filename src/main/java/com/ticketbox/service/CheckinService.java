@@ -1,5 +1,6 @@
 package com.ticketbox.service;
 
+import com.ticketbox.dto.response.CheckinScanResponse;
 import com.ticketbox.entity.UserTicket;
 import com.ticketbox.enums.AgencyStatus;
 import com.ticketbox.enums.CheckinStatus;
@@ -7,8 +8,9 @@ import com.ticketbox.enums.UserRole;
 import com.ticketbox.exception.BadRequestException;
 import com.ticketbox.exception.InvalidQRTokenException;
 import com.ticketbox.exception.ResourceNotFoundException;
-import com.ticketbox.repository.UserTicketRepository;
 import com.ticketbox.repository.UserRepository;
+import com.ticketbox.repository.UserTicketRepository;
+import com.ticketbox.security.CustomUserDetails;
 import com.ticketbox.util.AESUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,18 +21,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import com.ticketbox.security.CustomUserDetails;
 
-/**
- * CheckinService - Nhiệm vụ C: QR Check-in bảo mật
- *
- * Flow:
- * 1. Giải mã AES token → "{ticketId}_{userId}_{timestamp}"
- * 2. Parse ticketId, userId
- * 3. Validate: ticket tồn tại, userId khớp, chưa checkin
- * 4. Update checkin_status = USED, checkin_time = now
- * 5. Block quét trùng lặp
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -41,32 +32,74 @@ public class CheckinService {
     private final AESUtil aesUtil;
 
     @Transactional
-    public String processCheckin(String qrToken, CustomUserDetails scanner) {
+    public CheckinScanResponse processCheckin(String qrToken, CustomUserDetails scanner) {
+        UserTicket ticket = loadValidTicket(qrToken, scanner);
+
+        if (ticket.getCheckinStatus() == CheckinStatus.USED) {
+            throw new BadRequestException("Vé đã được check-in trước đó lúc: " + ticket.getCheckinTime());
+        }
+
+        LocalDateTime recordedAt = LocalDateTime.now();
+        int updatedRows = userTicketRepository.markUsedOnce(
+                ticket.getId(),
+                CheckinStatus.USED,
+                CheckinStatus.UNUSED,
+                recordedAt);
+
+        if (updatedRows != 1) {
+            throw new BadRequestException("Vé đã được check-in bởi một thiết bị khác.");
+        }
+
+        log.info("Check-in success ticketId={}, scannerId={}, time={}", ticket.getId(), scanner.getId(), recordedAt);
+
+        return buildScanResponse(ticket, "CHECK_IN", recordedAt, null,
+                String.format("Check-in thành công! Vé #%d - %s", ticket.getId(), ticket.getTicketType().getName()));
+    }
+
+    @Transactional
+    public CheckinScanResponse processCheckout(String qrToken, CustomUserDetails scanner) {
+        UserTicket ticket = loadValidTicket(qrToken, scanner);
+
+        if (ticket.getCheckinStatus() != CheckinStatus.USED || ticket.getCheckinTime() == null) {
+            throw new BadRequestException("Vé chưa check-in, không thể check-out.");
+        }
+
+        if (ticket.getCheckoutTime() != null) {
+            throw new BadRequestException("Vé đã check-out trước đó lúc: " + ticket.getCheckoutTime());
+        }
+
+        LocalDateTime recordedAt = LocalDateTime.now();
+        int updatedRows = userTicketRepository.markCheckedOutOnce(ticket.getId(), CheckinStatus.USED, recordedAt);
+
+        if (updatedRows != 1) {
+            throw new BadRequestException("Vé đã được check-out bởi một thiết bị khác.");
+        }
+
+        log.info("Check-out success ticketId={}, scannerId={}, time={}", ticket.getId(), scanner.getId(), recordedAt);
+
+        return buildScanResponse(ticket, "CHECK_OUT", ticket.getCheckinTime(), recordedAt,
+                String.format("Check-out thành công! Vé #%d - %s", ticket.getId(), ticket.getTicketType().getName()));
+    }
+
+    private UserTicket loadValidTicket(String qrToken, CustomUserDetails scanner) {
         if (qrToken == null || qrToken.trim().isEmpty()) {
             throw new InvalidQRTokenException("QR Token không được để trống");
         }
 
         String cleanToken = normalizeQrToken(qrToken);
+        log.info("Processing QR token length={}", cleanToken.length());
 
-        log.info("🔍 Processing QR token (length={}): {}...", cleanToken.length(),
-                cleanToken.substring(0, Math.min(20, cleanToken.length())));
-
-        // 1. Giải mã AES
         String decrypted;
         try {
             decrypted = aesUtil.decrypt(cleanToken);
         } catch (Exception e) {
-            log.error("❌ AES decrypt failed for token: {}", cleanToken, e);
+            log.error("AES decrypt failed for token", e);
             throw new InvalidQRTokenException("QR Token không hợp lệ hoặc đã bị thay đổi");
         }
 
-        log.info("🔍 Decrypted QR token: {}", decrypted);
-
-        // 2. Parse: "{ticketId}_{userId}_{timestamp}"
         String[] parts = decrypted.split("_");
         if (parts.length < 2) {
-            throw new InvalidQRTokenException(
-                    "Định dạng QR Token không hợp lệ. Expected: ticketId_userId_timestamp");
+            throw new InvalidQRTokenException("Định dạng QR Token không hợp lệ");
         }
 
         Long ticketId;
@@ -78,27 +111,20 @@ public class CheckinService {
             throw new InvalidQRTokenException("QR Token chứa dữ liệu không hợp lệ");
         }
 
-        // 3. Load UserTicket
         UserTicket ticket = userTicketRepository.findById(ticketId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "UserTicket", "id", ticketId));
+                .orElseThrow(() -> new ResourceNotFoundException("UserTicket", "id", ticketId));
 
-        // 4. Validate userId matches
         if (!ticket.getUser().getId().equals(userId)) {
-            throw new BadRequestException(
-                    "QR Token không khớp với người sở hữu vé");
+            throw new BadRequestException("QR Token không khớp với người sở hữu vé");
         }
 
-        // 4.5. Validate Payment Status
         if (ticket.getOrder().getPaymentStatus() != com.ticketbox.enums.PaymentStatus.PAID) {
-            throw new BadRequestException(
-                    "Vé chưa được thanh toán, không thể check-in!");
+            throw new BadRequestException("Vé chưa được thanh toán, không thể xác thực.");
         }
 
-        // 4.8. Validate Scanner Permission
         boolean isAdmin = scanner.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        
+
         if (!isAdmin) {
             com.ticketbox.entity.User scannerUser = userRepository.findById(scanner.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", scanner.getId()));
@@ -106,31 +132,32 @@ public class CheckinService {
                     && scannerUser.getAgencyStatus() == AgencyStatus.APPROVED;
 
             if (!isApprovedOrganizer) {
-                throw new com.ticketbox.exception.BadRequestException("Bạn không có quyền check-in vé của sự kiện này");
+                throw new BadRequestException("Bạn không có quyền xác thực vé của sự kiện này");
             }
         }
 
-        // 5. Check duplicate scan (BLOCK trùng lặp)
-        if (ticket.getCheckinStatus() == CheckinStatus.USED) {
-            throw new BadRequestException(
-                    "Vé đã được sử dụng trước đó lúc: " + ticket.getCheckinTime());
-        }
+        return ticket;
+    }
 
-        // 6. Update status (Skip strict token comparison — AES decrypt success is enough)
-        int updatedRows = userTicketRepository.markUsedOnce(
-                ticketId,
-                CheckinStatus.USED,
-                CheckinStatus.UNUSED,
-                LocalDateTime.now());
-
-        if (updatedRows != 1) {
-            throw new BadRequestException("Ve da duoc check-in boi mot thiet bi khac.");
-        }
-
-        log.info("✅ Check-in SUCCESS: ticketId={}, userId={}, scannerId={}", ticketId, userId, scanner.getId());
-
-        return String.format("Check-in thành công! Vé #%d - %s",
-                ticketId, ticket.getTicketType().getName());
+    private CheckinScanResponse buildScanResponse(
+            UserTicket ticket,
+            String action,
+            LocalDateTime checkinTime,
+            LocalDateTime checkoutTime,
+            String message) {
+        return CheckinScanResponse.builder()
+                .action(action)
+                .ticketId(ticket.getId())
+                .ticketTypeName(ticket.getTicketType() != null ? ticket.getTicketType().getName() : null)
+                .eventTitle(ticket.getTicketType() != null && ticket.getTicketType().getEvent() != null
+                        ? ticket.getTicketType().getEvent().getTitle()
+                        : null)
+                .attendeeName(ticket.getUser() != null ? ticket.getUser().getFullName() : null)
+                .checkinTime(checkinTime)
+                .checkoutTime(checkoutTime)
+                .recordedAt("CHECK_OUT".equals(action) ? checkoutTime : checkinTime)
+                .message(message)
+                .build();
     }
 
     private String normalizeQrToken(String rawToken) {
