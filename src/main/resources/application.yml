@@ -32,7 +32,6 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password:
 
   # ===================== RABBITMQ =====================
   rabbitmq:
@@ -91,3 +90,9 @@ logging:
   level:
     com.ticketbox: DEBUG
     org.springframework.security: DEBUG
+
+  # ===================== APP CONFIG =====================
+  frontend:
+    url: http://localhost:3000
+  backend:
+    url: http://localhost:8080

@@ -123,8 +123,8 @@ public class PaymentService {
             description = description.substring(0, 25);
         }
 
-        String returnUrl = "http://localhost:3000/payment-redirect?status=success";
-        String cancelUrl = "http://localhost:3000/payment-redirect?status=cancel";
+        String returnUrl = frontendUrl + "/payment-redirect?status=success";
+        String cancelUrl = frontendUrl + "/payment-redirect?status=cancel";
 
         // Create request manually to bypass buggy PayOS SDK 1.0.3 response verification
         Map<String, Object> body = new HashMap<>();

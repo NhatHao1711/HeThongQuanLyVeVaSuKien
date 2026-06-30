@@ -9,6 +9,7 @@ export default function SplitPaymentModal({ orderId, onClose }) {
   
   const [myPayOSUrl, setMyPayOSUrl] = useState('');
   const [activeLinkCode, setActiveLinkCode] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [myPayOSLoading, setMyPayOSLoading] = useState(false);
   const [qrStartTime, setQrStartTime] = useState(0);
   const [timeLeft, setTimeLeft] = useState(600);
@@ -49,9 +50,11 @@ export default function SplitPaymentModal({ orderId, onClose }) {
     if (activeLinkCode && data?.links) {
       const link = data.links.find(l => l.paymentLinkCode === activeLinkCode);
       if (link && link.status === 'PAID') {
-        alert('🎉 Thanh toán thành công! Vé đã được kích hoạt.');
+        setSuccessMessage('🎉 Thanh toán thành công! Vé đã được kích hoạt.');
         setMyPayOSUrl('');
         setActiveLinkCode('');
+        
+        setTimeout(() => setSuccessMessage(''), 5000);
       }
     }
   }, [data, activeLinkCode]);
@@ -152,6 +155,17 @@ export default function SplitPaymentModal({ orderId, onClose }) {
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>×</button>
         </div>
+
+        {/* Local Success Message */}
+        {successMessage && (
+          <div style={{ background: '#ecfdf5', border: '1px solid #34d399', color: '#065f46', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <div style={{ background: '#10b981', color: '#fff', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+              <span style={{ fontWeight: 600 }}>{successMessage}</span>
+            </div>
+            <button onClick={() => setSuccessMessage('')} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#059669', lineHeight: 1 }}>×</button>
+          </div>
+        )}
 
         {/* Success Banner */}
         {isCompleted && (

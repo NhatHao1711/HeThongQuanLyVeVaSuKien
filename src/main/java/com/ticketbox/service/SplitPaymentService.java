@@ -35,6 +35,9 @@ public class SplitPaymentService {
     private final PaymentService paymentService;
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
 
+    @Value("${frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
     @Value("${payos.client-id}")
     private String clientId;
 
@@ -192,8 +195,8 @@ public class SplitPaymentService {
             description = description.substring(0, 25);
         }
 
-        String returnUrl = "http://localhost:3000/split-payment/pay/" + paymentLinkCode + "?status=success";
-        String cancelUrl = "http://localhost:3000/split-payment/pay/" + paymentLinkCode + "?status=cancel";
+        String returnUrl = frontendUrl + "/split-payment/pay/" + paymentLinkCode + "?status=success";
+        String cancelUrl = frontendUrl + "/split-payment/pay/" + paymentLinkCode + "?status=cancel";
 
         Map<String, Object> body = new HashMap<>();
         body.put("orderCode", orderCode);
