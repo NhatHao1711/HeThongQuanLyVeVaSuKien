@@ -76,6 +76,11 @@ public class TicketFulfillmentService {
                 com.ticketbox.entity.Event event = ticketType.getEvent();
                 com.ticketbox.entity.Order order = tickets.get(0).getOrder();
                 
+                java.util.List<String> qrTokens = tickets.stream()
+                    .map(com.ticketbox.entity.UserTicket::getQrToken)
+                    .filter(token -> token != null && !token.isBlank())
+                    .toList();
+
                 emailService.sendBookingConfirmation(
                     user.getEmail(),
                     user.getFullName(),
@@ -84,7 +89,7 @@ public class TicketFulfillmentService {
                     tickets.size(),
                     order.getTotalAmount(),
                     order.getTransactionRef(),
-                    tickets.get(0).getQrToken()
+                    qrTokens
                 );
             } catch (Exception e) {
                 log.warn("⚠️ Failed to send fulfillment email: {}", e.getMessage());

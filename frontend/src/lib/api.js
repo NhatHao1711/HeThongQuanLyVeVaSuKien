@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:8080/api';
+export const API_BASE = '/api';
 
 export async function apiRequest(endpoint, options = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -17,7 +17,7 @@ export async function apiRequest(endpoint, options = {}) {
     const res = await fetch(`${API_BASE}${endpoint}`, config);
 
     // Auto-logout on 401/403 (expired/invalid token)
-    if (res.status === 401 || res.status === 403) {
+    if ((res.status === 401 || res.status === 403) && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
       // Only auto-logout if user had a token (was logged in)
       if (token) {
         console.warn('Token expired or invalid. Logging out...');

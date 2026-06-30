@@ -72,8 +72,11 @@ public class TicketService {
         byte[] qrCode = null;
         String qrToken = null;
 
+        boolean isPaid = ticket.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID || 
+                         (ticket.getSubPayment() != null && ticket.getSubPayment().getStatus() == com.ticketbox.enums.PaymentStatus.PAID);
+
         // Chỉ hiển thị QR code nếu đã thanh toán
-        if (ticket.getOrder().getPaymentStatus() == com.ticketbox.enums.PaymentStatus.PAID) {
+        if (isPaid) {
             if (ticket.getQrToken() == null || ticket.getQrToken().isBlank()) {
                 ticket.setQrToken(aesUtil.generateQrTokenContent(ticket.getId(), ticket.getUser().getId()));
                 userTicketRepository.save(ticket);

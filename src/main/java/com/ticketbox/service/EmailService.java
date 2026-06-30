@@ -47,7 +47,7 @@ public class EmailService {
     public void sendBookingConfirmation(String toEmail, String fullName,
                                          String eventTitle, String ticketTypeName,
                                          int quantity, BigDecimal totalAmount,
-                                         String transactionRef, String qrToken) {
+                                         String transactionRef, java.util.List<String> qrTokens) {
         if (mailSender == null) {
             log.warn("📧 Mail sender not configured. Skipping email to {}", toEmail);
             return;
@@ -69,8 +69,25 @@ public class EmailService {
             NumberFormat vndFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
             String formattedAmount = vndFormat.format(totalAmount);
 
-            // Generate ticket code from transactionRef for display
-            String ticketCode = transactionRef;
+            StringBuilder qrSectionBuilder = new StringBuilder();
+            if (qrTokens != null && !qrTokens.isEmpty()) {
+                for (int i = 0; i < qrTokens.size(); i++) {
+                    String token = qrTokens.get(i);
+                    String ticketCode = (token != null && token.length() >= 8) 
+                            ? token.substring(0, 8).toUpperCase() 
+                            : transactionRef.substring(transactionRef.length() - Math.min(8, transactionRef.length())).toUpperCase();
+                    String cid = "qrcode" + i;
+                    qrSectionBuilder.append("""
+                        <!-- QR Code Section -->
+                        <div style="text-align: center; margin: 24px 0; padding: 24px; background: #f8fafc; border-radius: 12px; border: 2px dashed #e2e8f0;">
+                          <p style="color: #4a5568; font-weight: 700; font-size: 16px; margin: 0 0 4px;">🎟 Mã vé điện tử %d</p>
+                          <p style="color: #6b7280; font-size: 13px; margin: 0 0 16px;">Đưa mã QR này cho ban tổ chức để check-in</p>
+                          <img src="cid:%s" alt="QR Code vé" style="width: 200px; height: 200px; border-radius: 8px; border: 1px solid #e2e8f0;" />
+                          <p style="color: #1a1a2e; font-family: monospace; font-weight: 800; font-size: 18px; letter-spacing: 2px; margin: 12px 0 0;">%s</p>
+                        </div>
+                    """.formatted(i + 1, cid, ticketCode));
+                }
+            }
 
             String htmlContent = """
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 0;">
@@ -130,31 +147,29 @@ public class EmailService {
                     </p>
                   </div>
                 </div>
-                """.formatted(fullName, eventTitle, ticketTypeName, quantity, formattedAmount, transactionRef, 
-                
-                (qrToken != null && !qrToken.isEmpty()) ? """
-                    <!-- QR Code Section -->
-                    <div style="text-align: center; margin: 24px 0; padding: 24px; background: #f8fafc; border-radius: 12px; border: 2px dashed #e2e8f0;">
-                      <p style="color: #4a5568; font-weight: 700; font-size: 16px; margin: 0 0 4px;">🎟 Mã vé điện tử</p>
-                      <p style="color: #6b7280; font-size: 13px; margin: 0 0 16px;">Đưa mã QR này cho ban tổ chức để check-in</p>
-                      <img src="cid:qrcode" alt="QR Code vé" style="width: 200px; height: 200px; border-radius: 8px; border: 1px solid #e2e8f0;" />
-                      <p style="color: #1a1a2e; font-family: monospace; font-weight: 800; font-size: 18px; letter-spacing: 2px; margin: 12px 0 0;">%s</p>
-                    </div>
-                """.formatted(ticketCode) : "");
+                """.formatted(fullName, eventTitle, ticketTypeName, quantity, formattedAmount, transactionRef, qrSectionBuilder.toString());
 
             helper.setText(htmlContent, true);
 
-            // Generate QR code image and attach as inline CID
-            if (qrToken != null && !qrToken.isEmpty()) {
-                byte[] qrBytes = qrCodeService.generateQRCode(qrToken, 200, 200);
-                ByteArrayResource qrResource = new ByteArrayResource(qrBytes) {
-                    @Override
-                    public String getFilename() {
-                        return "qrcode.png";
-                    }
-                };
-                helper.addInline("qrcode", qrResource, "image/png");
-                helper.addAttachment("TRIVENT_Ticket_QRCode_" + ticketCode + ".png", qrResource);
+            // Generate QR code images and attach as inline CID
+            if (qrTokens != null && !qrTokens.isEmpty()) {
+                for (int i = 0; i < qrTokens.size(); i++) {
+                    String token = qrTokens.get(i);
+                    byte[] qrBytes = qrCodeService.generateQRCode(token, 200, 200);
+                    final String filename = "qrcode" + i + ".png";
+                    ByteArrayResource qrResource = new ByteArrayResource(qrBytes) {
+                        @Override
+                        public String getFilename() {
+                            return filename;
+                        }
+                    };
+                    helper.addInline("qrcode" + i, qrResource, "image/png");
+                    
+                    String ticketCode = (token != null && token.length() >= 8) 
+                            ? token.substring(0, 8).toUpperCase() 
+                            : transactionRef.substring(transactionRef.length() - Math.min(8, transactionRef.length())).toUpperCase();
+                    helper.addAttachment("TRIVENT_Ticket_QRCode_" + ticketCode + ".png", qrResource);
+                }
             }
 
             mailSender.send(message);

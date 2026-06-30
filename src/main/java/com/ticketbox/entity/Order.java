@@ -48,6 +48,14 @@ public class Order {
     @Builder.Default
     private List<UserTicket> userTickets = new ArrayList<>();
 
+    @Column(name = "is_split_payment", nullable = false)
+    @Builder.Default
+    private boolean isSplitPayment = false;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<SubPayment> subPayments = new ArrayList<>();
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

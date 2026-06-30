@@ -22,6 +22,19 @@ import { TranslationProvider } from '@/context/TranslationContext';
 export default function RootLayout({ children }) {
   return (
     <html lang="vi" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.zaloJSV2 = window.zaloJSV2 || {}; 
+          window.ZaloPay = window.ZaloPay || {};
+          window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('zaloJSV2')) {
+              e.preventDefault();
+              e.stopPropagation();
+              return true;
+            }
+          }, true);
+        ` }} />
+      </head>
       <body className={beVietnamPro.className} suppressHydrationWarning>
         <TranslationProvider>
           {children}

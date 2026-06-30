@@ -500,6 +500,11 @@ public class AdminController {
                 var ticketType = firstTicket.getTicketType();
                 var event = ticketType.getEvent();
 
+                java.util.List<String> qrTokens = tickets.stream()
+                        .map(com.ticketbox.entity.UserTicket::getQrToken)
+                        .filter(token -> token != null && !token.isBlank())
+                        .toList();
+
                 emailService.sendBookingConfirmation(
                         user.getEmail(),
                         user.getFullName(),
@@ -508,7 +513,7 @@ public class AdminController {
                         tickets.size(),
                         order.getTotalAmount(),
                         order.getTransactionRef(),
-                        firstTicket.getQrToken());
+                        qrTokens);
                 log.info("📧 Payment confirmation email sent to {} for order #{}", user.getEmail(), order.getId());
             }
         } catch (Exception e) {

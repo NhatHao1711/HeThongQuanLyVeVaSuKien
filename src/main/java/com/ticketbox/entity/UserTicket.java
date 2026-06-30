@@ -40,6 +40,10 @@ public class UserTicket {
     @Column(name = "checkin_time")
     private LocalDateTime checkinTime;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_payment_id")
+    private SubPayment subPayment;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seat_id")
     private Seat seat;
