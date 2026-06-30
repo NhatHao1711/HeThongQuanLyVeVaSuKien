@@ -44,6 +44,9 @@ public class UserTicket {
     @JoinColumn(name = "sub_payment_id")
     private SubPayment subPayment;
 
+    @Column(name = "checkout_time")
+    private LocalDateTime checkoutTime;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seat_id")
     private Seat seat;

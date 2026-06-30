@@ -103,6 +103,13 @@ public class DataInitializer implements CommandLineRunner {
                 log.warn("⚠️ Không thể fix column status: {}", ex.getMessage());
             }
 
+            try {
+                jdbcTemplate.execute("ALTER TABLE user_tickets ADD COLUMN IF NOT EXISTS checkout_time DATETIME NULL");
+                log.info("Da dong bo cot checkout_time cho bang user_tickets.");
+            } catch (Exception ex) {
+                log.warn("Khong the dong bo cot checkout_time: {}", ex.getMessage());
+            }
+
             // Kiểm tra xem bảng events đã có dữ liệu chưa
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM events", Integer.class);

@@ -976,6 +976,63 @@ export default function AgencyDashboard() {
     });
   };
 
+  const formatScanDateTime = (value) => {
+    const d = parseDateSafe(value);
+    if (!d || isNaN(d)) return 'Chưa có';
+    return d.toLocaleString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const getAttendanceTimeline = () => {
+    return customers
+      .flatMap((customer) => {
+        const base = {
+          customerName: customer.customerName || 'Khách hàng',
+          customerEmail: customer.customerEmail || '',
+          eventTitle: customer.eventTitle || 'Sự kiện',
+          ticketTypeName: customer.ticketTypeName || 'Vé',
+        };
+        return [
+          customer.checkinTime ? {
+            ...base,
+            type: 'CHECK_IN',
+            label: 'Check-in',
+            time: customer.checkinTime,
+            sortTime: parseDateSafe(customer.checkinTime)?.getTime() || 0,
+          } : null,
+          customer.checkoutTime ? {
+            ...base,
+            type: 'CHECK_OUT',
+            label: 'Check-out',
+            time: customer.checkoutTime,
+            sortTime: parseDateSafe(customer.checkoutTime)?.getTime() || 0,
+          } : null,
+        ].filter(Boolean);
+      })
+      .sort((a, b) => b.sortTime - a.sortTime);
+  };
+
+  const getCheckTimeSummary = () => {
+    const timeline = getAttendanceTimeline();
+    const checkins = timeline.filter((item) => item.type === 'CHECK_IN');
+    const checkouts = timeline.filter((item) => item.type === 'CHECK_OUT');
+    const currentlyInside = customers.filter((customer) => customer.checkinTime && !customer.checkoutTime).length;
+    return {
+      timeline,
+      checkinCount: checkins.length,
+      checkoutCount: checkouts.length,
+      latestCheckin: checkins[0] || null,
+      latestCheckout: checkouts[0] || null,
+      currentlyInside,
+    };
+  };
+
   const renderDailySalesChart = () => {
     if (!dashboardStats) return null;
 
@@ -1490,6 +1547,78 @@ export default function AgencyDashboard() {
               </div>
 
               {(() => {
+                const checkTimeSummary = getCheckTimeSummary();
+                const timeline = checkTimeSummary.timeline.slice(0, 8);
+                return (
+                  <div style={{ ...s.card, padding: '1.5rem', margin: '0 0 1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                      <div>
+                        <div style={s.panelLabel}>Xác thực realtime</div>
+                        <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.15rem', fontWeight: 850 }}>Khung giờ quét check-in / check-out</h3>
+                        <p style={{ margin: '0.45rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>Mỗi lần quét thành công sẽ ghi lại đúng thời điểm vào/ra của từng vé.</p>
+                      </div>
+                      <span style={{ ...s.badge('#ecfdf5', '#047857'), padding: '8px 12px' }}>
+                        Đang trong sự kiện: {checkTimeSummary.currentlyInside}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                      <div style={{ padding: '1rem', border: '1px solid #dbeafe', borderRadius: 14, background: '#eff6ff' }}>
+                        <div style={{ fontSize: '0.76rem', color: '#2563eb', fontWeight: 850, textTransform: 'uppercase' }}>Khung giờ check-in mới nhất</div>
+                        <div style={{ marginTop: 8, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>
+                          {checkTimeSummary.latestCheckin ? formatScanDateTime(checkTimeSummary.latestCheckin.time) : 'Chưa có lượt check-in'}
+                        </div>
+                        <div style={{ marginTop: 6, color: '#64748b', fontSize: '0.84rem', fontWeight: 700 }}>Tổng check-in: {checkTimeSummary.checkinCount}</div>
+                      </div>
+                      <div style={{ padding: '1rem', border: '1px solid #dcfce7', borderRadius: 14, background: '#f0fdf4' }}>
+                        <div style={{ fontSize: '0.76rem', color: '#047857', fontWeight: 850, textTransform: 'uppercase' }}>Khung giờ check-out mới nhất</div>
+                        <div style={{ marginTop: 8, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>
+                          {checkTimeSummary.latestCheckout ? formatScanDateTime(checkTimeSummary.latestCheckout.time) : 'Chưa có lượt check-out'}
+                        </div>
+                        <div style={{ marginTop: 6, color: '#64748b', fontSize: '0.84rem', fontWeight: 700 }}>Tổng check-out: {checkTimeSummary.checkoutCount}</div>
+                      </div>
+                    </div>
+
+                    {timeline.length === 0 ? (
+                      <div style={{ padding: '1rem', border: '1px dashed #cbd5e1', borderRadius: 12, color: '#64748b', fontWeight: 750, textAlign: 'center' }}>
+                        Chưa có nhật ký quét. Khi quét QR thành công, giờ check-in/check-out sẽ hiện tại đây.
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Thời gian quét</th>
+                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Trạng thái</th>
+                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Khách hàng</th>
+                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Sự kiện</th>
+                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Loại vé</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {timeline.map((item, idx) => (
+                              <tr key={`${item.type}-${idx}-${item.sortTime}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '12px 10px', fontWeight: 850, color: '#0f172a', whiteSpace: 'nowrap' }}>{formatScanDateTime(item.time)}</td>
+                                <td style={{ padding: '12px 10px' }}>
+                                  <span style={s.badge(item.type === 'CHECK_IN' ? '#dcfce7' : '#dbeafe', item.type === 'CHECK_IN' ? '#047857' : '#2563eb')}>{item.label}</span>
+                                </td>
+                                <td style={{ padding: '12px 10px' }}>
+                                  <div style={{ fontWeight: 800 }}>{item.customerName}</div>
+                                  <div style={{ color: '#64748b', fontSize: '0.78rem' }}>{item.customerEmail}</div>
+                                </td>
+                                <td style={{ padding: '12px 10px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.eventTitle}</td>
+                                <td style={{ padding: '12px 10px', fontWeight: 750 }}>{item.ticketTypeName}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {(() => {
                 const sold = Number(dashboardStats?.ticketsSold || 0);
                 const checked = Number(dashboardStats?.checkedInTickets || 0);
                 const total = Math.max(sold, checked, 1);
@@ -1628,6 +1757,8 @@ export default function AgencyDashboard() {
                         <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Vé</th>
                         <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Ghế</th>
                         <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Check-in</th>
+                        <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Giờ check-in</th>
+                        <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Giờ check-out</th>
                         <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Ngày mua</th>
                       </tr>
                     </thead>
@@ -1646,6 +1777,8 @@ export default function AgencyDashboard() {
                               c.checkinStatus === 'USED' ? '#10b981' : '#64748b'
                             )}>{c.checkinStatus}</span>
                           </td>
+                          <td style={{ padding: '12px 10px', color: '#0f172a', whiteSpace: 'nowrap', fontWeight: 700 }}>{formatScanDateTime(c.checkinTime)}</td>
+                          <td style={{ padding: '12px 10px', color: '#0f172a', whiteSpace: 'nowrap', fontWeight: 700 }}>{formatScanDateTime(c.checkoutTime)}</td>
                           <td style={{ padding: '12px 10px', color: '#64748b' }}>
                             {c.purchaseDate ? new Date(c.purchaseDate).toLocaleDateString('vi-VN') : ''}
                           </td>

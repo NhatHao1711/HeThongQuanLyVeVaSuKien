@@ -20,8 +20,6 @@ import com.ticketbox.repository.UserTicketRepository;
 import com.ticketbox.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,8 +28,10 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import java.util.concurrent.locks.ReentrantLock;
 import com.ticketbox.repository.SeatRepository;
 import com.ticketbox.entity.Seat;
 import com.ticketbox.enums.SeatStatus;
@@ -58,18 +58,16 @@ public class TicketBookingService {
     private final OrderRepository orderRepository;
     private final UserTicketRepository userTicketRepository;
     private final UserRepository userRepository;
-    private final RedissonClient redissonClient;
     private final com.ticketbox.util.AESUtil aesUtil;
     private final EmailService emailService;
     private final VoucherRepository voucherRepository;
     private final SeatRepository seatRepository;
-    private final StringRedisTemplate redisTemplate;
+    private final SeatHoldService seatHoldService;
     private final TransactionTemplate transactionTemplate;
 
-    private static final String LOCK_PREFIX = "lock:ticket:";
     private static final String SEAT_LOCK_PREFIX = "seat:lock:";
     private static final long LOCK_WAIT_TIME = 5;  // seconds to wait for lock
-    private static final long LOCK_LEASE_TIME = 10; // seconds lock auto-release
+    private static final ConcurrentMap<Long, ReentrantLock> TICKET_LOCKS = new ConcurrentHashMap<>();
 
     public BookingResponse bookTicket(Long userId, BookingRequest request) {
         Long ticketTypeId = request.getTicketTypeId();
@@ -82,12 +80,12 @@ public class TicketBookingService {
             }
         }
 
-        // 1. Acquire Distributed Lock
-        String lockKey = LOCK_PREFIX + ticketTypeId;
-        RLock lock = redissonClient.getLock(lockKey);
+        // 1. Acquire a per-ticket-type lock for local development.
+        ReentrantLock lock = TICKET_LOCKS.computeIfAbsent(ticketTypeId, id -> new ReentrantLock());
+        boolean isLocked = false;
 
         try {
-            boolean isLocked = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS);
+            isLocked = lock.tryLock(LOCK_WAIT_TIME, TimeUnit.SECONDS);
 
             if (!isLocked) {
                 throw new BadRequestException(
@@ -123,8 +121,7 @@ public class TicketBookingService {
                         if (seat.getStatus() == SeatStatus.BOOKED) {
                             throw new BadRequestException("Ghế " + seat.getName() + " đã được đặt.");
                         }
-                        String seatLockKey = SEAT_LOCK_PREFIX + seatId;
-                        String lockUser = redisTemplate.opsForValue().get(seatLockKey);
+                        String lockUser = seatHoldService.getLockOwner(seatId);
                         if (lockUser == null || !lockUser.equals(userId.toString())) {
                             throw new BadRequestException("Ghế " + seat.getName() + " chưa được bạn giữ hoặc đã hết hạn giữ chỗ.");
                         }
@@ -188,8 +185,8 @@ public class TicketBookingService {
                     if (!bookingSeats.isEmpty() && i < bookingSeats.size()) {
                         seat = bookingSeats.get(i);
                         // Do not modify seat status here, keep it AVAILABLE.
-                        // Clear Redis lock immediately since it is now protected by the PENDING order
-                        redisTemplate.delete(SEAT_LOCK_PREFIX + seat.getId());
+                        // Clear the temporary hold immediately since it is now protected by the PENDING order
+                        seatHoldService.releaseSeat(seat.getId());
                     }
 
                     UserTicket ticket = UserTicket.builder()
@@ -229,7 +226,7 @@ public class TicketBookingService {
             throw new BadRequestException("Bị gián đoạn khi chờ xử lý đặt vé");
         } finally {
             // 8. Release lock
-            if (lock.isHeldByCurrentThread()) {
+            if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
                 log.info("🔓 Released lock for ticketTypeId={}", ticketTypeId);
             }

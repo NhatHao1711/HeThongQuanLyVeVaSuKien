@@ -29,4 +29,10 @@ public interface UserTicketRepository extends JpaRepository<UserTicket, Long> {
                      @org.springframework.data.repository.query.Param("usedStatus") CheckinStatus usedStatus,
                      @org.springframework.data.repository.query.Param("unusedStatus") CheckinStatus unusedStatus,
                      @org.springframework.data.repository.query.Param("checkinTime") LocalDateTime checkinTime);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE UserTicket ut SET ut.checkoutTime = :checkoutTime WHERE ut.id = :ticketId AND ut.checkinStatus = :usedStatus AND ut.checkoutTime IS NULL")
+    int markCheckedOutOnce(@org.springframework.data.repository.query.Param("ticketId") Long ticketId,
+                           @org.springframework.data.repository.query.Param("usedStatus") CheckinStatus usedStatus,
+                           @org.springframework.data.repository.query.Param("checkoutTime") LocalDateTime checkoutTime);
 }
