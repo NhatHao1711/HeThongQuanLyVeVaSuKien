@@ -23,6 +23,9 @@ import java.util.List;
 @Slf4j
 public class OrderCleanupService {
 
+    @org.springframework.beans.factory.annotation.Value("${app.payment.timeout-minutes:10}")
+    private int paymentTimeoutMinutes;
+
     private final OrderRepository orderRepository;
     private final TicketTypeRepository ticketTypeRepository;
     private final SeatRepository seatRepository;
@@ -31,14 +34,14 @@ public class OrderCleanupService {
     @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
     @Transactional
     public void cleanupPendingOrders() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(3);
+        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(paymentTimeoutMinutes);
         List<Order> pendingOrders = orderRepository.findByPaymentStatusAndCreatedAtBefore(PaymentStatus.PENDING, cutoffTime);
 
         if (pendingOrders.isEmpty()) {
             return;
         }
 
-        log.info("🗑️ Found {} PENDING orders older than 3 minutes. Cancelling...", pendingOrders.size());
+        log.info("🗑️ Found {} PENDING orders older than {} minutes. Cancelling...", pendingOrders.size(), paymentTimeoutMinutes);
 
         for (Order order : pendingOrders) {
             order.setPaymentStatus(PaymentStatus.FAILED);

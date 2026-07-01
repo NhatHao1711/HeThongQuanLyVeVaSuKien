@@ -65,6 +65,7 @@ public class TicketBookingService {
     private final SeatRepository seatRepository;
     private final StringRedisTemplate redisTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final SeatService seatService;
 
     private static final String LOCK_PREFIX = "lock:ticket:";
     private static final String SEAT_LOCK_PREFIX = "seat:lock:";
@@ -144,8 +145,17 @@ public class TicketBookingService {
                         .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
                 // 5. Create Order (with optional voucher)
-                BigDecimal totalAmount = ticketType.getPrice()
-                        .multiply(BigDecimal.valueOf(quantity));
+                BigDecimal totalAmount = BigDecimal.ZERO;
+                if (!bookingSeats.isEmpty()) {
+                    List<Seat> allSeats = seatRepository.findByTicketTypeId(ticketTypeId);
+                    java.util.Map<Long, BigDecimal> seatPrices = seatService.calculateZeroSumPrices(allSeats, ticketType.getPrice());
+                    for (Seat s : bookingSeats) {
+                        totalAmount = totalAmount.add(seatPrices.getOrDefault(s.getId(), ticketType.getPrice()));
+                    }
+                } else {
+                    totalAmount = ticketType.getPrice().multiply(BigDecimal.valueOf(quantity));
+                }
+                
                 String transactionRef = "TXN-" + UUID.randomUUID().toString().substring(0, 12)
                         .toUpperCase();
 

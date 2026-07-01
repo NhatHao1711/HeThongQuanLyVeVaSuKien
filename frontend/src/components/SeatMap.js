@@ -240,9 +240,11 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
                         className={className}
                         onClick={() => toggleSeat(seat)}
                         disabled={seat.status === "BOOKED" || isProcessing}
-                        title={`${seat.name} - ${seat.status}`}
+                        title={`${seat.name} - ${seat.status}${seat.price ? ' - ' + new Intl.NumberFormat('vi-VN').format(seat.price) + 'đ' : ''}`}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                       >
-                        {seat.name.substring(1).padStart(2, '0')}
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: 1 }}>{seat.name.substring(1).padStart(2, '0')}</span>
+                        {seat.price && <span style={{ fontSize: '9px', opacity: 0.9, lineHeight: 1, marginTop: '2px' }}>{Math.round(seat.price / 1000)}k</span>}
                       </button>
                     );
                   })}

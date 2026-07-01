@@ -18,6 +18,7 @@ spring:
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -91,3 +92,8 @@ logging:
   level:
     com.ticketbox: DEBUG
     org.springframework.security: DEBUG
+
+# ===================== APP CONFIG =====================
+app:
+  payment:
+    timeout-minutes: 3

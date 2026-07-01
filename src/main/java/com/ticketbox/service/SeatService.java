@@ -19,6 +19,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -31,11 +34,19 @@ public class SeatService {
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
     private final AdvancedSeatFinderService advancedSeatFinderService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.payment.timeout-minutes:10}")
+    private int paymentTimeoutMinutes;
+
     private static final String SEAT_LOCK_PREFIX = "seat:lock:";
-    private static final long SEAT_LOCK_DURATION_MINUTES = 10;
 
     public List<SeatResponse> getSeatsByTicketType(Long ticketTypeId, Long currentUserId) {
         List<Seat> seats = seatRepository.findByTicketTypeId(ticketTypeId);
+        
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId).orElse(null);
+        BigDecimal basePrice = ticketType != null ? ticketType.getPrice() : BigDecimal.ZERO;
+        
+        // Áp dụng định giá động
+        Map<Long, BigDecimal> seatPrices = calculateZeroSumPrices(seats, basePrice);
         
         return seats.stream().map(seat -> {
             String status = seat.getStatus().name();
@@ -56,8 +67,101 @@ public class SeatService {
                     .ticketTypeId(seat.getTicketType().getId())
                     .name(seat.getName())
                     .status(status)
+                    .price(seatPrices.getOrDefault(seat.getId(), basePrice))
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    public Map<Long, BigDecimal> calculateZeroSumPrices(List<Seat> seats, BigDecimal basePrice) {
+        if (seats == null || seats.isEmpty() || basePrice == null || basePrice.compareTo(BigDecimal.ZERO) == 0) return new HashMap<>();
+        
+        Map<Long, BigDecimal> result = new HashMap<>();
+        if (seats.size() == 1) {
+            result.put(seats.get(0).getId(), basePrice);
+            return result;
+        }
+        
+        int minRow = Integer.MAX_VALUE;
+        int maxRow = Integer.MIN_VALUE;
+        int minCol = Integer.MAX_VALUE;
+        int maxCol = Integer.MIN_VALUE;
+        
+        for (Seat s : seats) {
+            String name = s.getName();
+            if (name == null || name.length() < 2) continue;
+            int row = Character.toUpperCase(name.charAt(0));
+            int col;
+            try {
+                col = Integer.parseInt(name.replaceAll("[^0-9]", ""));
+            } catch (Exception e) {
+                col = 0;
+            }
+            if (row < minRow) minRow = row;
+            if (row > maxRow) maxRow = row;
+            if (col < minCol) minCol = col;
+            if (col > maxCol) maxCol = col;
+        }
+        
+        double bestRow = minRow; // Gần màn hình chính nhất
+        double bestCol = (minCol + maxCol) / 2.0; // Ở giữa theo chiều ngang
+        
+        double[] scores = new double[seats.size()];
+        double sumScore = 0;
+        for (int i = 0; i < seats.size(); i++) {
+            Seat s = seats.get(i);
+            String name = s.getName();
+            int row = name != null && name.length() > 0 ? Character.toUpperCase(name.charAt(0)) : (int)bestRow;
+            int col;
+            try {
+                col = Integer.parseInt(name.replaceAll("[^0-9]", ""));
+            } catch (Exception e) {
+                col = (int) bestCol;
+            }
+            
+            // Trọng số hàng x2 vì khoảng cách giữa các hàng thường xa hơn khoảng cách giữa 2 ghế
+            double rowDist = (row - bestRow) * 2.0; 
+            double colDist = (col - bestCol);
+            
+            double dist = Math.sqrt(rowDist * rowDist + colDist * colDist);
+            double score = -dist; // Ghế gần trung tâm điểm cao
+            scores[i] = score;
+            sumScore += score;
+        }
+        
+        double meanScore = sumScore / seats.size();
+        double[] adjustedScores = new double[seats.size()];
+        double maxAdjustedScore = 0;
+        for (int i = 0; i < seats.size(); i++) {
+            adjustedScores[i] = scores[i] - meanScore;
+            if (adjustedScores[i] > maxAdjustedScore) {
+                maxAdjustedScore = adjustedScores[i];
+            }
+        }
+        
+        // Biến động tối đa 20%
+        double maxDeviationPercent = 0.20; 
+        double maxDeltaCurrency = basePrice.doubleValue() * maxDeviationPercent;
+        
+        double scale = 0;
+        if (maxAdjustedScore > 0) {
+            scale = maxDeltaCurrency / maxAdjustedScore;
+        }
+        
+        BigDecimal totalAssigned = BigDecimal.ZERO;
+        for (int i = 0; i < seats.size() - 1; i++) {
+            double delta = adjustedScores[i] * scale;
+            long priceLong = Math.round((basePrice.doubleValue() + delta) / 1000.0) * 1000; // Làm tròn tới nghìn đồng
+            BigDecimal price = BigDecimal.valueOf(priceLong);
+            result.put(seats.get(i).getId(), price);
+            totalAssigned = totalAssigned.add(price);
+        }
+        
+        // Ghế cuối cùng gánh phần dư để đảm bảo chuẩn Zero-Sum
+        BigDecimal totalExpected = basePrice.multiply(BigDecimal.valueOf(seats.size()));
+        BigDecimal lastPrice = totalExpected.subtract(totalAssigned);
+        result.put(seats.get(seats.size() - 1).getId(), lastPrice);
+        
+        return result;
     }
 
     public void lockSeats(Long userId, LockSeatRequest request) {
@@ -84,7 +188,7 @@ public class SeatService {
         // Lock all seats
         for (Long seatId : seatIds) {
             String lockKey = SEAT_LOCK_PREFIX + seatId;
-            redisTemplate.opsForValue().set(lockKey, userId.toString(), Duration.ofMinutes(SEAT_LOCK_DURATION_MINUTES));
+            redisTemplate.opsForValue().set(lockKey, userId.toString(), Duration.ofMinutes(paymentTimeoutMinutes));
         }
         
         log.info("User {} locked seats: {}", userId, seatIds);
@@ -152,8 +256,12 @@ public class SeatService {
             }
         }
 
-        // 2. Gọi thuật toán Hyper-Optimized Seat Finder (Giai đoạn 1: Bitwise, Giai đoạn 2: BFS)
-        List<Seat> bestSeats = advancedSeatFinderService.findHyperOptimizedSeats(allSeats, quantity, actualLockedSeatIds);
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId).orElse(null);
+        BigDecimal basePrice = ticketType != null ? ticketType.getPrice() : BigDecimal.ZERO;
+        Map<Long, BigDecimal> seatPrices = calculateZeroSumPrices(allSeats, basePrice);
+
+        // 2. Gọi thuật toán Hyper-Optimized Seat Finder (Giai đoạn 1: Sliding Window, Giai đoạn 2: BFS)
+        List<Seat> bestSeats = advancedSeatFinderService.findHyperOptimizedSeats(allSeats, quantity, actualLockedSeatIds, seatPrices);
 
         // 3. Nếu không tìm thấy, trả về list rỗng
         if (bestSeats == null || bestSeats.isEmpty()) {
@@ -166,9 +274,15 @@ public class SeatService {
                 .ticketTypeId(s.getTicketType().getId())
                 .name(s.getName())
                 .status("AVAILABLE")
+                .price(seatPrices.getOrDefault(s.getId(), basePrice))
                 .build()).collect(Collectors.toList());
 
-        com.ticketbox.dto.response.SeatGroupOptionResponse bestOption = new com.ticketbox.dto.response.SeatGroupOptionResponse(windowSeats, 100.0);
+        // Tính tổng tiền của option
+        double totalOptionPrice = bestSeats.stream()
+                .mapToDouble(s -> seatPrices.getOrDefault(s.getId(), basePrice).doubleValue())
+                .sum();
+
+        com.ticketbox.dto.response.SeatGroupOptionResponse bestOption = new com.ticketbox.dto.response.SeatGroupOptionResponse(windowSeats, totalOptionPrice);
         
         List<com.ticketbox.dto.response.SeatGroupOptionResponse> result = new ArrayList<>();
         result.add(bestOption);

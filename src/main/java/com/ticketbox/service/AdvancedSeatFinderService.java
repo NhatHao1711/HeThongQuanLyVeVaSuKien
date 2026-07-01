@@ -21,31 +21,19 @@ public class AdvancedSeatFinderService {
      */
     private static class BestBlock {
         List<Seat> seats;
-        double centerDistance;
+        double totalPrice;
 
-        BestBlock(List<Seat> seats, double centerDistance) {
+        BestBlock(List<Seat> seats, double totalPrice) {
             this.seats = seats;
-            this.centerDistance = centerDistance;
+            this.totalPrice = totalPrice;
         }
     }
 
-    /**
-     * =========================================================================
-     * GIAI ĐOẠN 1: TÌM GHẾ LIỀN KỀ BẰNG TOÁN TỬ BIT (BITWISE SHIFT) - O(Hàng)
-     * =========================================================================
-     * Giải thuật:
-     * - Coi mỗi hàng ghế là một dải bit (Long - 64 bit). 
-     * - Bit 1 = Trống (Có thể chọn). Bit 0 = Đã bán/Bị khóa.
-     * - Để tìm `quantity` ghế trống liền kề, ta dịch bit sang trái (<<) và AND (&) với chính nó `quantity - 1` lần.
-     * - Kết quả cuối cùng: Những bit nào còn giữ giá trị 1 chính là vị trí kết thúc của một dải `quantity` ghế trống.
-     */
-    public List<Seat> searchConsecutiveSeatsBitwise(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds) {
-        if (quantity <= 0 || quantity > 64) {
-            // Giới hạn 64 ghế mỗi hàng do dùng kiểu 'long'. Nếu > 64 có thể dùng BitSet.
+    public List<Seat> searchConsecutiveSeatsSlidingWindow(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds, Map<Long, java.math.BigDecimal> seatPrices) {
+        if (quantity <= 0) {
             return Collections.emptyList();
         }
 
-        // Nhóm ghế theo Hàng (Row)
         Map<String, List<Seat>> rowMap = new HashMap<>();
         for (Seat s : allSeats) {
             String rowName = s.getName().replaceAll("[0-9]", "");
@@ -56,51 +44,79 @@ public class AdvancedSeatFinderService {
 
         for (Map.Entry<String, List<Seat>> entry : rowMap.entrySet()) {
             List<Seat> rowSeats = entry.getValue();
-            // Đảm bảo ghế trong hàng được sắp xếp theo thứ tự (VD: A01, A02, A03)
             rowSeats.sort(Comparator.comparing(Seat::getName));
             
             int n = rowSeats.size();
             if (n < quantity) continue;
 
-            // 1. Tạo Bitmask cho hàng hiện tại
-            long availMask = 0L;
-            for (int i = 0; i < n; i++) {
-                Seat seat = rowSeats.get(i);
-                boolean isLocked = lockedSeatIds != null && lockedSeatIds.contains(seat.getId());
-                boolean isAvailable = seat.getStatus() == SeatStatus.AVAILABLE && !isLocked;
+            for (int left = 0; left <= n - quantity; left++) {
+                int right = left + quantity - 1;
                 
-                if (isAvailable) {
-                    // Set bit thứ i thành 1 nếu ghế trống
-                    availMask |= (1L << i);
+                boolean isWindowAvailable = true;
+                for (int i = left; i <= right; i++) {
+                    Seat seat = rowSeats.get(i);
+                    boolean isLocked = lockedSeatIds != null && lockedSeatIds.contains(seat.getId());
+                    if (seat.getStatus() != SeatStatus.AVAILABLE || isLocked) {
+                        isWindowAvailable = false;
+                        break;
+                    }
                 }
-            }
-
-            // 2. Thuật toán tìm `quantity` bit 1 liên tiếp
-            long consecutiveMask = availMask;
-            for (int i = 1; i < quantity; i++) {
-                // Dịch trái 1 bit và AND. 
-                // Ví dụ: Tìm 3 bit 1. Lần 1: 0111 & 1110 = 0110. Lần 2: 0110 & 1100 = 0100.
-                consecutiveMask &= (consecutiveMask << 1);
-            }
-
-            // 3. Nếu có dãy ghế thỏa mãn, tìm dãy gần trung tâm nhất
-            if (consecutiveMask != 0) {
-                for (int i = quantity - 1; i < n; i++) {
-                    // Kiểm tra xem bit thứ i có phải là 1 không
-                    if ((consecutiveMask & (1L << i)) != 0) {
-                        // Nếu bit thứ i là 1, nghĩa là dải từ (i - quantity + 1) đến i toàn là bit 1 (tức là trống)
-                        int startIndex = i - quantity + 1;
-                        int endIndex = i;
+                
+                if (isWindowAvailable) {
+                    boolean leavesOrphanLeft = false;
+                    if (left > 0) {
+                        Seat leftSeat = rowSeats.get(left - 1);
+                        boolean isLeftLocked = lockedSeatIds != null && lockedSeatIds.contains(leftSeat.getId());
+                        boolean isLeftAvailable = leftSeat.getStatus() == SeatStatus.AVAILABLE && !isLeftLocked;
                         
-                        // Tính toán khoảng cách đến trung tâm của dãy ghế này
-                        double centerOfRow = (n - 1) / 2.0;
-                        double centerOfBlock = (startIndex + endIndex) / 2.0;
-                        double distanceToCenter = Math.abs(centerOfRow - centerOfBlock);
-
-                        // Cập nhật cụm ghế tốt nhất
-                        if (overallBestBlock == null || distanceToCenter < overallBestBlock.centerDistance) {
-                            List<Seat> block = rowSeats.subList(startIndex, endIndex + 1);
-                            overallBestBlock = new BestBlock(block, distanceToCenter);
+                        if (isLeftAvailable) {
+                            if (left == 1) {
+                                leavesOrphanLeft = true;
+                            } else {
+                                Seat prevLeftSeat = rowSeats.get(left - 2);
+                                boolean isPrevLeftLocked = lockedSeatIds != null && lockedSeatIds.contains(prevLeftSeat.getId());
+                                boolean isPrevLeftAvailable = prevLeftSeat.getStatus() == SeatStatus.AVAILABLE && !isPrevLeftLocked;
+                                if (!isPrevLeftAvailable) {
+                                    leavesOrphanLeft = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    boolean leavesOrphanRight = false;
+                    if (right < n - 1) {
+                        Seat rightSeat = rowSeats.get(right + 1);
+                        boolean isRightLocked = lockedSeatIds != null && lockedSeatIds.contains(rightSeat.getId());
+                        boolean isRightAvailable = rightSeat.getStatus() == SeatStatus.AVAILABLE && !isRightLocked;
+                        
+                        if (isRightAvailable) {
+                            if (right == n - 2) {
+                                leavesOrphanRight = true;
+                            } else {
+                                Seat nextRightSeat = rowSeats.get(right + 2);
+                                boolean isNextRightLocked = lockedSeatIds != null && lockedSeatIds.contains(nextRightSeat.getId());
+                                boolean isNextRightAvailable = nextRightSeat.getStatus() == SeatStatus.AVAILABLE && !isNextRightLocked;
+                                if (!isNextRightAvailable) {
+                                    leavesOrphanRight = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!leavesOrphanLeft && !leavesOrphanRight) {
+                        double totalPrice = 0;
+                        for (int i = left; i <= right; i++) {
+                            Seat s = rowSeats.get(i);
+                            java.math.BigDecimal price = seatPrices != null ? seatPrices.get(s.getId()) : null;
+                            totalPrice += price != null ? price.doubleValue() : 100000.0;
+                        }
+                        
+                        if (overallBestBlock == null || totalPrice < overallBestBlock.totalPrice) {
+                            List<Seat> block = new ArrayList<>();
+                            for (int i = left; i <= right; i++) {
+                                block.add(rowSeats.get(i));
+                            }
+                            overallBestBlock = new BestBlock(block, totalPrice);
                         }
                     }
                 }
@@ -340,18 +356,18 @@ public class AdvancedSeatFinderService {
      * HÀM CHÍNH: KẾT HỢP GIAI ĐOẠN 1 & 2
      * =========================================================================
      */
-    public List<Seat> findHyperOptimizedSeats(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds) {
+    public List<Seat> findHyperOptimizedSeats(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds, Map<Long, java.math.BigDecimal> seatPrices) {
         log.info("Khởi động Hyper-Optimized Seat Finder. Yêu cầu: {} ghế", quantity);
         
-        // Ưu tiên 1: Tìm dải ghế liền kề bằng Bitwise
-        List<Seat> bitwiseResult = searchConsecutiveSeatsBitwise(allSeats, quantity, lockedSeatIds);
-        if (!bitwiseResult.isEmpty()) {
-            log.info("🔥 Đã tìm thấy {} ghế liền kề bằng thuật toán Bitwise", quantity);
-            return bitwiseResult;
+        // Ưu tiên 1: Tìm dải ghế liền kề bằng Sliding Window
+        List<Seat> slidingWindowResult = searchConsecutiveSeatsSlidingWindow(allSeats, quantity, lockedSeatIds, seatPrices);
+        if (!slidingWindowResult.isEmpty()) {
+            log.info("🔥 Đã tìm thấy {} ghế liền kề bằng thuật toán Sliding Window", quantity);
+            return slidingWindowResult;
         }
         
         // Ưu tiên 2: Fallback sang phân rã nhóm bằng Segment Combination
-        log.warn("⚠️ Không đủ ghế liền kề! Kích hoạt thuật toán Tổ hợp dải ghế (Segment Combination)...");
+        log.warn("⚠️ Không đủ ghế liền kề hợp lệ! Kích hoạt thuật toán Tổ hợp dải ghế (Segment Combination)...");
         List<Seat> splitResult = searchOptimalSplitSeats(allSeats, quantity, lockedSeatIds);
         if (!splitResult.isEmpty()) {
             log.info("💦 Đã gom thành công {} ghế rời rạc một cách tối ưu nhất", quantity);

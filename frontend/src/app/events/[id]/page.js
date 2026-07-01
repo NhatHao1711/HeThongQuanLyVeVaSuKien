@@ -44,10 +44,11 @@ export default function EventDetailPage({ params }) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [payOSData, setPayOSData] = useState(null);
   const [payOSLoading, setPayOSLoading] = useState(false);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(180); // 3 phút
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600);
   const [seatLockStartTime, setSeatLockStartTime] = useState(null);
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [showVouchersDropdown, setShowVouchersDropdown] = useState(false);
+  const [timeoutMinutes, setTimeoutMinutes] = useState(10); // Mặc định 10 phút
 
   const [selectedDate, setSelectedDate] = useState(null);
   const calendarRef = useRef(null);
@@ -62,6 +63,7 @@ export default function EventDetailPage({ params }) {
     : ticketTypes;
 
   useEffect(() => {
+    loadConfig();
     loadEvent();
     loadReviews();
     loadRelatedEvents();
@@ -145,17 +147,18 @@ export default function EventDetailPage({ params }) {
     if (bookingStep === 'payment' && seatLockStartTime) {
       timer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - seatLockStartTime) / 1000);
-        const remaining = Math.max(0, 180 - elapsed);
+        const timeoutSeconds = timeoutMinutes * 60;
+        const remaining = Math.max(0, timeoutSeconds - elapsed);
         setPaymentTimeLeft(remaining);
         
         if (remaining === 0) {
           clearInterval(timer);
-          setError('Đã hết thời gian thanh toán (3 phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.');
+          setError(`Đã hết thời gian thanh toán (${timeoutMinutes} phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.`);
         }
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [bookingStep, seatLockStartTime]);
+  }, [bookingStep, seatLockStartTime, timeoutMinutes]);
 
   // Countdown timer
   useEffect(() => {
@@ -217,6 +220,18 @@ export default function EventDetailPage({ params }) {
       }
     } catch (e) {
       console.error("Failed to fetch vouchers", e);
+    }
+  };
+
+  const loadConfig = async () => {
+    try {
+      const res = await apiRequest('/config/payment-timeout');
+      if (res.success && res.data?.timeoutMinutes) {
+        setTimeoutMinutes(res.data.timeoutMinutes);
+        setPaymentTimeLeft(res.data.timeoutMinutes * 60);
+      }
+    } catch (e) {
+      console.error("Failed to fetch config", e);
     }
   };
 
@@ -336,6 +351,10 @@ export default function EventDetailPage({ params }) {
   const calculateTotal = () => {
     return Object.entries(selectedTickets).reduce((sum, [typeId, qty]) => {
       const ticketType = ticketTypes.find(t => t.id == typeId);
+      const seats = selectedSeatObjects[typeId];
+      if (seats && seats.length > 0) {
+        return sum + seats.reduce((s, seat) => s + (seat.price || ticketType?.price || 0), 0);
+      }
       return sum + (ticketType?.price || 0) * qty;
     }, 0);
   };
@@ -859,6 +878,10 @@ export default function EventDetailPage({ params }) {
                         onClick={() => { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else setCalendarMonth(m => m + 1); }} 
                         style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem', padding: '0 10px' }}>&gt;</button>
                     </div>
+
+                    <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem' }}>
+                      * {t('events.payment_note_1')} <strong>{timeoutMinutes} {t('events.payment_note_2')}</strong>. {t('events.payment_note_3')}
+                    </p>
 
                     {/* Days of Week */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontWeight: 'bold', color: '#475569', marginBottom: '1.5rem', fontSize: '0.9rem' }}>

@@ -31,7 +31,7 @@ public class AdvancedSeatFinderServiceTest {
         
         // TEST CASE 1: Tìm 3 ghế liền kề bằng Bitwise
         System.out.println("--- TEST CASE 1: Tìm 3 ghế liền kề trong rạp trống ---");
-        List<Seat> res1 = service.findHyperOptimizedSeats(allSeats, 3, new ArrayList<>());
+        List<Seat> res1 = service.findHyperOptimizedSeats(allSeats, 3, new ArrayList<>(), new java.util.HashMap<>());
         System.out.println("Ket qua tim duoc: ");
         for (Seat s : res1) {
             System.out.print(s.getName() + " ");
@@ -68,7 +68,7 @@ public class AdvancedSeatFinderServiceTest {
         
         // TEST CASE 2: Tìm 4 ghế khi không có 4 ghế liền kề (Trigger BFS)
         System.out.println("--- TEST CASE 2: Tim 4 ghe (Khong co 4 ghe lien ke -> Kich hoat BFS) ---");
-        List<Seat> res2 = service.findHyperOptimizedSeats(allSeats, 4, new ArrayList<>());
+        List<Seat> res2 = service.findHyperOptimizedSeats(allSeats, 4, new ArrayList<>(), new java.util.HashMap<>());
         System.out.println("Ket qua tim duoc: ");
         for (Seat s : res2) {
             System.out.print(s.getName() + " ");

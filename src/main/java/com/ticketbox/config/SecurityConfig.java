@@ -43,7 +43,8 @@ public class SecurityConfig {
                                 "/api/payment/**",
                                 "/test-pay.html",
                                 "/api/vouchers/active",
-                                "/uploads/**"
+                                "/uploads/**",
+                                "/api/config/**"
                         ).permitAll()
                         .requestMatchers("GET", "/api/events", "/api/events/**", "/api/seats", "/api/categories")
                         .permitAll()

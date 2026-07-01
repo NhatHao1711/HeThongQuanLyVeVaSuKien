@@ -14,4 +14,5 @@ public class SeatResponse {
     private Long ticketTypeId;
     private String name;
     private String status; // "AVAILABLE", "LOCKED", "BOOKED"
+    private java.math.BigDecimal price;
 }

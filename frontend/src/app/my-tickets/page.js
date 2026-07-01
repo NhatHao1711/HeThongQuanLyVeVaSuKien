@@ -6,9 +6,9 @@ import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
 import { useTranslation } from '@/context/TranslationContext';
 
-const calculateTicketTimeLeft = (createdAt) => {
+const calculateTicketTimeLeft = (createdAt, timeoutMinutes = 10) => {
   if (!createdAt) return '00:00';
-  const expireTime = new Date(createdAt).getTime() + 10 * 60000;
+  const expireTime = new Date(createdAt).getTime() + timeoutMinutes * 60000;
   const now = new Date().getTime();
   const diff = expireTime - now;
   if (diff <= 0) return '00:00';
@@ -17,15 +17,15 @@ const calculateTicketTimeLeft = (createdAt) => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const CountdownTimer = ({ createdAt }) => {
-  const [timeLeft, setTimeLeft] = useState(() => calculateTicketTimeLeft(createdAt));
+const CountdownTimer = ({ createdAt, timeoutMinutes }) => {
+  const [timeLeft, setTimeLeft] = useState(() => calculateTicketTimeLeft(createdAt, timeoutMinutes));
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(calculateTicketTimeLeft(createdAt));
+      setTimeLeft(calculateTicketTimeLeft(createdAt, timeoutMinutes));
     }, 1000);
     return () => clearInterval(timer);
-  }, [createdAt]);
+  }, [createdAt, timeoutMinutes]);
 
   if (timeLeft === '00:00') return <span>Đã hết hạn</span>;
   return <span>{timeLeft}</span>;
@@ -38,6 +38,7 @@ export default function MyTicketsPage() {
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, SUCCESS, PENDING, CANCELLED
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [user, setUser] = useState(null);
+  const [timeoutMinutes, setTimeoutMinutes] = useState(10);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function MyTicketsPage() {
       setActiveTab('ALL');
     }
 
+    loadConfig();
     loadOrders();
   }, []);
 
@@ -74,6 +76,17 @@ export default function MyTicketsPage() {
       }
     }
   }, [orders]);
+
+  const loadConfig = async () => {
+    try {
+      const res = await apiRequest('/config/payment-timeout');
+      if (res.success && res.data?.timeoutMinutes) {
+        setTimeoutMinutes(res.data.timeoutMinutes);
+      }
+    } catch (err) {
+      console.error('Failed to load config:', err);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -408,7 +421,7 @@ export default function MyTicketsPage() {
                                       <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#9a3412' }}>Thời gian thanh toán còn lại:</span>
                                       <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#ea580c', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                        <CountdownTimer createdAt={order.createdAt} />
+                                        <CountdownTimer createdAt={order.createdAt} timeoutMinutes={timeoutMinutes} />
                                       </span>
                                     </div>
                                   )}
