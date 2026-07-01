@@ -13,7 +13,7 @@ spring:
 
   # ===================== DATABASE =====================
   datasource:
-    url: jdbc:mysql://localhost:3307/event_ticket_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&characterEncoding=UTF-8&useUnicode=true
+    url: jdbc:mysql://localhost:3306/event_ticket_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&characterEncoding=UTF-8&useUnicode=true
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -33,7 +33,6 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password:
 
   # ===================== RABBITMQ =====================
   rabbitmq:
@@ -97,3 +96,7 @@ logging:
 app:
   payment:
     timeout-minutes: 3
+  frontend:
+    url: http://localhost:3000
+  backend:
+    url: http://localhost:8080

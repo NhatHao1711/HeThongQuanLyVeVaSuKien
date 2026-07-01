@@ -21,6 +21,8 @@ public class OrganizerCustomerResponse {
     private BigDecimal ticketPrice;
     private String seatNumber;
     private CheckinStatus checkinStatus;
+    private LocalDateTime checkinTime;
+    private LocalDateTime checkoutTime;
     private LocalDateTime purchaseDate;
     private String eventTitle;
     private Long eventId;

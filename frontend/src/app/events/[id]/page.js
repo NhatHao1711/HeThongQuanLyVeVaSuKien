@@ -7,14 +7,23 @@ import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn } from '@/lib/api';
 import { icons } from '@/components/Icons';
 import styles from './event-detail.module.css';
+import { format, parseISO } from 'date-fns';
 import SeatMap from '@/components/SeatMap';
 import { useTranslation } from '@/context/TranslationContext';
+import { useRouter } from 'next/navigation';
+import SplitPaymentModal from '@/components/SplitPaymentModal';
 
 export default function EventDetailPage({ params }) {
-  const { id } = React.use(params);
+  const unwrappedParams = React.use(params);
+  const id = unwrappedParams.id;
   const { t } = useTranslation();
+  const router = useRouter();
   const seatMapRef = useRef(null);
   const [event, setEvent] = useState(null);
+  
+  // Split payment modal state
+  const [isSplitPaymentModalOpen, setSplitPaymentModalOpen] = useState(false);
+  const [currentSplitOrderId, setCurrentSplitOrderId] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState({});
@@ -44,7 +53,7 @@ export default function EventDetailPage({ params }) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [payOSData, setPayOSData] = useState(null);
   const [payOSLoading, setPayOSLoading] = useState(false);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600); // 10 phút
   const [seatLockStartTime, setSeatLockStartTime] = useState(null);
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [showVouchersDropdown, setShowVouchersDropdown] = useState(false);
@@ -142,6 +151,21 @@ export default function EventDetailPage({ params }) {
     }
   };
 
+  const refreshPaymentQR = async () => {
+    try {
+      const payOSRes = await apiRequest('/payments/create-payos-link', {
+        method: 'POST',
+        body: JSON.stringify({ orderIds: booking.allOrderIds }),
+      });
+      if (payOSRes.success && payOSRes.data) {
+        setPaymentUrl(payOSRes.data.checkoutUrl);
+        setSeatLockStartTime(Date.now());
+      }
+    } catch (e) {
+      console.error('Lỗi khi làm mới mã QR', e);
+    }
+  };
+
   useEffect(() => {
     let timer;
     if (bookingStep === 'payment' && seatLockStartTime) {
@@ -153,12 +177,13 @@ export default function EventDetailPage({ params }) {
         
         if (remaining === 0) {
           clearInterval(timer);
+          refreshPaymentQR();
           setError(`Đã hết thời gian thanh toán (${timeoutMinutes} phút). Vui lòng tải lại trang và đặt vé lại để đảm bảo tính hợp lệ của giao dịch.`);
         }
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [bookingStep, seatLockStartTime, timeoutMinutes]);
+  }, [bookingStep, seatLockStartTime, timeoutMinutes, booking?.allOrderIds]);
 
   // Countdown timer
   useEffect(() => {
@@ -374,6 +399,65 @@ export default function EventDetailPage({ params }) {
       }
     });
     return allNames;
+  };
+
+  const handleSplitPaymentBooking = async () => {
+    if (Object.keys(selectedTickets).length === 0) {
+      setError('Vui lòng chọn ít nhất một vé');
+      return;
+    }
+    if (!isLoggedIn()) {
+      window.location.href = '/login';
+      return;
+    }
+    
+    setError('');
+    try {
+      const validEntries = Object.entries(selectedTickets).filter(([_, q]) => q > 0);
+      if (validEntries.length === 0) return;
+      
+      if (validEntries.length > 1) {
+        setError('Tính năng thanh toán chia nhóm hiện tại chỉ hỗ trợ chia sẻ cho 1 loại vé. Vui lòng chọn mua từng loại vé riêng biệt.');
+        return;
+      }
+      
+      const typeId = validEntries[0][0];
+      const qty = validEntries[0][1];
+      
+      const bookingBody = {
+        ticketTypeId: parseInt(typeId),
+        quantity: qty,
+        seatIds: selectedSeatIds[typeId] || []
+      };
+      if (voucherResult?.success && voucherCode.trim()) {
+        bookingBody.voucherCode = voucherCode.trim();
+      }
+      
+      const res = await apiRequest('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(bookingBody),
+      });
+      
+      if (res.success) {
+        const orderId = res.data.orderId;
+        const splitRes = await apiRequest(`/split-payment/create/${orderId}`, {
+          method: 'POST'
+        });
+        
+        if (splitRes.success) {
+          setCurrentSplitOrderId(orderId);
+          setShowBookingModal(false);
+          document.body.style.overflow = '';
+          setSplitPaymentModalOpen(true);
+        } else {
+          setError(splitRes.message || 'Lỗi khi tạo chia sẻ thanh toán');
+        }
+      } else {
+        setError(res.message || 'Đặt vé thất bại');
+      }
+    } catch {
+      setError('Lỗi kết nối server');
+    }
   };
 
   const handleBooking = async () => {
@@ -1465,6 +1549,18 @@ export default function EventDetailPage({ params }) {
                   <div className={styles.modalError} style={{ margin: '0 0 1rem' }}>{error}</div>
                 )}
 
+                {getTotalSeatsCount() > 1 && (
+                  <button
+                    className={styles.bookBtn}
+                    style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', marginBottom: '10px' }}
+                    onClick={async () => {
+                      await handleSplitPaymentBooking();
+                    }}
+                  >
+                    🤝 Thanh toán chia nhóm (Split Payment)
+                  </button>
+                )}
+
                 <button
                   className={styles.bookBtn}
                   onClick={async () => {
@@ -1535,14 +1631,14 @@ export default function EventDetailPage({ params }) {
                       </div>
                     </div>
 
-                    {/* Hiển thị thời gian đếm ngược (Màu cam, Nằm ngoài hộp xám) */}
-                    <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#fffbeb', borderRadius: '12px', border: '2px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 2px 4px rgba(251, 191, 36, 0.1)' }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Hiển thị thời gian đếm ngược (Màu đỏ, Nằm ngoài hộp xám) */}
+                    <div style={{ padding: '1rem', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#ef4444', fontWeight: 600 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                       </svg>
-                      <span style={{ color: '#b45309', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.5px' }}>
-                        Thời gian thanh toán còn lại: <span style={{ fontSize: '1.2rem', color: '#ea580c' }}>{Math.floor(paymentTimeLeft / 60).toString().padStart(2, '0')}:{(paymentTimeLeft % 60).toString().padStart(2, '0')}</span>
+                      <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.5px' }}>
+                        Mã QR sẽ làm mới sau: <span style={{ fontSize: '1.2rem', color: '#dc2626' }}>{Math.floor(paymentTimeLeft / 60).toString().padStart(2, '0')}:{(paymentTimeLeft % 60).toString().padStart(2, '0')}</span>
                       </span>
                     </div>
 
@@ -1805,6 +1901,13 @@ export default function EventDetailPage({ params }) {
             </div>
           </div>
         </div>
+      )}
+
+      {isSplitPaymentModalOpen && currentSplitOrderId && (
+        <SplitPaymentModal 
+          orderId={currentSplitOrderId} 
+          onClose={() => setSplitPaymentModalOpen(false)} 
+        />
       )}
 
       <Footer />

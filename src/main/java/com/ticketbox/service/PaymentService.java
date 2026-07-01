@@ -39,6 +39,7 @@ public class PaymentService {
     private final EmailService emailService;
     private final com.ticketbox.repository.TicketTypeRepository ticketTypeRepository;
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
+    private final com.ticketbox.repository.SubPaymentRepository subPaymentRepository;
 
     @Value("${rabbitmq.exchange.ticket}")
     private String ticketExchange;
@@ -122,8 +123,8 @@ public class PaymentService {
             description = description.substring(0, 25);
         }
 
-        String returnUrl = "http://localhost:3000/payment-redirect?status=success";
-        String cancelUrl = "http://localhost:3000/payment-redirect?status=cancel";
+        String returnUrl = frontendUrl + "/payment-redirect?status=success";
+        String cancelUrl = frontendUrl + "/payment-redirect?status=cancel";
 
         // Create request manually to bypass buggy PayOS SDK 1.0.3 response verification
         Map<String, Object> body = new HashMap<>();
@@ -265,17 +266,77 @@ public class PaymentService {
     @Transactional
     public void processWebhookLogic(long orderCode, int amountPaid) {
 
-        // 2. Tìm kiếm đơn hàng
-        java.util.List<Order> orders = orderRepository.findByTransactionRef(String.valueOf(orderCode));
-        if (orders.isEmpty()) {
-            Order singleOrder = orderRepository.findById(orderCode).orElse(null);
-            if (singleOrder != null) {
-                orders = java.util.List.of(singleOrder);
+        java.util.List<Order> orders = new java.util.ArrayList<>();
+        
+        // 1.5 Kiểm tra xem đây có phải là thanh toán SubPayment không
+        java.util.Optional<com.ticketbox.entity.SubPayment> subPaymentOpt = subPaymentRepository.findByTransactionRef(String.valueOf(orderCode));
+        if (subPaymentOpt.isPresent()) {
+            com.ticketbox.entity.SubPayment subPayment = subPaymentOpt.get();
+            if (subPayment.getStatus() == PaymentStatus.PAID) {
+                log.warn("Double Payment for SubPayment {}", subPayment.getId());
+                return;
+            }
+            if (subPayment.getAmount().intValue() != amountPaid) {
+                log.error("Amount mismatch for SubPayment {}", subPayment.getId());
+                return;
+            }
+            subPayment.setStatus(PaymentStatus.PAID);
+            subPaymentRepository.save(subPayment);
+            log.info("✅ SubPayment {} đã được thanh toán thành công.", subPayment.getId());
+
+            Order order = subPayment.getOrder();
+            boolean allPaid = order.getSubPayments().stream().allMatch(sp -> sp.getStatus() == PaymentStatus.PAID);
+            if (!allPaid) {
+                log.info("⏳ Đơn hàng {} vẫn còn SubPayment chưa thanh toán.", order.getId());
+                return;
+            }
+            log.info("🎉 Tất cả SubPayment của đơn hàng {} đã thanh toán! Tiến hành xử lý Order...", order.getId());
+            orders = java.util.List.of(order);
+            amountPaid = order.getTotalAmount().intValue(); // Fake expected amount for the validation below
+        } else {
+            // 2. Tìm kiếm đơn hàng
+            orders = orderRepository.findByTransactionRef(String.valueOf(orderCode));
+            if (orders.isEmpty()) {
+                Order singleOrder = orderRepository.findById(orderCode).orElse(null);
+                if (singleOrder != null) {
+                    orders = java.util.List.of(singleOrder);
+                }
+            }
+                    
+            if (orders.isEmpty()) {
+                throw new ResourceNotFoundException("Orders", "transactionRef/id", orderCode);
             }
         }
+
+        // 2.5 Kiểm tra nếu đơn hàng đã bị hủy (FAILED) nhưng khách vẫn chuyển tiền (Chuyển khoản muộn)
+        for (Order o : orders) {
+            if (o.getPaymentStatus() == PaymentStatus.FAILED) {
+                log.error("❌ Nhận được tiền cho đơn hàng đã HỦY: {}", o.getId());
+                com.ticketbox.entity.PaymentExceptionLog exceptionLog = com.ticketbox.entity.PaymentExceptionLog.builder()
+                        .transactionRef(String.valueOf(orderCode))
+                        .expectedAmount(o.getTotalAmount())
+                        .actualAmount(java.math.BigDecimal.valueOf(amountPaid))
+                        .reason("Khách hàng thanh toán muộn, đơn hàng đã bị hủy trước đó. Cần hoàn tiền.")
+                        .status("UNRESOLVED")
+                        .build();
+                paymentExceptionLogRepository.save(exceptionLog);
                 
-        if (orders.isEmpty()) {
-            throw new ResourceNotFoundException("Orders", "transactionRef/id", orderCode);
+                if (o.getUser() != null) {
+                    try {
+                        emailService.sendPaymentExceptionEmail(
+                            o.getUser().getEmail(), 
+                            o.getUser().getFullName(), 
+                            String.valueOf(orderCode), 
+                            o.getTotalAmount(), 
+                            java.math.BigDecimal.valueOf(amountPaid),
+                            "Đơn hàng của bạn đã bị hủy do quá thời gian thanh toán, nhưng chúng tôi vừa nhận được tiền của bạn. Vui lòng liên hệ Admin để được hoàn tiền."
+                        );
+                    } catch (Exception e) {
+                        log.error("Lỗi khi gửi email cảnh báo hoàn tiền cho đơn {}", o.getId(), e);
+                    }
+                }
+                return; // Ngừng xử lý đơn hàng này
+            }
         }
 
         // 3. Đối chiếu kép (Amount matching check) tổng các đơn

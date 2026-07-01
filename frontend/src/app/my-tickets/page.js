@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { apiRequest, isLoggedIn, getUser } from '@/lib/api';
 import { useTranslation } from '@/context/TranslationContext';
+import SplitPaymentModal from '@/components/SplitPaymentModal';
 
 const calculateTicketTimeLeft = (createdAt, timeoutMinutes = 10) => {
   if (!createdAt) return '00:00';
@@ -39,6 +40,8 @@ export default function MyTicketsPage() {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [user, setUser] = useState(null);
   const [timeoutMinutes, setTimeoutMinutes] = useState(10);
+  const [currentSplitOrderId, setCurrentSplitOrderId] = useState(null);
+  const [isSplitPaymentModalOpen, setSplitPaymentModalOpen] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -431,7 +434,20 @@ export default function MyTicketsPage() {
                           </div>
                             
                             {order.paymentStatus === 'PENDING' && (
-                              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+                              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                {order.tickets?.length > 1 && (
+                                  <button 
+                                    onClick={() => {
+                                      setCurrentSplitOrderId(order.id);
+                                      setSplitPaymentModalOpen(true);
+                                    }}
+                                    style={{ padding: '12px 28px', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.2)' }}
+                                    onMouseEnter={(e) => e.target.style.background = '#7c3aed'} 
+                                    onMouseLeave={(e) => e.target.style.background = '#8b5cf6'}
+                                  >
+                                    🤝 Thanh toán chia nhóm
+                                  </button>
+                                )}
                                 <button 
                                   onClick={() => handleRetryPayment(order.id)}
                                   style={{ padding: '12px 28px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.2)' }}
@@ -473,7 +489,7 @@ export default function MyTicketsPage() {
 
                                 {/* QR Code / Action */}
                                 <div style={{ padding: '1.25rem', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                  {order.paymentStatus === 'PAID' ? (
+                                  {order.paymentStatus === 'PAID' || tItem.qrToken ? (
                                     <>
                                       <div style={{ width: 180, height: 180, marginBottom: '1rem', background: '#fff', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         {tItem.qrCode ? (
@@ -529,6 +545,17 @@ export default function MyTicketsPage() {
           </div>
       </main>
       <Footer />
+
+      {/* Split Payment Modal */}
+      {isSplitPaymentModalOpen && currentSplitOrderId && (
+        <SplitPaymentModal 
+          orderId={currentSplitOrderId} 
+          onClose={() => {
+            setSplitPaymentModalOpen(false);
+            loadOrders();
+          }} 
+        />
+      )}
 
       {/* Payment Modal */}
       {showPaymentModal && (
