@@ -963,9 +963,6 @@ export default function EventDetailPage({ params }) {
                         style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem', padding: '0 10px' }}>&gt;</button>
                     </div>
 
-                    <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem' }}>
-                      * {t('events.payment_note_1')} <strong>{timeoutMinutes} {t('events.payment_note_2')}</strong>. {t('events.payment_note_3')}
-                    </p>
 
                     {/* Days of Week */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontWeight: 'bold', color: '#475569', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
@@ -1119,10 +1116,10 @@ export default function EventDetailPage({ params }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
-                      {formatPrice(Math.min(...ticketTypes.map(t => t.price)))}
+                      {formatPrice(Math.min(...ticketTypes.map(t => t.price)) * 0.8)}
                     </span>
                     <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
-                      {formatPrice(Math.max(...ticketTypes.map(t => t.price)))}
+                      {formatPrice(Math.max(...ticketTypes.map(t => t.price)) * 1.16)}
                     </span>
                   </div>
                 </div>
@@ -1162,12 +1159,33 @@ export default function EventDetailPage({ params }) {
             {/* Ticket Types Information */}
             {ticketTypes && ticketTypes.length > 0 && (
               <div style={{ background: '#ffffff', borderRadius: 14, padding: '1.25rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Loại vé & Giá vé</h3>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Khán đài</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {(() => {
                     const uniqueTickets = [];
                     const seenNames = new Set();
-                    ticketTypes.forEach(tt => {
+                    const now = new Date();
+                    
+                    const safeParseDate = (dateVal) => {
+                      if (!dateVal) return null;
+                      if (Array.isArray(dateVal)) {
+                        const [y, m, d] = dateVal;
+                        return new Date(y, m - 1, d);
+                      }
+                      return new Date(dateVal);
+                    };
+
+                    // Sort tickets to prioritize the closest date to today
+                    const sortedTickets = [...filteredTicketTypes].sort((a, b) => {
+                      const da = safeParseDate(a.eventDate);
+                      const db = safeParseDate(b.eventDate);
+                      if (!da && !db) return 0;
+                      if (!da) return 1;
+                      if (!db) return -1;
+                      return Math.abs(da - now) - Math.abs(db - now);
+                    });
+
+                    sortedTickets.forEach(tt => {
                       if (!seenNames.has(tt.name)) {
                         seenNames.add(tt.name);
                         uniqueTickets.push({ 
@@ -1175,12 +1193,6 @@ export default function EventDetailPage({ params }) {
                           totalAgg: tt.totalQuantity ?? tt.quantity ?? 0,
                           availAgg: tt.availableQuantity ?? tt.remaining ?? 0
                         });
-                      } else {
-                        const existing = uniqueTickets.find(u => u.name === tt.name);
-                        if (existing) {
-                          existing.totalAgg += (tt.totalQuantity ?? tt.quantity ?? 0);
-                          existing.availAgg += (tt.availableQuantity ?? tt.remaining ?? 0);
-                        }
                       }
                     });
 
@@ -1197,20 +1209,13 @@ export default function EventDetailPage({ params }) {
                       }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{ticket.name}</span>
-                            <span style={{ background: ticket.availAgg > 0 ? '#ecfdf5' : '#fef2f2', color: ticket.availAgg > 0 ? '#059669' : '#dc2626', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700 }}>
-                              {ticket.availAgg > 0 ? `Còn ${ticket.availAgg}` : 'Hết'}
-                            </span>
+                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>{ticket.name}</span>
                           </div>
-                          <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', margin: 0 }}>
-                            Tổng số lượng: {ticket.totalAgg}
+                          <p style={{ fontSize: '0.85rem', fontWeight: 700, color: ticket.availAgg > 0 ? '#059669' : '#dc2626', marginTop: '4px', margin: 0 }}>
+                            {ticket.availAgg > 0 ? `Còn ${ticket.availAgg} chỗ ngồi` : 'Đã hết chỗ'}
                           </p>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>
-                            {formatPrice(ticket.price)}
-                          </span>
-                        </div>
+                        {/* Giá tiền đã được ẩn */}
                       </div>
                     ));
                   })()}
@@ -1326,14 +1331,36 @@ export default function EventDetailPage({ params }) {
                               {selectedSeatObjects[typeId] && selectedSeatObjects[typeId].length > 0 && (
                                 <div style={{ marginBottom: '8px', fontSize: '0.8rem', color: '#4a5568' }}>
                                   <strong>Ghế: </strong> 
-                                  {selectedSeatObjects[typeId].map(s => s.name).join(', ')}
+                                  <div style={{ paddingLeft: '4px', marginTop: '2px' }}>
+                                    {(() => {
+                                        const vipSeats = selectedSeatObjects[typeId].filter(s => s.price > tt.price);
+                                        const normalSeats = selectedSeatObjects[typeId].filter(s => s.price === tt.price);
+                                        const economySeats = selectedSeatObjects[typeId].filter(s => s.price < tt.price);
+                                        
+                                        const renderRow = (label, seats) => {
+                                            if (seats.length === 0) return null;
+                                            const names = seats.map(s => s.name).join(', ');
+                                            const unitPrice = seats[0].price || tt.price;
+                                            return (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                    <span>{label}: {names}</span>
+                                                    <span style={{ fontWeight: 600, color: '#334155' }}>{formatPrice(unitPrice)}</span>
+                                                </div>
+                                            );
+                                        };
+
+                                        return (
+                                            <>
+                                              {renderRow('VIP', vipSeats)}
+                                              {renderRow('Thường', normalSeats)}
+                                              {renderRow('Tiết kiệm', economySeats)}
+                                            </>
+                                        );
+                                    })()}
+                                  </div>
                                 </div>
                               )}
                               
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #e2e8f0' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Thành tiền:</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPrice(tt.price * qty)}</span>
-                              </div>
                             </div>
                           );
                         })}
@@ -1395,28 +1422,112 @@ export default function EventDetailPage({ params }) {
                     const ticket = ticketTypes.find(t => t.id == typeId);
                     const seatObjs = selectedSeatObjects[typeId] || [];
                     const seatNames = seatObjs.map(s => s.name).sort();
-                    return (
-                      <div key={typeId} className={styles.confirmOrderItem}>
-                        <div style={{ flex: 1 }}>
-                          <p className={styles.confirmItemName}>{ticket?.name || 'Vé'}</p>
-                          <p className={styles.confirmItemMeta}>{t('events.detail_tickets')}: {qty} × {formatPrice(ticket?.price || 0)}</p>
-                          {seatNames.length > 0 && (
+                    
+                    if (seatObjs.length === 0) {
+                      return (
+                        <div key={typeId} className={styles.confirmOrderItem}>
+                          <div style={{ flex: 1 }}>
+                            <p className={styles.confirmItemName}>{ticket?.name || 'Vé'}</p>
+                            <p className={styles.confirmItemMeta}>{t('events.detail_tickets')}: {qty} vé</p>
                             <div className={styles.summaryItem}>
                               <span className={styles.summaryLabel}>Ngày áp dụng</span>
                               <span className={styles.summaryValue}>{selectedDate ? new Date(selectedDate).toLocaleDateString('vi-VN') : 'Mặc định'}</span>
                             </div>
-                          )}
-                          {seatNames.length > 0 && (
-                            <div className={styles.confirmSeatTags}>
-                              <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '0.4rem' }}>{t('events.detail_tickets').toLowerCase().includes('tickets') ? 'Seats:' : 'Ghế:'}</span>
-                              {seatNames.map(name => (
-                                <span key={name} className={styles.seatTag}>{name}</span>
-                              ))}
-                            </div>
-                          )}
+                          </div>
+                          <span className={styles.confirmItemTotal}>{formatPrice((ticket?.price || 0) * qty)}</span>
                         </div>
-                        <span className={styles.confirmItemTotal}>{formatPrice((ticket?.price || 0) * qty)}</span>
-                      </div>
+                      );
+                    }
+
+                    const vipSeats = seatObjs.filter(s => s.price > ticket.price).sort((a,b) => a.name.localeCompare(b.name));
+                    const normalSeats = seatObjs.filter(s => s.price === ticket.price).sort((a,b) => a.name.localeCompare(b.name));
+                    const economySeats = seatObjs.filter(s => s.price < ticket.price).sort((a,b) => a.name.localeCompare(b.name));
+                    
+                    const totalBoxPrice = seatObjs.reduce((sum, seat) => sum + (seat.price || ticket.price), 0);
+
+                    return (
+                        <div key={typeId} className={styles.confirmOrderItem} style={{ paddingBottom: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px dashed #e2e8f0', display: 'block' }}>
+                          {/* 1. Tên khán đài */}
+                          <p className={styles.confirmItemName} style={{ fontSize: '1.05rem', marginBottom: '6px' }}>{ticket?.name || 'Vé'}</p>
+                          
+                          {/* 2. Ngày */}
+                          <div className={styles.summaryItem} style={{ marginBottom: '16px' }}>
+                            <span className={styles.summaryLabel}>Ngày áp dụng:</span>
+                            <span className={styles.summaryValue} style={{ marginLeft: '6px', fontWeight: 500 }}>{selectedDate ? new Date(selectedDate).toLocaleDateString('vi-VN') : 'Mặc định'}</span>
+                          </div>
+                          
+                          {/* 3. Breakdown per category */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+                            
+                            {vipSeats.length > 0 && (() => {
+                              const unitPrice = vipSeats[0].price || ticket.price;
+                              const subtotal = vipSeats.reduce((sum, s) => sum + (s.price || ticket.price), 0);
+                              return (
+                                <div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, color: '#334155' }}>Vé VIP</span>
+                                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatPrice(subtotal)}</span>
+                                  </div>
+                                  <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
+                                    <span>{vipSeats.length} × {formatPrice(unitPrice)}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                                    <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '8px' }}>Ghế:</span>
+                                    {vipSeats.map(s => <span key={s.name} className={styles.seatTag} style={{ marginBottom: '4px' }}>{s.name}</span>)}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {normalSeats.length > 0 && (() => {
+                              const unitPrice = normalSeats[0].price || ticket.price;
+                              const subtotal = normalSeats.reduce((sum, s) => sum + (s.price || ticket.price), 0);
+                              return (
+                                <div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, color: '#334155' }}>Vé Thường</span>
+                                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatPrice(subtotal)}</span>
+                                  </div>
+                                  <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
+                                    <span>{normalSeats.length} × {formatPrice(unitPrice)}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                                    <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '8px' }}>Ghế:</span>
+                                    {normalSeats.map(s => <span key={s.name} className={styles.seatTag} style={{ marginBottom: '4px' }}>{s.name}</span>)}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {economySeats.length > 0 && (() => {
+                              const unitPrice = economySeats[0].price || ticket.price;
+                              const subtotal = economySeats.reduce((sum, s) => sum + (s.price || ticket.price), 0);
+                              return (
+                                <div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, color: '#334155' }}>Vé Tiết kiệm</span>
+                                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatPrice(subtotal)}</span>
+                                  </div>
+                                  <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
+                                    <span>{economySeats.length} × {formatPrice(unitPrice)}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                                    <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '8px' }}>Ghế:</span>
+                                    {economySeats.map(s => <span key={s.name} className={styles.seatTag} style={{ marginBottom: '4px' }}>{s.name}</span>)}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                          </div>
+
+                          {/* 4. Tổng tiền */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Tổng cộng:</span>
+                            <span className={styles.confirmItemTotal} style={{ fontSize: '1.15rem' }}>{formatPrice(totalBoxPrice)}</span>
+                          </div>
+                          
+                        </div>
                     );
                   })}
                 </div>
@@ -1441,33 +1552,30 @@ export default function EventDetailPage({ params }) {
                       placeholder={t('events.voucher_placeholder')}
                       value={voucherCode}
                       onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!voucherCode.trim()) return;
+                          setVoucherLoading(true);
+                          setShowVouchersDropdown(false);
+                          try {
+                            const res = await apiRequest('/vouchers/apply', {
+                              method: 'POST',
+                              body: JSON.stringify({ code: voucherCode.trim(), amount: calculateTotal() }),
+                            });
+                            if (res.success) {
+                              setVoucherResult({ success: true, ...res.data });
+                            } else {
+                              setVoucherResult({ success: false, message: res.message });
+                            }
+                          } catch { setVoucherResult({ success: false, message: t('common.error_connect') }); }
+                          finally { setVoucherLoading(false); }
+                        }
+                      }}
                       onFocus={() => setShowVouchersDropdown(true)}
                       className={styles.voucherInput}
                       style={{ flex: 1 }}
                     />
-                    <button
-                      onClick={async () => {
-                        if (!voucherCode.trim()) return;
-                        setVoucherLoading(true);
-                        setShowVouchersDropdown(false);
-                        try {
-                           const res = await apiRequest('/vouchers/apply', {
-                            method: 'POST',
-                            body: JSON.stringify({ code: voucherCode.trim(), amount: calculateTotal() }),
-                          });
-                          if (res.success) {
-                            setVoucherResult({ success: true, ...res.data });
-                          } else {
-                            setVoucherResult({ success: false, message: res.message });
-                          }
-                        } catch { setVoucherResult({ success: false, message: t('common.error_connect') }); }
-                        finally { setVoucherLoading(false); }
-                      }}
-                      disabled={voucherLoading || !voucherCode.trim()}
-                      className={styles.voucherApplyBtn}
-                    >
-                      {voucherLoading ? '...' : t('events.voucher_apply')}
-                    </button>
                   </div>
                   
                   {/* Dropdown mã giảm giá khả dụng */}
@@ -1480,10 +1588,25 @@ export default function EventDetailPage({ params }) {
                       {availableVouchers.map(v => (
                         <div 
                           key={v.code} 
-                          onClick={() => {
-                            setVoucherCode(v.code);
+                          onClick={async () => {
+                            const selectedCode = v.code;
+                            setVoucherCode(selectedCode);
                             setShowVouchersDropdown(false);
                             setVoucherResult(null);
+                            
+                            setVoucherLoading(true);
+                            try {
+                              const res = await apiRequest('/vouchers/apply', {
+                                method: 'POST',
+                                body: JSON.stringify({ code: selectedCode, amount: calculateTotal() }),
+                              });
+                              if (res.success) {
+                                setVoucherResult({ success: true, ...res.data });
+                              } else {
+                                setVoucherResult({ success: false, message: res.message });
+                              }
+                            } catch { setVoucherResult({ success: false, message: t('common.error_connect') }); }
+                            finally { setVoucherLoading(false); }
                           }}
                           style={{ 
                             padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
@@ -1510,8 +1633,8 @@ export default function EventDetailPage({ params }) {
                   {voucherResult && (
                     <div className={`${styles.voucherMsg} ${voucherResult.success ? styles.voucherSuccess : styles.voucherFail}`} style={{ marginTop: 8 }}>
                       {voucherResult.success
-                        ? `✅ ${voucherResult.description} (-${formatPrice(voucherResult.discount)})`
-                        : `❌ ${voucherResult.message}`}
+                        ? `${voucherResult.description} (-${formatPrice(voucherResult.discount)})`
+                        : voucherResult.message}
                     </div>
                   )}
                 </div>
@@ -1520,10 +1643,14 @@ export default function EventDetailPage({ params }) {
                 <div className={styles.confirmPriceSummary}>
                   {Object.entries(selectedTickets).map(([typeId, qty]) => {
                     const ticket = ticketTypes.find(t => t.id == typeId);
+                    const seatObjs = selectedSeatObjects[typeId] || [];
+                    const subtotal = seatObjs.length > 0 
+                      ? seatObjs.reduce((sum, seat) => sum + (seat.price || (ticket?.price || 0)), 0)
+                      : (ticket?.price || 0) * qty;
                     return (
                       <div key={typeId} className={styles.confirmPriceRow}>
                         <span>{ticket?.name} × {qty}</span>
-                        <span>{formatPrice((ticket?.price || 0) * qty)}</span>
+                        <span>{formatPrice(subtotal)}</span>
                       </div>
                     );
                   })}

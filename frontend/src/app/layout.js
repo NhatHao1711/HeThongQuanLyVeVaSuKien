@@ -19,6 +19,8 @@ export const metadata = {
 
 import { TranslationProvider } from '@/context/TranslationContext';
 
+import GlobalPopup from '@/components/GlobalPopup';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="vi" suppressHydrationWarning>
@@ -38,6 +40,7 @@ export default function RootLayout({ children }) {
       <body className={beVietnamPro.className} suppressHydrationWarning>
         <TranslationProvider>
           {children}
+          <GlobalPopup />
         </TranslationProvider>
       </body>
     </html>

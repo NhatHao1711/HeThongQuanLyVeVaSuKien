@@ -1,4 +1,5 @@
 "use client";
+import { showPopup } from '@/components/GlobalPopup';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -397,7 +398,7 @@ export default function AdminDashboard() {
 
   const exportOrdersCSV = () => {
     if (!orders || orders.length === 0) {
-      alert("Không có dữ liệu để xuất");
+      showPopup("Không có dữ liệu để xuất");
       return;
     }
     let csvContent =
@@ -498,11 +499,11 @@ export default function AdminDashboard() {
         setShowCreateEvent(false);
         await loadAll();
       } else {
-        alert(res.message || "Lỗi tạo sự kiện");
+        showPopup(res.message || "Lỗi tạo sự kiện");
         showMsg("error", res.message || "Lỗi");
       }
     } catch {
-      alert("Lỗi kết nối");
+      showPopup("Lỗi kết nối");
       showMsg("error", "Lỗi kết nối");
     } finally {
       setFormLoading(false);
@@ -548,11 +549,11 @@ export default function AdminDashboard() {
         clearImageSelection();
         await loadAll();
       } else {
-        alert(res.message || "Lỗi cập nhật sự kiện");
+        showPopup(res.message || "Lỗi cập nhật sự kiện");
         showMsg("error", res.message || "Lỗi");
       }
     } catch {
-      alert("Lỗi kết nối");
+      showPopup("Lỗi kết nối");
       showMsg("error", "Lỗi kết nối");
     } finally {
       setFormLoading(false);
@@ -572,11 +573,11 @@ export default function AdminDashboard() {
         setShowNewCategoryInput(false);
         showMsg("success", "Đã tạo phân loại mới thành công!");
       } else {
-        alert(res.message || "Lỗi khi tạo phân loại");
+        showPopup(res.message || "Lỗi khi tạo phân loại");
         showMsg("error", res.message || "Lỗi khi tạo phân loại");
       }
     } catch (e) {
-      alert("Lỗi kết nối");
+      showPopup("Lỗi kết nối");
       showMsg("error", "Lỗi kết nối");
     }
   };
@@ -642,7 +643,7 @@ export default function AdminDashboard() {
   const submitRejectEvent = async (e) => {
     e.preventDefault();
     if (!rejectReason.trim()) {
-      alert("Vui lòng nhập lý do từ chối");
+      showPopup("Vui lòng nhập lý do từ chối");
       return;
     }
     try {
@@ -2769,7 +2770,7 @@ export default function AdminDashboard() {
                             )
                           }
                         >
-                          Loại vé ({ev.ticketTypes?.length || 0})
+                          Khán đài ({ev.ticketTypes?.length || 0})
                         </button>
                         <button
                           className={`${styles.btn} ${styles.btnOutline} ${styles.btnSm}`}
@@ -2838,7 +2839,7 @@ export default function AdminDashboard() {
                           }}
                         >
                           <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-                            Chi tiết loại vé
+                            Chi tiết khán đài
                           </span>
                           <button
                             className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`}
@@ -2854,7 +2855,7 @@ export default function AdminDashboard() {
                               });
                             }}
                           >
-                            + Thêm loại vé
+                            + Thêm khán đài
                           </button>
                         </div>
 
@@ -2876,7 +2877,7 @@ export default function AdminDashboard() {
                                 fontSize: "0.9rem",
                               }}
                             >
-                              Thêm loại vé mới
+                              Thêm khán đài mới
                             </h5>
                             <form onSubmit={addTicketType}>
                               <div
@@ -2884,11 +2885,11 @@ export default function AdminDashboard() {
                                 style={{ marginBottom: "1rem" }}
                               >
                                 <div className={styles.formGroup}>
-                                  <label className={styles.label}>Tên vé</label>
+                                  <label className={styles.label}>Tên khán đài</label>
                                   <input
                                     className={styles.input}
                                     required
-                                    placeholder="Vé VIP, Vé thường..."
+                                    placeholder="Khán đài A, Khán đài B..."
                                     value={ticketForm.name}
                                     onChange={(e) =>
                                       setTicketForm((prev) => ({
@@ -2900,7 +2901,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className={styles.formGroup}>
                                   <label className={styles.label}>
-                                    Giá vé (VNĐ)
+                                    Giá (VNĐ)
                                   </label>
                                   <input
                                     className={styles.input}
@@ -3028,7 +3029,7 @@ export default function AdminDashboard() {
                                   fontSize: "0.9rem",
                                 }}
                               >
-                                Sửa thông tin loại vé
+                                Sửa thông tin khán đài
                               </h5>
                               <form onSubmit={saveEditTicket}>
                                 <div
@@ -3037,7 +3038,7 @@ export default function AdminDashboard() {
                                 >
                                   <div className={styles.formGroup}>
                                     <label className={styles.label}>
-                                      Tên vé
+                                      Tên khán đài
                                     </label>
                                     <input
                                       className={styles.input}
@@ -3053,7 +3054,7 @@ export default function AdminDashboard() {
                                   </div>
                                   <div className={styles.formGroup}>
                                     <label className={styles.label}>
-                                      Giá vé (VNĐ)
+                                      Giá (VNĐ)
                                     </label>
                                     <input
                                       className={styles.input}
@@ -3231,7 +3232,7 @@ export default function AdminDashboard() {
                                           fontWeight: 600,
                                         }}
                                       >
-                                        {tickets.length} loại vé{" "}
+                                        {tickets.length} khán đài{" "}
                                         {isExpanded ? "▲" : "▼"}
                                       </span>
                                     </div>
@@ -4165,7 +4166,7 @@ export default function AdminDashboard() {
                     className={`${styles.btn} ${styles.btnPrimary}`}
                     onClick={async () => {
                       if (!voucherForm.code) {
-                        alert("Vui lòng nhập mã Voucher");
+                        showPopup("Vui lòng nhập mã Voucher");
                         return;
                       }
                       const body = {
@@ -4201,7 +4202,7 @@ export default function AdminDashboard() {
                         );
                         const r2 = await apiRequest("/vouchers/admin");
                         if (r2.success) setVouchers(r2.data);
-                      } else alert(res.message);
+                      } else showPopup(res.message);
                     }}
                   >
                     Khởi tạo mã ưu đãi

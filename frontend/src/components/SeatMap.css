@@ -101,6 +101,15 @@
   background-color: #e6f4ea;
 }
 
+.seatmap-seat.available.vip {
+  border: 2px solid #e11d48;
+  color: #e11d48;
+}
+.seatmap-seat.available.vip:hover {
+  background-color: #ffe4e6;
+}
+
+
 .seatmap-seat.selected {
   background-color: #007bff;
   border: 2px solid #007bff;

@@ -224,7 +224,10 @@ export default {
     "review_submitting": "Đang gửi...",
     "review_no_reviews": "Chưa có đánh giá nào cho sự kiện này.",
     "review_avg_rating": "Đánh giá trung bình:",
-    "review_success": "Đánh giá thành công!"
+    "review_success": "Đánh giá thành công!",
+    "payment_note_1": "Bạn vui lòng hoàn tất thanh toán trong vòng",
+    "payment_note_2": "phút",
+    "payment_note_3": "để đảm bảo giữ chỗ thành công."
   },
   "tickets": {
     "title": "Vé của tôi",

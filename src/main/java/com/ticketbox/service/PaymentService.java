@@ -47,6 +47,9 @@ public class PaymentService {
     @Value("${rabbitmq.routing-key.payment-completed}")
     private String paymentCompletedRoutingKey;
 
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
     public String createPaymentLink() throws Exception {
         try {
             long orderCode = System.currentTimeMillis() / 1000;

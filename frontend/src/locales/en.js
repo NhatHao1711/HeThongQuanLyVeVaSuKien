@@ -224,7 +224,10 @@ export default {
     "review_submitting": "Submitting...",
     "review_no_reviews": "No reviews yet for this event.",
     "review_avg_rating": "Average Rating:",
-    "review_success": "Review submitted successfully!"
+    "review_success": "Review submitted successfully!",
+    "payment_note_1": "Please complete your payment within",
+    "payment_note_2": "minutes",
+    "payment_note_3": "to ensure your seats are secured."
   },
   "tickets": {
     "title": "My Tickets",

@@ -1,4 +1,5 @@
 'use client';
+import { showPopup } from '@/components/GlobalPopup';
 
 import { useTranslation } from '@/context/TranslationContext';
 import Link from 'next/link';
@@ -8,7 +9,7 @@ export default function Footer() {
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
-    alert('Cảm ơn bạn đã đăng ký nhận thông báo sự kiện từ TRIVENT!');
+    showPopup('Cảm ơn bạn đã đăng ký nhận thông báo sự kiện từ TRIVENT!');
   };
 
   return (

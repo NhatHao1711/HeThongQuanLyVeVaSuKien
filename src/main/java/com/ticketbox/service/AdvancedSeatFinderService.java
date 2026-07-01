@@ -34,7 +34,8 @@ public class AdvancedSeatFinderService {
             return Collections.emptyList();
         }
 
-        Map<String, List<Seat>> rowMap = new HashMap<>();
+        // Duyệt từ hàng xa nhất (Z) về hàng gần nhất (A) để ưu tiên "ghế khó bán" khi giá bằng nhau
+        Map<String, List<Seat>> rowMap = new TreeMap<>(Collections.reverseOrder());
         for (Seat s : allSeats) {
             String rowName = s.getName().replaceAll("[0-9]", "");
             rowMap.computeIfAbsent(rowName, k -> new ArrayList<>()).add(s);
@@ -165,8 +166,9 @@ public class AdvancedSeatFinderService {
         }
     }
 
-    public List<Seat> searchOptimalSplitSeats(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds) {
-        Map<Integer, List<Seat>> rowMap = new HashMap<>();
+    public List<Seat> searchOptimalSplitSeats(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds, Map<Long, java.math.BigDecimal> seatPrices) {
+        // Duyệt từ hàng xa nhất (Z) về hàng gần nhất (A) để ưu tiên "ghế khó bán" khi giá bằng nhau
+        Map<Integer, List<Seat>> rowMap = new TreeMap<>(Collections.reverseOrder());
         for (Seat s : allSeats) {
             String name = s.getName();
             if (name == null || name.length() < 2) continue;
@@ -212,7 +214,7 @@ public class AdvancedSeatFinderService {
             for (int i = 0; i < allSegments.size(); i++) {
                 MatchResult result = tryMatchPartitionWithSeed(partition, allSegments, i);
                 if (result != null) {
-                    double score = calculateClusterScore(result, partition);
+                    double score = calculateClusterScore(result, partition, seatPrices);
                     if (score < bestScore) {
                         bestScore = score;
                         bestCombination = result.seats;
@@ -321,7 +323,7 @@ public class AdvancedSeatFinderService {
         return new MatchResult(chosenSeats, totalOrphans);
     }
 
-    private double calculateClusterScore(MatchResult matchResult, List<Integer> partition) {
+    private double calculateClusterScore(MatchResult matchResult, List<Integer> partition, Map<Long, java.math.BigDecimal> seatPrices) {
         List<Seat> seats = matchResult.seats;
         if (seats.isEmpty()) return 0;
         
@@ -346,9 +348,22 @@ public class AdvancedSeatFinderService {
         // Khoảng cách thực tế: Khoảng cách giữa các hàng thường gấp đôi khoảng cách giữa 2 ghế sát nhau
         double distanceScore = Math.pow(maxRowDiff * 2, 2) + Math.pow(maxColDiff, 2);
         
+        // Ưu tiên bán các ghế khó bán (giá rẻ) trước: Cộng thêm điểm dựa trên giá
+        double priceScore = 0;
+        if (seatPrices != null) {
+            for (Seat s : seats) {
+                java.math.BigDecimal p = seatPrices.get(s.getId());
+                if (p != null) {
+                    // Chia cho 10.000 để chuẩn hóa điểm số (Vd: 200.000đ -> 20 điểm)
+                    // Giá càng đắt thì điểm càng cao -> Càng bị né (vì thuật toán tìm điểm thấp nhất)
+                    priceScore += p.doubleValue() / 10000.0;
+                }
+            }
+        }
+        
         // Phạt ghế mồ côi: Mức phạt vừa đủ (20 điểm) để không ép nhóm phải ngồi cách xa nhau
         // Phạt chia nhỏ (split penalty): 50 điểm / mảnh (để ưu tiên 2 mảnh hơn 3 mảnh)
-        return distanceScore + (matchResult.orphanCount * 20) + (partition.size() * 50);
+        return distanceScore + (matchResult.orphanCount * 20) + (partition.size() * 50) + priceScore;
     }
 
     /**
@@ -368,7 +383,7 @@ public class AdvancedSeatFinderService {
         
         // Ưu tiên 2: Fallback sang phân rã nhóm bằng Segment Combination
         log.warn("⚠️ Không đủ ghế liền kề hợp lệ! Kích hoạt thuật toán Tổ hợp dải ghế (Segment Combination)...");
-        List<Seat> splitResult = searchOptimalSplitSeats(allSeats, quantity, lockedSeatIds);
+        List<Seat> splitResult = searchOptimalSplitSeats(allSeats, quantity, lockedSeatIds, seatPrices);
         if (!splitResult.isEmpty()) {
             log.info("💦 Đã gom thành công {} ghế rời rạc một cách tối ưu nhất", quantity);
             return splitResult;

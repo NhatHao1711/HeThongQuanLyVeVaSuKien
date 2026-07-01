@@ -1,4 +1,5 @@
 'use client';
+import { showPopup } from '@/components/GlobalPopup';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
@@ -42,7 +43,14 @@ export default function MyTicketsPage() {
   const [timeoutMinutes, setTimeoutMinutes] = useState(10);
   const [currentSplitOrderId, setCurrentSplitOrderId] = useState(null);
   const [isSplitPaymentModalOpen, setSplitPaymentModalOpen] = useState(false);
+  const [revealedTickets, setRevealedTickets] = useState([]);
   const { t } = useTranslation();
+
+  const handleRevealTicket = (ticketId) => {
+    setRevealedTickets(prev => 
+      prev.includes(ticketId) ? prev.filter(id => id !== ticketId) : [...prev, ticketId]
+    );
+  };
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -121,11 +129,11 @@ export default function MyTicketsPage() {
         setPayOSData(payOSRes.data);
         setShowPaymentModal(true);
       } else {
-        alert('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+        showPopup('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
       }
     } catch (error) {
       console.error('Retry payment error:', error);
-      alert('Đã xảy ra lỗi khi tạo thanh toán.');
+      showPopup('Đã xảy ra lỗi khi tạo thanh toán.');
     } finally {
       setLoading(false);
     }
@@ -162,7 +170,7 @@ export default function MyTicketsPage() {
 
   const printTicketPdf = (ticket, orderRef, createdAt) => {
     const win = window.open('', '_blank');
-    if (!win) { alert(t('tickets.popup_warning')); return; }
+    if (!win) { showPopup(t('tickets.popup_warning')); return; }
     win.document.write(`
       <!DOCTYPE html>
       <html><head><title>Vé - ${ticket.eventTitle}</title>
@@ -293,7 +301,7 @@ export default function MyTicketsPage() {
                     filteredOrders.map((order) => (
                       <div key={order.id} style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)' }}>
                         {/* Order Header */}
-                        <div style={{ padding: '1.5rem 2rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div style={{ padding: '1.5rem 2rem', background: '#fff', borderBottom: expandedOrderIds.includes(order.id) ? '1px solid #e2e8f0' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', transition: 'background 0.3s' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
                               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
@@ -358,61 +366,108 @@ export default function MyTicketsPage() {
                           </div>
                           
                           {/* Ticket Details Summary */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>Chi tiết vé</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.25rem' }}>
                             {(() => {
                               const ticketGroups = {};
                               order.tickets?.forEach(t => {
                                 const type = t.ticketTypeName || 'Vé thường';
                                 if (!ticketGroups[type]) {
-                                  ticketGroups[type] = {
-                                    price: t.price || 0,
-                                    qty: 0,
-                                    seatCounts: {}
-                                  };
+                                  ticketGroups[type] = [];
                                 }
-                                ticketGroups[type].qty += 1;
-                                if (t.seatName && t.seatName !== 'Không có (Khu vực chung)' && t.seatName !== 'Khu vực chung') {
-                                  ticketGroups[type].seatCounts[t.seatName] = (ticketGroups[type].seatCounts[t.seatName] || 0) + 1;
-                                }
+                                ticketGroups[type].push(t);
                               });
                               
                               const ticketEntries = Object.entries(ticketGroups);
                               
                               return (
                                 <>
-                                  {ticketEntries.map(([type, data], idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                                      <div style={{ flex: 1 }}>
-                                        <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.2rem' }}>{type}</p>
-                                        <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: 0 }}>Số lượng vé: {data.qty} × {formatPrice(data.price)}</p>
-                                        {Object.keys(data.seatCounts).length > 0 && (
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginTop: '0.6rem' }}>
-                                            <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>Ghế:</span>
-                                            {Object.entries(data.seatCounts).sort(([a], [b]) => a.localeCompare(b)).map(([name, count], i) => (
-                                              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.2rem 0.55rem', background: 'linear-gradient(135deg, #dbeafe, #e0f2fe)', color: '#1e40af', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.3px', border: '1px solid #bfdbfe' }}>
-                                                {name} {count > 1 ? `(x${count})` : ''}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
+                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                    <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>Chi tiết vé</p>
+                                    {ticketEntries.map(([type, seats], idx) => {
+                                    // Group seats by price
+                                    const byPrice = {};
+                                    seats.forEach(s => {
+                                      const p = s.price || 0;
+                                      if (!byPrice[p]) byPrice[p] = [];
+                                      byPrice[p].push(s);
+                                    });
+
+                                    const sortedPrices = Object.keys(byPrice).map(Number).sort((a,b) => b - a);
+                                    const totalQty = seats.length;
+                                    const totalPrice = seats.reduce((sum, s) => sum + (s.price || 0), 0);
+
+                                    return (
+                                      <div key={idx} style={{ paddingBottom: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px dashed #e2e8f0' }}>
+                                        {/* Tên khán đài */}
+                                        <p style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', marginBottom: '16px' }}>{type}</p>
+                                        
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+                                          {sortedPrices.map((price, pIdx) => {
+                                            const subSeats = byPrice[price];
+                                            const subQty = subSeats.length;
+                                            const subtotal = subQty * price;
+                                            
+                                            let label = 'Vé';
+
+                                            // Count identical seat names (though usually 1 for each)
+                                            const seatCounts = {};
+                                            subSeats.forEach(s => {
+                                              const name = s.seatName && s.seatName !== 'Không có (Khu vực chung)' && s.seatName !== 'Khu vực chung' ? s.seatName : null;
+                                              if (name) {
+                                                seatCounts[name] = (seatCounts[name] || 0) + 1;
+                                              }
+                                            });
+
+                                            return (
+                                              <div key={price}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                  <span style={{ fontWeight: 600, color: '#334155' }}>{label}</span>
+                                                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatPrice(subtotal)}</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
+                                                  <span>{subQty} × {formatPrice(price)}</span>
+                                                </div>
+                                                {Object.keys(seatCounts).length > 0 && (
+                                                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                                                    <span style={{ fontSize: '0.78rem', color: '#6b7280', marginRight: '8px' }}>Ghế:</span>
+                                                    {Object.entries(seatCounts).sort(([a], [b]) => a.localeCompare(b)).map(([name, count], i) => (
+                                                      <span key={i} style={{ 
+                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                                                        padding: '2px 8px', background: '#eff6ff', color: '#1d4ed8', 
+                                                        borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, 
+                                                        marginRight: '6px', marginBottom: '4px' 
+                                                      }}>
+                                                        {name} {count > 1 ? `(x${count})` : ''}
+                                                      </span>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+                                          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>Tổng cộng:</span>
+                                          <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>{formatPrice(totalPrice)}</span>
+                                        </div>
                                       </div>
-                                      <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#00B46E' }}>{formatPrice(data.price * data.qty)}</span>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
+                                  </div>
                                   
                                   {/* Total Bill Section */}
-                                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', marginTop: '1rem' }}>
-                                    {ticketEntries.map(([type, data], idx) => (
-                                      <div key={`total-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155', marginBottom: '0.75rem' }}>
-                                        <span>{type} × {data.qty}</span>
-                                        <span>{formatPrice(data.price * data.qty)}</span>
-                                      </div>
-                                    ))}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155', paddingBottom: '1rem', borderBottom: '1px dashed #cbd5e1', marginBottom: '1rem' }}>
-                                      <span>Tổng tiền:</span>
-                                      <span>{formatPrice(order.totalAmount)}</span>
+                                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155', paddingBottom: order.discountAmount > 0 ? '0.5rem' : '1rem', borderBottom: order.discountAmount > 0 ? 'none' : '1px dashed #cbd5e1', marginBottom: order.discountAmount > 0 ? '0' : '1rem' }}>
+                                      <span>Tổng tiền ({order.tickets?.length || 0} vé):</span>
+                                      <span>{formatPrice((order.totalAmount || 0) + (order.discountAmount || 0))}</span>
                                     </div>
+                                    {order.discountAmount > 0 && (
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a', paddingBottom: '1rem', borderBottom: '1px dashed #cbd5e1', marginBottom: '1rem' }}>
+                                        <span>Mã giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
+                                        <span>- {formatPrice(order.discountAmount)}</span>
+                                      </div>
+                                    )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                       <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b' }}>Tổng thanh toán:</span>
                                       <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#00B46E' }}>{formatPrice(order.totalAmount)}</span>
@@ -459,48 +514,87 @@ export default function MyTicketsPage() {
                               </div>
                             )}
 
-                          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.5rem', color: '#334155' }}>Mã QR của bạn</h4>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                            {order.tickets?.map((tItem) => (
-                              <div key={tItem.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                                <div style={{ padding: '1.25rem', position: 'relative' }}>
-                                  <div style={{ background: 'rgba(0,180,110,0.1)', color: '#00B46E', padding: '6px 12px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-block', marginBottom: '1rem', textAlign: 'center' }}>
-                                    Ticket #{tItem.id}
-                                  </div>
-                                  
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0 0.5rem' }}>
-                                    <span style={{ color: '#94a3b8' }}>Trạng thái check-in</span>
-                                    <span style={{ 
-                                      padding: '3px 8px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700,
-                                      background: tItem.checkinStatus === 'UNUSED' ? '#ecfdf5' : '#f1f5f9',
-                                      color: tItem.checkinStatus === 'UNUSED' ? '#059669' : '#64748b'
-                                    }}>
-                                      {tItem.checkinStatus === 'UNUSED' ? 'Chưa sử dụng' : 'Đã sử dụng'}
-                                    </span>
-                                  </div>
-                                </div>
+                          {order.paymentStatus === 'PAID' ? (
+                            <>
+                              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.5rem', color: '#334155' }}>Mã QR của bạn</h4>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                                {order.tickets?.map((tItem) => (
+                                  <div key={tItem.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                                    <div style={{ padding: '1.25rem', position: 'relative' }}>
+                                      <div style={{ background: 'rgba(0,180,110,0.1)', color: '#00B46E', padding: '6px 12px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-block', marginBottom: '1rem', textAlign: 'center' }}>
+                                        Ticket #{tItem.id}
+                                      </div>
+                                      
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0 0.5rem' }}>
+                                        <span style={{ color: '#94a3b8' }}>Trạng thái check-in</span>
+                                        <span style={{ 
+                                          padding: '3px 8px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700,
+                                          background: tItem.checkinStatus === 'UNUSED' ? '#ecfdf5' : '#f1f5f9',
+                                          color: tItem.checkinStatus === 'UNUSED' ? '#059669' : '#64748b'
+                                        }}>
+                                          {tItem.checkinStatus === 'UNUSED' ? 'Chưa sử dụng' : 'Đã sử dụng'}
+                                        </span>
+                                      </div>
+                                    </div>
 
-                                {/* Divider Section with punches */}
-                                <div style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '24px' }}>
-                                  <div style={{ width: '16px', height: '16px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', left: '-8px', borderRight: '1px solid #e2e8f0' }}></div>
-                                  <div style={{ flex: 1, borderTop: '2px dashed #cbd5e1', margin: '0 12px' }}></div>
-                                  <div style={{ width: '16px', height: '16px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', right: '-8px', borderLeft: '1px solid #e2e8f0' }}></div>
-                                </div>
+                                    {/* Divider Section with punches */}
+                                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '24px' }}>
+                                      <div style={{ width: '16px', height: '16px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', left: '-8px', borderRight: '1px solid #e2e8f0' }}></div>
+                                      <div style={{ flex: 1, borderTop: '2px dashed #cbd5e1', margin: '0 12px' }}></div>
+                                      <div style={{ width: '16px', height: '16px', background: '#f8fafc', borderRadius: '50%', position: 'absolute', right: '-8px', borderLeft: '1px solid #e2e8f0' }}></div>
+                                    </div>
 
-                                {/* QR Code / Action */}
-                                <div style={{ padding: '1.25rem', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                  {order.paymentStatus === 'PAID' || tItem.qrToken ? (
-                                    <>
-                                      <div style={{ width: 180, height: 180, marginBottom: '1rem', background: '#fff', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                    {/* QR Code / Action */}
+                                    <div style={{ padding: '1.25rem', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                      <div style={{ width: 180, height: 180, marginBottom: '1rem', background: '#fff', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'relative', overflow: 'hidden' }}>
                                         {tItem.qrCode ? (
-                                          <img src={`data:image/png;base64,${tItem.qrCode}`} alt="QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                          <>
+                                            <img 
+                                              src={`data:image/png;base64,${tItem.qrCode}`} 
+                                              alt="QR Code" 
+                                              onClick={() => {
+                                                if (tItem.checkinStatus === 'UNUSED' && revealedTickets.includes(tItem.id)) {
+                                                  handleRevealTicket(tItem.id);
+                                                }
+                                              }}
+                                              style={{ 
+                                                width: '100%', 
+                                                height: '100%', 
+                                                objectFit: 'contain', 
+                                                filter: tItem.checkinStatus !== 'UNUSED' ? 'blur(5px) grayscale(100%)' : (!revealedTickets.includes(tItem.id) ? 'blur(8px)' : 'none'), 
+                                                opacity: tItem.checkinStatus !== 'UNUSED' ? 0.4 : 1, 
+                                                transition: 'filter 0.3s ease',
+                                                cursor: tItem.checkinStatus === 'UNUSED' && revealedTickets.includes(tItem.id) ? 'pointer' : 'default'
+                                              }} 
+                                            />
+                                            {tItem.checkinStatus !== 'UNUSED' && (
+                                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.3)', zIndex: 10 }}>
+                                                <div style={{ background: '#ef4444', color: '#fff', padding: '6px 16px', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 800, transform: 'rotate(-15deg)', border: '2px solid #b91c1c', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)', letterSpacing: '0.5px' }}>
+                                                  ĐÃ SỬ DỤNG
+                                                </div>
+                                              </div>
+                                            )}
+                                            {tItem.checkinStatus === 'UNUSED' && !revealedTickets.includes(tItem.id) && (
+                                              <div 
+                                                onClick={() => handleRevealTicket(tItem.id)}
+                                                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.6)', zIndex: 10, cursor: 'pointer', borderRadius: '12px', transition: 'background 0.2s' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.4)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.6)'}
+                                              >
+                                                <div style={{ width: '40px', height: '40px', background: '#00B46E', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', boxShadow: '0 4px 6px -1px rgba(0,180,110,0.4)' }}>
+                                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                </div>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>Chạm để hiện mã</span>
+                                              </div>
+                                            )}
+                                          </>
                                         ) : (
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '0.8rem' }}>No QR</div>
                                         )}
                                       </div>
                                       <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
                                         {tItem.qrToken && (
-                                          <button onClick={() => { navigator.clipboard.writeText(tItem.qrToken); alert(t('events.share_success')); }} style={{ flex: 1, padding: '8px', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }} onMouseEnter={(e) => e.target.style.background = '#cbd5e1'} onMouseLeave={(e) => e.target.style.background = '#e2e8f0'}>
+                                          <button onClick={() => { navigator.clipboard.writeText(tItem.qrToken); showPopup(t('events.share_success')); }} style={{ flex: 1, padding: '8px', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }} onMouseEnter={(e) => e.target.style.background = '#cbd5e1'} onMouseLeave={(e) => e.target.style.background = '#e2e8f0'}>
                                             Copy Code
                                           </button>
                                         )}
@@ -508,19 +602,28 @@ export default function MyTicketsPage() {
                                           Lưu PDF
                                         </button>
                                       </div>
-                                    </>
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem 0' }}>
-                                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                      </div>
-                                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ef4444' }}>Chưa thanh toán</span>
                                     </div>
-                                  )}
-                                </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </>
+                          ) : order.paymentStatus === 'PENDING' ? (
+                            <div style={{ marginTop: '2rem', padding: '2rem', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a', textAlign: 'center' }}>
+                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                              </div>
+                              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#b45309', marginBottom: '0.5rem' }}>Bạn cần thanh toán để được cấp vé</h4>
+                              <p style={{ color: '#d97706', fontSize: '0.9rem', margin: 0 }}>Vui lòng hoàn tất thanh toán để hệ thống tiến hành phát hành vé và mã QR cho bạn.</p>
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: '2rem', padding: '2rem', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca', textAlign: 'center' }}>
+                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                              </div>
+                              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#b91c1c', marginBottom: '0.5rem' }}>Vé của bạn đã bị hủy</h4>
+                              <p style={{ color: '#ef4444', fontSize: '0.9rem', margin: 0 }}>Rất tiếc, đơn hàng này đã bị hủy nên vé không còn hiệu lực sử dụng.</p>
+                            </div>
+                          )}
                         </div>
                         )}
                       </div>

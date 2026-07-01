@@ -1,4 +1,5 @@
 'use client';
+import { showPopup } from '@/components/GlobalPopup';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -155,13 +156,13 @@ export default function AgencyDashboard() {
         body: JSON.stringify(regForm)
       });
       if (res.success) {
-        alert('Gửi yêu cầu thành công! Vui lòng chờ admin phê duyệt.');
+        showPopup('Gửi yêu cầu thành công! Vui lòng chờ admin phê duyệt.');
         loadProfile(); // Reload profile to update agencyStatus
       } else {
-        alert(res.message || 'Có lỗi xảy ra');
+        showPopup(res.message || 'Có lỗi xảy ra');
       }
     } catch (error) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     } finally {
       setRegLoading(false);
     }
@@ -170,7 +171,7 @@ export default function AgencyDashboard() {
   const handleImageSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) { alert('File quá lớn (Tối đa 5MB)'); return; }
+      if (file.size > 5 * 1024 * 1024) { showPopup('File quá lớn (Tối đa 5MB)'); return; }
       setSelectedImage(file);
       setImagePreview(URL.createObjectURL(file));
     }
@@ -246,16 +247,16 @@ export default function AgencyDashboard() {
             console.error('Lỗi upload ảnh:', e);
           }
         }
-        alert('Tạo sự kiện thành công! Chờ duyệt.');
+        showPopup('Tạo sự kiện thành công! Chờ duyệt.');
         setShowCreateEvent(false);
         setEventForm({ title: '', description: '', location: '', startTime: '', endTime: '', surveyUrl: '' });
         clearImageSelection();
         loadAgencyData();
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     } finally {
       setFormLoading(false);
     }
@@ -319,16 +320,16 @@ export default function AgencyDashboard() {
             });
           } catch(e) {}
         }
-        alert('Cập nhật sự kiện thành công!');
+        showPopup('Cập nhật sự kiện thành công!');
         // Update local state without closing manager
         setManagingEvent(prev => ({...prev, ...payload}));
         clearImageSelection();
         loadAgencyData();
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     } finally {
       setFormLoading(false);
     }
@@ -344,15 +345,15 @@ export default function AgencyDashboard() {
     try {
       const res = await apiRequest(`/events/my-events/${eventId}`, { method: 'DELETE' });
       if (res.success) {
-        alert('Đã xóa sự kiện.');
+        showPopup('Đã xóa sự kiện.');
         setEvents(prev => prev.filter(event => event.id !== eventId));
         setManagingEvent(null);
         loadAgencyData();
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     }
   };
 
@@ -361,14 +362,14 @@ export default function AgencyDashboard() {
     try {
       const res = await apiRequest(`/events/my-events/${eventId}/close`, { method: 'POST' });
       if (res.success) {
-        alert('Đã đóng sự kiện.');
+        showPopup('Đã đóng sự kiện.');
         setManagingEvent(prev => ({ ...prev, status: 'CLOSED' }));
         loadAgencyData();
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     }
   };
 
@@ -382,14 +383,14 @@ export default function AgencyDashboard() {
         })
       });
       if (res.success) {
-        alert('Đã cập nhật nhãn nổi bật.');
+        showPopup('Đã cập nhật nhãn nổi bật.');
         setManagingEvent(prev => prev?.id === eventId ? { ...prev, featuredTag: tag || null, isFeatured: !!tag } : prev);
         loadAgencyData();
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     }
   };
 
@@ -467,13 +468,13 @@ export default function AgencyDashboard() {
     try {
       const res = await apiRequest(`/events/my-events/ticket-types/${ticketId}`, { method: 'DELETE' });
       if (res.success) {
-        alert('Đã xóa loại vé.');
+        showPopup('Đã xóa loại vé.');
         loadTicketTypes(managingEvent.id);
       } else {
-        alert(res.message);
+        showPopup(res.message);
       }
     } catch (err) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     }
   };
 
@@ -491,7 +492,7 @@ export default function AgencyDashboard() {
       if (seatsRes.success) {
         setSeatsList(seatsRes.data || []);
       }
-    } catch (e) { alert('Lỗi tải thông tin ghế'); }
+    } catch (e) { showPopup('Lỗi tải thông tin ghế'); }
     finally { setSeatLoading(false); }
   };
 
@@ -515,14 +516,14 @@ export default function AgencyDashboard() {
         if (res.success) sCount++; else fCount++;
       }
       
-      alert(matchingTickets.length > 1 ? `Đã tạo sơ đồ cho ${sCount} loại vé (Lỗi: ${fCount})` : 'Đã tạo sơ đồ ghế');
+      showPopup(matchingTickets.length > 1 ? `Đã tạo sơ đồ cho ${sCount} loại vé (Lỗi: ${fCount})` : 'Đã tạo sơ đồ ghế');
       
       const seatsRes = await apiRequest(`/seats?ticketTypeId=${seatManagerTicket.id}`);
       if (seatsRes.success) {
         setSeatsList(seatsRes.data || []);
         setSeatManagerTicket(prev => ({ ...prev, seatCount: seatsRes.data.length }));
       }
-    } catch (e) { alert('Lỗi tạo ghế'); }
+    } catch (e) { showPopup('Lỗi tạo ghế'); }
     finally { setSeatLoading(false); }
   };
 
@@ -543,10 +544,10 @@ export default function AgencyDashboard() {
         a.click();
         a.remove();
       } else {
-        alert('Lỗi khi xuất file CSV');
+        showPopup('Lỗi khi xuất file CSV');
       }
     } catch (e) {
-      alert('Lỗi kết nối');
+      showPopup('Lỗi kết nối');
     }
   };
 

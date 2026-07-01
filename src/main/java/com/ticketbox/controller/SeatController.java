@@ -28,13 +28,13 @@ public class SeatController {
     public ResponseEntity<ApiResponse<List<SeatResponse>>> getSeatsByTicketType(
             @RequestParam Long ticketTypeId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         Long userId = null;
         if (userDetails != null) {
             userId = userRepository.findByEmail(userDetails.getUsername())
                     .map(User::getId).orElse(null);
         }
-                
+
         List<SeatResponse> seats = seatService.getSeatsByTicketType(ticketTypeId, userId);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách ghế thành công", seats));
     }
@@ -44,10 +44,10 @@ public class SeatController {
     public ResponseEntity<ApiResponse<Void>> lockSeats(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody LockSeatRequest request) {
-        
+
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-                
+
         seatService.lockSeats(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.success("Giữ ghế thành công (10 phút)", null));
     }
@@ -57,10 +57,10 @@ public class SeatController {
     public ResponseEntity<ApiResponse<Void>> unlockSeats(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody LockSeatRequest request) {
-            
+
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-                
+
         seatService.unlockSeats(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.success("Hủy giữ ghế thành công", null));
     }
@@ -82,18 +82,19 @@ public class SeatController {
             @RequestParam int quantity,
             @RequestParam(required = false) List<Long> ignoreLockedSeatIds,
             @AuthenticationPrincipal UserDetails userDetails) {
-            
-        if (quantity > 20) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Chỉ có thể gợi ý tối đa 20 ghế."));
+
+        if (quantity > 10) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Chỉ có thể gợi ý tối đa 10 ghế."));
         }
-            
+
         Long userId = null;
         if (userDetails != null) {
             userId = userRepository.findByEmail(userDetails.getUsername())
                     .map(User::getId).orElse(null);
         }
-        
-        List<com.ticketbox.dto.response.SeatGroupOptionResponse> options = seatService.findBestAvailableSeats(ticketTypeId, quantity, ignoreLockedSeatIds, userId);
+
+        List<com.ticketbox.dto.response.SeatGroupOptionResponse> options = seatService
+                .findBestAvailableSeats(ticketTypeId, quantity, ignoreLockedSeatIds, userId);
         return ResponseEntity.ok(ApiResponse.success("Lấy gợi ý ghế thành công", options));
     }
 }

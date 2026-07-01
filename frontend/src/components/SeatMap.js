@@ -115,7 +115,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   };
 
   const handleSuggest = async (qty) => {
-    if (qty > 20) {
+    if (qty > 10) {
       setShowMaxSeatsPrompt(true);
       return;
     }
@@ -153,6 +153,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
         }));
 
         setSelectedSeats(newSeatIds);
+        selectedSeatsRef.current = newSeatIds;
         
         const selectedSeatObjects = seats.filter(s => newSeatIds.includes(s.id));
         onSeatsSelected(newSeatIds, selectedSeatObjects);
@@ -207,7 +208,12 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
       
       <div className="seatmap-grid-wrapper">
         <div className="seatmap-grid">
-          {Object.keys(rows).sort().map(row => {
+          {Object.keys(rows).sort().map((row, rowIndex, sortedRowKeys) => {
+            const totalRows = sortedRowKeys.length;
+            let seatCategoryClass = "";
+            if (rowIndex < 3) seatCategoryClass = " vip";
+            else seatCategoryClass = " normal";
+
             const sortedSeats = rows[row].sort((a, b) => {
               const numA = parseInt(a.name.substring(1));
               const numB = parseInt(b.name.substring(1));
@@ -226,7 +232,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
                     const isSelected = selectedSeats.includes(seat.id);
                     const isProcessing = processingSeats.includes(seat.id);
                     
-                    let className = "seatmap-seat";
+                    let className = "seatmap-seat" + seatCategoryClass;
                     if (seat.status === "BOOKED") className += " booked";
                     else if (isSelected) className += " selected";
                     else if (seat.status === "LOCKED") className += " locked";
@@ -244,7 +250,6 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
                         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                       >
                         <span style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: 1 }}>{seat.name.substring(1).padStart(2, '0')}</span>
-                        {seat.price && <span style={{ fontSize: '9px', opacity: 0.9, lineHeight: 1, marginTop: '2px' }}>{Math.round(seat.price / 1000)}k</span>}
                       </button>
                     );
                   })}
@@ -253,11 +258,11 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
             );
           })}
         </div>
-      </div>
+        </div>
+
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #eee', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
-        <div className="seatmap-legend" style={{ margin: 0, width: 'auto', borderTop: 'none', paddingTop: 0, justifyContent: 'flex-start' }}>
-          <div className="legend-item"><div className="seatmap-seat available"></div> Trống</div>
+        <div className="seatmap-legend" style={{ margin: 0, width: 'auto', borderTop: 'none', paddingTop: 0, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           <div className="legend-item"><div className="seatmap-seat selected"></div> Đang chọn</div>
           <div className="legend-item"><div className="seatmap-seat locked"></div> Đang được giữ</div>
           <div className="legend-item"><div className="seatmap-seat booked"></div> Đã bán</div>
@@ -272,7 +277,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
           <input 
             type="number" 
             min="1" 
-            max="20" 
+            max="10" 
             value={suggestQuantity}
             onChange={(e) => setSuggestQuantity(Number(e.target.value))}
             style={{ width: '50px', padding: '4px', borderRadius: '6px', border: '1px solid #93c5fd', outline: 'none', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', color: '#1e3a8a' }}
@@ -299,8 +304,8 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
               </svg>
             </div>
             <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Giới hạn chọn ghế</h3>
-            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.6' }}>
-              Vui lòng chọn tối đa 20 ghế cho mỗi lần gợi ý.
+            <p style={{ margin: 0, fontSize: '0.9rem', marginBottom: '2rem' }}>
+              Vui lòng chọn tối đa 10 ghế cho mỗi lần gợi ý.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button 

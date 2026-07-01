@@ -1,4 +1,5 @@
 'use client';
+import { showPopup } from '@/components/GlobalPopup';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
@@ -42,7 +43,7 @@ export default function MyOrdersPage() {
           if (res.success && res.data && res.data.status === 'PAID') {
             clearInterval(intervalId);
             setSelectedOrder(null);
-            alert('Thanh toán thành công!');
+            showPopup('Thanh toán thành công!');
             loadOrders();
           }
         } catch (err) {

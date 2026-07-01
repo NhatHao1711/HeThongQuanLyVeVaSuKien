@@ -80,85 +80,63 @@ public class SeatService {
             return result;
         }
         
-        int minRow = Integer.MAX_VALUE;
-        int maxRow = Integer.MIN_VALUE;
-        int minCol = Integer.MAX_VALUE;
-        int maxCol = Integer.MIN_VALUE;
+        List<Character> rows = seats.stream()
+                .map(s -> {
+                    String name = s.getName();
+                    return (name != null && name.length() > 0) ? Character.toUpperCase(name.charAt(0)) : 'A';
+                })
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+                
+        int totalRows = rows.size();
+        
+        List<Seat> vipSeats = new ArrayList<>();
+        List<Seat> hardSellSeats = new ArrayList<>();
         
         for (Seat s : seats) {
             String name = s.getName();
-            if (name == null || name.length() < 2) continue;
-            int row = Character.toUpperCase(name.charAt(0));
-            int col;
-            try {
-                col = Integer.parseInt(name.replaceAll("[^0-9]", ""));
-            } catch (Exception e) {
-                col = 0;
+            char row = (name != null && name.length() > 0) ? Character.toUpperCase(name.charAt(0)) : 'A';
+            int rowIndex = rows.indexOf(row);
+            
+            if (rowIndex < 3) {
+                vipSeats.add(s);
+            } else if (totalRows >= 5 && rowIndex >= totalRows - 2) {
+                hardSellSeats.add(s);
             }
-            if (row < minRow) minRow = row;
-            if (row > maxRow) maxRow = row;
-            if (col < minCol) minCol = col;
-            if (col > maxCol) maxCol = col;
         }
         
-        double bestRow = minRow; // Gần màn hình chính nhất
-        double bestCol = (minCol + maxCol) / 2.0; // Ở giữa theo chiều ngang
+        // Hàng khó bán giảm 20% và làm tròn đến 10.000đ
+        BigDecimal discountPerHardSell = basePrice.multiply(BigDecimal.valueOf(0.2));
+        long rawHardSellPrice = Math.round(basePrice.subtract(discountPerHardSell).doubleValue() / 10000.0) * 10000;
+        BigDecimal hardSellPrice = BigDecimal.valueOf(rawHardSellPrice);
         
-        double[] scores = new double[seats.size()];
-        double sumScore = 0;
-        for (int i = 0; i < seats.size(); i++) {
-            Seat s = seats.get(i);
-            String name = s.getName();
-            int row = name != null && name.length() > 0 ? Character.toUpperCase(name.charAt(0)) : (int)bestRow;
-            int col;
-            try {
-                col = Integer.parseInt(name.replaceAll("[^0-9]", ""));
-            } catch (Exception e) {
-                col = (int) bestCol;
+        // Tính tổng tiền hụt dựa trên giá thực tế sau khi làm tròn
+        BigDecimal actualDiscountPerHardSell = basePrice.subtract(hardSellPrice);
+        BigDecimal totalDiscount = actualDiscountPerHardSell.multiply(BigDecimal.valueOf(hardSellSeats.size()));
+        
+        // Chia đều cho ghế VIP và làm tròn LÊN đến 10.000đ để đảm bảo không bao giờ hụt thu
+        BigDecimal premiumPerVip = vipSeats.isEmpty() ? BigDecimal.ZERO : 
+                totalDiscount.divide(BigDecimal.valueOf(vipSeats.size()), 2, java.math.RoundingMode.HALF_UP);
+        long rawVipPrice = (long) Math.ceil(basePrice.add(premiumPerVip).doubleValue() / 10000.0) * 10000;
+        BigDecimal vipPrice = BigDecimal.valueOf(rawVipPrice);
+        
+        // Giá thường làm tròn đến 10.000đ (thường thì basePrice đã chẵn, nhưng cứ làm tròn cho chắc)
+        long rawNormalPrice = Math.round(basePrice.doubleValue() / 10000.0) * 10000;
+        BigDecimal normalPrice = BigDecimal.valueOf(rawNormalPrice);
+        
+        for (Seat s : seats) {
+            BigDecimal price;
+            if (vipSeats.contains(s)) {
+                price = vipPrice;
+            } else if (hardSellSeats.contains(s)) {
+                price = hardSellPrice;
+            } else {
+                price = normalPrice;
             }
             
-            // Trọng số hàng x2 vì khoảng cách giữa các hàng thường xa hơn khoảng cách giữa 2 ghế
-            double rowDist = (row - bestRow) * 2.0; 
-            double colDist = (col - bestCol);
-            
-            double dist = Math.sqrt(rowDist * rowDist + colDist * colDist);
-            double score = -dist; // Ghế gần trung tâm điểm cao
-            scores[i] = score;
-            sumScore += score;
+            result.put(s.getId(), price);
         }
-        
-        double meanScore = sumScore / seats.size();
-        double[] adjustedScores = new double[seats.size()];
-        double maxAdjustedScore = 0;
-        for (int i = 0; i < seats.size(); i++) {
-            adjustedScores[i] = scores[i] - meanScore;
-            if (adjustedScores[i] > maxAdjustedScore) {
-                maxAdjustedScore = adjustedScores[i];
-            }
-        }
-        
-        // Biến động tối đa 20%
-        double maxDeviationPercent = 0.20; 
-        double maxDeltaCurrency = basePrice.doubleValue() * maxDeviationPercent;
-        
-        double scale = 0;
-        if (maxAdjustedScore > 0) {
-            scale = maxDeltaCurrency / maxAdjustedScore;
-        }
-        
-        BigDecimal totalAssigned = BigDecimal.ZERO;
-        for (int i = 0; i < seats.size() - 1; i++) {
-            double delta = adjustedScores[i] * scale;
-            long priceLong = Math.round((basePrice.doubleValue() + delta) / 1000.0) * 1000; // Làm tròn tới nghìn đồng
-            BigDecimal price = BigDecimal.valueOf(priceLong);
-            result.put(seats.get(i).getId(), price);
-            totalAssigned = totalAssigned.add(price);
-        }
-        
-        // Ghế cuối cùng gánh phần dư để đảm bảo chuẩn Zero-Sum
-        BigDecimal totalExpected = basePrice.multiply(BigDecimal.valueOf(seats.size()));
-        BigDecimal lastPrice = totalExpected.subtract(totalAssigned);
-        result.put(seats.get(seats.size() - 1).getId(), lastPrice);
         
         return result;
     }

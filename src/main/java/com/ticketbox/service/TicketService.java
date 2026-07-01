@@ -25,6 +25,10 @@ public class TicketService {
     private final QRCodeService qrCodeService;
     private final PaymentService paymentService;
     private final AESUtil aesUtil;
+    private final com.ticketbox.service.SeatService seatService;
+    private final com.ticketbox.repository.SeatRepository seatRepository;
+
+    private final java.util.Map<Long, java.util.Map<Long, java.math.BigDecimal>> seatPricesCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Lấy danh sách vé của user
@@ -42,7 +46,9 @@ public class TicketService {
                .forEach(order -> {
                    try {
                        paymentService.checkAndUpdateOrderStatus(order);
-                   } catch (Exception e) {}
+                   } catch (Exception e) {
+                       log.warn("Failed to check payos status for order {}", order.getId(), e);
+                   }
                });
 
         return tickets.stream()
@@ -51,12 +57,12 @@ public class TicketService {
     }
 
     /**
-     * Lấy chi tiết vé theo ID
+     * Lấy vé theo id
      */
     @Transactional
     public TicketResponse getTicketById(Long ticketId) {
         UserTicket ticket = userTicketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("UserTicket", "id", ticketId));
         return toResponse(ticket);
     }
 
@@ -87,6 +93,16 @@ public class TicketService {
             }
         }
 
+        java.math.BigDecimal price = ticket.getTicketType().getPrice();
+        if (ticket.getSeat() != null) {
+            Long typeId = ticket.getTicketType().getId();
+            java.util.Map<Long, java.math.BigDecimal> typePrices = seatPricesCache.computeIfAbsent(typeId, id -> {
+                List<com.ticketbox.entity.Seat> allSeats = seatRepository.findByTicketTypeId(id);
+                return seatService.calculateZeroSumPrices(allSeats, ticket.getTicketType().getPrice());
+            });
+            price = typePrices.getOrDefault(ticket.getSeat().getId(), price);
+        }
+
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .orderRef(ticket.getOrder().getTransactionRef())
@@ -95,7 +111,7 @@ public class TicketService {
                 .startDate(ticket.getTicketType().getEvent().getStartTime())
                 .ticketTypeName(ticket.getTicketType().getName())
                 .seatName(ticket.getSeat() != null ? ticket.getSeat().getName() : "Không có (Khu vực chung)")
-                .price(ticket.getTicketType().getPrice())
+                .price(price)
                 .checkinStatus(ticket.getCheckinStatus().toString())
                 .checkinTime(ticket.getCheckinTime())
                 .qrCode(qrCode)
