@@ -34,16 +34,38 @@ public class AdvancedSeatFinderService {
             return Collections.emptyList();
         }
 
-        // Duyệt từ hàng xa nhất (Z) về hàng gần nhất (A) để ưu tiên "ghế khó bán" khi giá bằng nhau
-        Map<String, List<Seat>> rowMap = new TreeMap<>(Collections.reverseOrder());
+        // Duyệt từ hàng gần nhất (A) đến hàng xa nhất (Z) để ưu tiên vị trí gần sân khấu
+        Map<String, List<Seat>> rowMap = new TreeMap<>();
         for (Seat s : allSeats) {
             String rowName = s.getName().replaceAll("[0-9]", "");
             rowMap.computeIfAbsent(rowName, k -> new ArrayList<>()).add(s);
         }
 
+        List<Map.Entry<String, List<Seat>>> rowEntries = new ArrayList<>(rowMap.entrySet());
+        
+        if (quantity == 1) {
+            int totalRows = rowEntries.size();
+            List<String> keys = new ArrayList<>(rowMap.keySet());
+            rowEntries.sort((e1, e2) -> {
+                int r1 = keys.indexOf(e1.getKey());
+                int r2 = keys.indexOf(e2.getKey());
+                
+                int p1 = 1; // Thường
+                if (r1 < 3) p1 = 3; // VIP
+                else if (totalRows >= 5 && r1 >= totalRows - 2) p1 = 2; // Tiết kiệm
+                
+                int p2 = 1;
+                if (r2 < 3) p2 = 3;
+                else if (totalRows >= 5 && r2 >= totalRows - 2) p2 = 2;
+                
+                if (p1 != p2) return Integer.compare(p1, p2);
+                return e1.getKey().compareTo(e2.getKey()); // Giữ nguyên thứ tự gần sân khấu nếu cùng loại
+            });
+        }
+
         BestBlock overallBestBlock = null;
 
-        for (Map.Entry<String, List<Seat>> entry : rowMap.entrySet()) {
+        for (Map.Entry<String, List<Seat>> entry : rowEntries) {
             List<Seat> rowSeats = entry.getValue();
             rowSeats.sort(Comparator.comparing(Seat::getName));
             
@@ -64,11 +86,12 @@ public class AdvancedSeatFinderService {
                 }
                 
                 if (isWindowAvailable) {
+                    boolean isLeftAvailable = false;
                     boolean leavesOrphanLeft = false;
                     if (left > 0) {
                         Seat leftSeat = rowSeats.get(left - 1);
                         boolean isLeftLocked = lockedSeatIds != null && lockedSeatIds.contains(leftSeat.getId());
-                        boolean isLeftAvailable = leftSeat.getStatus() == SeatStatus.AVAILABLE && !isLeftLocked;
+                        isLeftAvailable = leftSeat.getStatus() == SeatStatus.AVAILABLE && !isLeftLocked;
                         
                         if (isLeftAvailable) {
                             if (left == 1) {
@@ -84,11 +107,12 @@ public class AdvancedSeatFinderService {
                         }
                     }
                     
+                    boolean isRightAvailable = false;
                     boolean leavesOrphanRight = false;
                     if (right < n - 1) {
                         Seat rightSeat = rowSeats.get(right + 1);
                         boolean isRightLocked = lockedSeatIds != null && lockedSeatIds.contains(rightSeat.getId());
-                        boolean isRightAvailable = rightSeat.getStatus() == SeatStatus.AVAILABLE && !isRightLocked;
+                        isRightAvailable = rightSeat.getStatus() == SeatStatus.AVAILABLE && !isRightLocked;
                         
                         if (isRightAvailable) {
                             if (right == n - 2) {
@@ -110,6 +134,11 @@ public class AdvancedSeatFinderService {
                             Seat s = rowSeats.get(i);
                             java.math.BigDecimal price = seatPrices != null ? seatPrices.get(s.getId()) : null;
                             totalPrice += price != null ? price.doubleValue() : 100000.0;
+                        }
+                        
+                        // Ưu tiên ghế mồ côi nếu khách mua 1 vé
+                        if (quantity == 1 && !isLeftAvailable && !isRightAvailable) {
+                            totalPrice -= 9999999.0;
                         }
                         
                         if (overallBestBlock == null || totalPrice < overallBestBlock.totalPrice) {
@@ -167,8 +196,8 @@ public class AdvancedSeatFinderService {
     }
 
     public List<Seat> searchOptimalSplitSeats(List<Seat> allSeats, int quantity, List<Long> lockedSeatIds, Map<Long, java.math.BigDecimal> seatPrices) {
-        // Duyệt từ hàng xa nhất (Z) về hàng gần nhất (A) để ưu tiên "ghế khó bán" khi giá bằng nhau
-        Map<Integer, List<Seat>> rowMap = new TreeMap<>(Collections.reverseOrder());
+        // Duyệt từ hàng gần nhất (A) đến hàng xa nhất (Z) để ưu tiên vị trí gần sân khấu
+        Map<Integer, List<Seat>> rowMap = new TreeMap<>();
         for (Seat s : allSeats) {
             String name = s.getName();
             if (name == null || name.length() < 2) continue;

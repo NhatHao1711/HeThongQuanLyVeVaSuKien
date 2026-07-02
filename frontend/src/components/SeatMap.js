@@ -14,6 +14,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   const [suggestQuantity, setSuggestQuantity] = useState(2);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [showMaxSeatsPrompt, setShowMaxSeatsPrompt] = useState(false);
+  const [showLockedSeatPrompt, setShowLockedSeatPrompt] = useState(false);
 
   const showToast = (message, type = 'error') => {
     setToast({ show: true, message, type });
@@ -54,7 +55,7 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
     const isSelected = currentSelected.includes(seat.id);
     
     if (seat.status === "LOCKED" && !isSelected) {
-        showToast("Ghế này đang được người khác giữ. Vui lòng chọn ghế khác.", "warning");
+        setShowLockedSeatPrompt(true);
         return;
     }
 
@@ -115,12 +116,14 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
   };
 
   const handleSuggest = async (qty) => {
-    if (qty > 10) {
+    if (qty < 1 || qty > 10) {
       setShowMaxSeatsPrompt(true);
       return;
     }
     
     setIsSuggesting(true);
+    // Add artificial delay for the AI popup effect
+    await new Promise(resolve => setTimeout(resolve, 3000));
     try {
       let url = `/seats/best-available?ticketTypeId=${ticketTypeId}&quantity=${qty}`;
       if (selectedSeats.length > 0) {
@@ -189,6 +192,47 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
 
   return (
     <div className="seatmap-container" style={{ position: 'relative' }}>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes ai-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes ai-pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.5); opacity: 0.5; }
+        }
+      `}} />
+
+      {/* AI Seat Finding Overlay */}
+      {isSuggesting && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', zIndex: 100000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', padding: '2.5rem 3.5rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxWidth: '400px', textAlign: 'center' }}>
+            <div style={{ position: 'relative', width: '100px', height: '100px', marginBottom: '1.5rem', animation: 'ai-bounce 2s infinite ease-in-out' }}>
+               {/* Robot/AI Icon with magnifying glass */}
+               <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+                 <rect x="25" y="30" width="50" height="40" rx="12" fill="#6366f1" />
+                 <circle cx="38" cy="45" r="5" fill="#fff" />
+                 <circle cx="62" cy="45" r="5" fill="#fff" />
+                 <path d="M45 60 Q 50 65 55 60" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+                 <line x1="50" y1="30" x2="50" y2="10" stroke="#6366f1" strokeWidth="4" />
+                 <circle cx="50" cy="10" r="6" fill="#f59e0b" />
+                 
+                 {/* Magnifying Glass */}
+                 <circle cx="75" cy="75" r="15" stroke="#10b981" strokeWidth="4" fill="rgba(16, 185, 129, 0.2)" />
+                 <line x1="85" y1="85" x2="98" y2="98" stroke="#10b981" strokeWidth="6" strokeLinecap="round" />
+                 <path d="M70 70 L 75 75 L 80 65" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+               </svg>
+            </div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b', margin: 0, marginBottom: '0.75rem' }}>Hệ thống đang tìm chỗ ngồi tốt nhất cho bạn...</h3>
+            <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', animation: 'ai-pulse 1.5s infinite' }}></div>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', animation: 'ai-pulse 1.5s infinite 0.3s' }}></div>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', animation: 'ai-pulse 1.5s infinite 0.6s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast.show && (
         <div style={{
@@ -304,8 +348,8 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
               </svg>
             </div>
             <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Giới hạn chọn ghế</h3>
-            <p style={{ margin: 0, fontSize: '0.9rem', marginBottom: '2rem' }}>
-              Vui lòng chọn tối đa 10 ghế cho mỗi lần gợi ý.
+            <p style={{ margin: 0, fontSize: '0.9rem', marginBottom: '2rem', color: '#475569' }}>
+              Hệ thống chỉ có thể gợi ý từ 1 đến 10 ghế cho mỗi lần chọn. Vui lòng nhập lại số lượng.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button 
@@ -313,6 +357,33 @@ const SeatMap = forwardRef(({ ticketTypeId, onSeatsSelected, initialSelectedSeat
                 style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#00B46E', color: '#fff', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px 0 rgba(0, 180, 110, 0.39)' }}
                 onMouseOver={e => { e.currentTarget.style.background = '#00965A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                 onMouseOut={e => { e.currentTarget.style.background = '#00B46E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Locked Seat Prompt Modal */}
+      {showLockedSeatPrompt && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)' }} onClick={() => setShowLockedSeatPrompt(false)}>
+          <div style={{ width: '90%', maxWidth: '400px', padding: '2.5rem 2rem', textAlign: 'center', borderRadius: '24px', background: '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', transform: 'translateY(0)', animation: 'fadeInDown 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '64px', height: '64px', background: '#fef3c7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <svg width="32" height="32" fill="none" stroke="#d97706" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Ghế đang được giữ</h3>
+            <p style={{ margin: 0, fontSize: '0.9rem', marginBottom: '2rem', color: '#475569', lineHeight: 1.5 }}>
+              Ghế này hiện đang được khách hàng khác chọn mua hoặc giữ chỗ. Vui lòng chọn ghế trống khác nhé.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowLockedSeatPrompt(false)}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#f59e0b', color: '#fff', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px 0 rgba(245, 158, 11, 0.39)' }}
+                onMouseOver={e => { e.currentTarget.style.background = '#d97706'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseOut={e => { e.currentTarget.style.background = '#f59e0b'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
                 Đã hiểu
               </button>
