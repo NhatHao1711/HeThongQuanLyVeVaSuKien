@@ -47,15 +47,28 @@ export default function EventCard({ event }) {
         {/* The Image Container */}
                       <div className="cinestar-poster" style={{ position: 'relative', width: '100%', aspectRatio: '2/3', borderRadius: '8px', overflow: 'hidden', background: '#f1f5f9' }}>
                         {event.imageUrl ? (
-                          <img 
-                            src={`${API_BASE}${event.imageUrl}`} 
-                            alt={event.title} 
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=600&q=80';
-                            }}
-                          />
+                          <>
+                            {/* Blurred background image to fill blank spaces */}
+                            <img 
+                              src={`${API_BASE}${event.imageUrl}`} 
+                              alt="" 
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(20px) brightness(0.6)', transform: 'scale(1.15)' }} 
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                            {/* Sharp foreground image centered and fitted */}
+                            <img 
+                              src={`${API_BASE}${event.imageUrl}`} 
+                              alt={event.title} 
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }} 
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=600&q=80';
+                              }}
+                            />
+                          </>
                         ) : (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span style={{ opacity: 0.5, fontWeight: 700, color: '#fff', fontSize: '1.2rem' }}>TRIVENT</span>

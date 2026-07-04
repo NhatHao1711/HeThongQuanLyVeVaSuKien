@@ -74,6 +74,7 @@ export default function AgencyDashboard() {
   const [ticketTypes, setTicketTypes] = useState([]);
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketForm, setTicketForm] = useState({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true });
+  const [seatsList, setSeatsList] = useState([]);
 
   // Seat Management
   const [seatManagerTicket, setSeatManagerTicket] = useState(null);
@@ -644,17 +645,29 @@ export default function AgencyDashboard() {
   const renderTicketManagement = () => (
     <div style={{ ...s.card, marginTop: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h4 style={{ fontWeight: 700, fontSize: '1.1rem' }}>Quản lý Loại vé</h4>
-        {!showTicketForm && <button onClick={() => { setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true }); setShowTicketForm(true); }} style={{ ...s.btn, width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}>+ Thêm vé</button>}
+        <h4 style={{ fontWeight: 700, fontSize: '1.1rem' }}>Chi tiết khán đài</h4>
+        {!showTicketForm && <button onClick={() => { setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true }); setShowTicketForm(true); }} style={{ ...s.btn, width: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}>+ Thêm khán đài</button>}
       </div>
 
       {showTicketForm && (
         <form onSubmit={submitTicket} style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div><label style={s.label}>Tên vé (VD: VIP)</label><input style={s.input} required value={ticketForm.name} onChange={e => setTicketForm({...ticketForm, name: e.target.value})} /></div>
-            <div><label style={s.label}>Giá (VNĐ)</label><input style={s.input} type="number" min="0" required value={ticketForm.price} onChange={e => setTicketForm({...ticketForm, price: e.target.value})} /></div>
-            <div><label style={s.label}>Số lượng (Tối đa)</label><input style={s.input} type="number" min="1" required value={ticketForm.totalQuantity} onChange={e => setTicketForm({...ticketForm, totalQuantity: e.target.value})} /></div>
-            <div><label style={s.label}>Ngày áp dụng</label><input style={s.input} type="date" value={ticketForm.eventDate} onChange={e => setTicketForm({...ticketForm, eventDate: e.target.value})} disabled={ticketForm.applyToAllDays} /></div>
+            <div>
+              <label style={s.label}>Tên khán đài</label>
+              <input style={s.input} required placeholder="Khán đài A, Khán đài B..." value={ticketForm.name} onChange={e => setTicketForm({...ticketForm, name: e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>Giá (VNĐ)</label>
+              <input style={s.input} type="number" min="0" required placeholder="VD: 50000" value={ticketForm.price} onChange={e => setTicketForm({...ticketForm, price: e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>Số lượng</label>
+              <input style={s.input} type="number" min="1" required placeholder="VD: 100" value={ticketForm.totalQuantity} onChange={e => setTicketForm({...ticketForm, totalQuantity: e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>Ngày áp dụng</label>
+              <input style={s.input} type="date" value={ticketForm.eventDate} onChange={e => setTicketForm({...ticketForm, eventDate: e.target.value})} disabled={ticketForm.applyToAllDays} />
+            </div>
           </div>
           {!ticketForm.id && (
             <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -663,14 +676,14 @@ export default function AgencyDashboard() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="submit" style={{ ...s.btn, width: 'auto' }}>Lưu vé</button>
+            <button type="submit" style={{ ...s.btn, width: 'auto' }}>Lưu</button>
             <button type="button" style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }} onClick={() => { setShowTicketForm(false); setTicketForm({ id: null, name: '', price: 0, totalQuantity: 0, eventDate: '', applyToAllDays: true }); }}>Hủy</button>
           </div>
         </form>
       )}
 
       {ticketTypes.length === 0 ? (
-        <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>Sự kiện chưa có vé nào.</p>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>Sự kiện chưa có khán đài nào.</p>
       ) : (
         <div style={{ marginTop: '1rem' }}>
           {(() => {
@@ -712,14 +725,14 @@ export default function AgencyDashboard() {
                     onClick={() => setExpandedTicketGroups(prev => ({ ...prev, [`agency_${dateStr}`]: !isExpanded }))}
                   >
                     <strong style={{ fontSize: '1.05rem', color: '#0f172a' }}>{dateStr !== 'Mặc định' ? `Ngày áp dụng: ${dateStr}` : 'Vé chung (Không chỉ định ngày)'}</strong>
-                    <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600 }}>{tickets.length} loại vé {isExpanded ? '▲' : '▼'}</span>
+                    <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600 }}>{tickets.length} khán đài {isExpanded ? '▲' : '▼'}</span>
                   </div>
                   {isExpanded && (
                     <div style={{ borderTop: '1px solid #e2e8f0' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                         <thead>
                           <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', background: '#fcfcfc' }}>
-                            <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Tên vé</th>
+                            <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Tên khán đài</th>
                             <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Giá</th>
                             <th style={{ padding: '10px 1rem', color: '#4a5568' }}>Số lượng</th>
                             <th style={{ padding: '10px 1rem', color: '#4a5568', textAlign: 'right' }}>Thao tác</th>
@@ -751,40 +764,98 @@ export default function AgencyDashboard() {
 
       {/* Seat Manager UI */}
       {seatManagerTicket && (
-        <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc' }}>
-          <h5 style={{ fontWeight: 700, marginBottom: '1rem', color: '#1e293b' }}>
+        <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: 12, background: '#f8fafc' }}>
+          <h5 style={{ fontWeight: 700, marginBottom: '1rem', color: '#1e293b', fontSize: '1rem' }}>
             Sơ đồ ghế: <span style={{ color: '#0ea5e9' }}>{seatManagerTicket.name}</span>
           </h5>
-          <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '1rem' }}>
-            Số lượng ghế hiện tại trong hệ thống: <strong style={{ color: '#10b981', fontSize: '1rem' }}>{seatManagerTicket.seatCount}</strong> ghế.
-          </p>
+
+          {/* Seat Status Summary Card (Admin Style) */}
+          <div
+            style={{
+              background: seatManagerTicket.seatCount > 0 ? '#ecfdf5' : '#fffbeb',
+              border: `1px solid ${seatManagerTicket.seatCount > 0 ? '#a7f3d0' : '#fde68a'}`,
+              borderRadius: 12,
+              padding: '1rem',
+              marginBottom: '1.5rem'
+            }}
+          >
+            <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: '0 0 4px', color: seatManagerTicket.seatCount > 0 ? '#065f46' : '#92400e' }}>
+              {seatManagerTicket.seatCount > 0
+                ? `Đã khởi tạo ${seatManagerTicket.seatCount} vị trí ghế`
+                : 'Chưa thiết lập sơ đồ vị trí ngồi'}
+            </p>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
+              {seatManagerTicket.seatCount > 0
+                ? 'Hành động tạo mới sơ đồ sẽ xóa toàn bộ danh sách ghế ngồi cũ và không thể khôi phục.'
+                : 'Tạo sơ đồ giúp người mua vé chọn được vị trí ngồi tương ứng khi giao dịch.'}
+            </p>
+          </div>
           
-          <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none', marginBottom: '1rem', padding: '0.75rem', background: '#e0e7ff', borderRadius: 8, color: '#3730a3', fontWeight: 500, fontSize: '0.9rem' }}>
               <input type="checkbox" checked={applySeatToAll} onChange={e => setApplySeatToAll(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
-              Đồng thời áp dụng cấu hình này cho tất cả các ngày của loại vé "{seatManagerTicket.name}"
+              Đồng thời áp dụng cấu hình này cho tất cả các ngày của khán đài "{seatManagerTicket.name}"
             </label>
-            <p style={{ fontWeight: 700, fontSize: '0.88rem', margin: '0 0 1rem' }}>Cấu hình sơ đồ hàng & cột</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.88rem', margin: '0 0 1rem', color: '#1e293b' }}>Cấu hình sơ đồ hàng & cột</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
-                <label style={s.label}>Số hàng ghế</label>
-                <input style={s.input} type="number" min="1" max="50" value={seatConfig.rows} onChange={e => setSeatConfig({...seatConfig, rows: e.target.value})} />
+                <label style={s.label}>Số hàng (A, B, C...)</label>
+                <input 
+                  style={{ ...s.input, textAlign: 'center', fontWeight: 700, fontSize: '1.1rem' }} 
+                  type="number" 
+                  min="1" 
+                  max="26" 
+                  value={seatConfig.rows} 
+                  onChange={e => setSeatConfig({...seatConfig, rows: e.target.value})} 
+                />
               </div>
               <div>
-                <label style={s.label}>Số ghế mỗi hàng</label>
-                <input style={s.input} type="number" min="1" max="50" value={seatConfig.cols} onChange={e => setSeatConfig({...seatConfig, cols: e.target.value})} />
+                <label style={s.label}>Số cột (01, 02...)</label>
+                <input 
+                  style={{ ...s.input, textAlign: 'center', fontWeight: 700, fontSize: '1.1rem' }} 
+                  type="number" 
+                  min="1" 
+                  max="50" 
+                  value={seatConfig.cols} 
+                  onChange={e => setSeatConfig({...seatConfig, cols: e.target.value})} 
+                />
               </div>
+            </div>
+            
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                background: '#e0e7ff',
+                borderRadius: 8,
+                fontSize: '0.85rem',
+                color: '#3730a3',
+                textAlign: 'center',
+                fontWeight: 600,
+              }}
+            >
+              Tổng cộng: {Number(seatConfig.rows) * Number(seatConfig.cols)} ghế ngồi
             </div>
           </div>
 
-          <div style={{ background: '#fffbeb', color: '#d97706', padding: '10px', borderRadius: 8, fontSize: '0.8rem', marginBottom: '1rem', border: '1px solid #fde68a' }}>
-            <strong>Lưu ý:</strong> Hành động này sẽ xóa toàn bộ ghế cũ của loại vé này và tạo lại sơ đồ ghế mới. Sẽ tạo ra tổng cộng {Number(seatConfig.rows) * Number(seatConfig.cols)} ghế mới.
-          </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={generateSeats} disabled={seatLoading} style={{ ...s.btn, width: 'auto', background: '#3b82f6' }}>
-              {seatLoading ? 'Đang tạo...' : 'Tạo sơ đồ ghế'}
+            <button 
+              onClick={generateSeats} 
+              disabled={seatLoading} 
+              style={{ ...s.btn, flex: 1, padding: '0.8rem', background: '#3b82f6' }}
+            >
+              {seatLoading 
+                ? 'Đang tạo sơ đồ...' 
+                : seatManagerTicket.seatCount > 0 
+                  ? 'Tạo lại (Reset)' 
+                  : 'Xác nhận tạo ghế'}
             </button>
-            <button onClick={() => setSeatManagerTicket(null)} style={{ ...s.btn, width: 'auto', background: '#e2e8f0', color: '#4a5568' }}>Đóng</button>
+            <button 
+              onClick={() => setSeatManagerTicket(null)} 
+              style={{ ...s.btn, width: 'auto', padding: '0.8rem 1.5rem', background: '#e2e8f0', color: '#4a5568' }}
+            >
+              Hủy bỏ
+            </button>
           </div>
 
           {/* Visual Seat Map */}

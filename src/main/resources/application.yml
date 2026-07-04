@@ -11,6 +11,11 @@ spring:
   application:
     name: event-ticket-system
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   # ===================== DATABASE =====================
   datasource:
     url: jdbc:mysql://localhost:3306/event_ticket_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&characterEncoding=UTF-8&useUnicode=true

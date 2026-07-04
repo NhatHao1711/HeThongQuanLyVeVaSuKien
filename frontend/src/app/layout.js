@@ -20,6 +20,7 @@ export const metadata = {
 import { TranslationProvider } from '@/context/TranslationContext';
 
 import GlobalPopup from '@/components/GlobalPopup';
+import SupportButtons from '@/components/SupportButtons';
 
 export default function RootLayout({ children }) {
   return (
@@ -41,6 +42,7 @@ export default function RootLayout({ children }) {
         <TranslationProvider>
           {children}
           <GlobalPopup />
+          <SupportButtons />
         </TranslationProvider>
       </body>
     </html>

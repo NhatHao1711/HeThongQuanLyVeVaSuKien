@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thiết kế chi tiết các bảng dữ liệu - TRIVENT</title>
+    <style>
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 13pt;
+            line-height: 1.5;
+            margin: 40px;
+            color: #000000;
+        }
+        h2 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14pt;
+            color: #000000;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        h3 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13pt;
+            color: #000000;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            font-size: 12pt;
+        }
+        th, td {
+            border: 1px solid #000000;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .col-name {
+            font-weight: bold;
+            font-family: "Courier New", Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>3.3.2. Thiết kế chi tiết các bảng dữ liệu</h2>
+    <p>Dưới đây là đặc tả cấu trúc vật lý chi tiết của các bảng trong cơ sở dữ liệu hệ thống quản lý sự kiện TRIVENT:</p>
+
+    <!-- BẢNG 1: users -->
+    <h3>1. Bảng <code>users</code> (Quản lý thông tin tài khoản)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh người dùng tự tăng</td>
+            </tr>
+            <tr>
+                <td class="col-name">university_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES universities(id), NULL</td>
+                <td>Mã trường đại học của sinh viên</td>
+            </tr>
+            <tr>
+                <td class="col-name">email</td>
+                <td>VARCHAR(150)</td>
+                <td>NOT NULL, UNIQUE</td>
+                <td>Địa chỉ email đăng nhập (Xác thực duy nhất)</td>
+            </tr>
+            <tr>
+                <td class="col-name">full_name</td>
+                <td>VARCHAR(150)</td>
+                <td>NOT NULL</td>
+                <td>Họ và tên hiển thị trên hệ thống</td>
+            </tr>
+            <tr>
+                <td class="col-name">password_hash</td>
+                <td>VARCHAR(255)</td>
+                <td>NOT NULL</td>
+                <td>Chuỗi mật khẩu băm bảo mật bằng Bcrypt</td>
+            </tr>
+            <tr>
+                <td class="col-name">phone</td>
+                <td>VARCHAR(20)</td>
+                <td>NULL</td>
+                <td>Số điện thoại liên lạc</td>
+            </tr>
+            <tr>
+                <td class="col-name">avatar_url</td>
+                <td>VARCHAR(500)</td>
+                <td>NULL</td>
+                <td>Đường dẫn ảnh đại diện người dùng</td>
+            </tr>
+            <tr>
+                <td class="col-name">role</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'ROLE_USER'</td>
+                <td>Vai trò (ROLE_USER, ROLE_ORGANIZER, ROLE_ADMIN)</td>
+            </tr>
+            <tr>
+                <td class="col-name">is_verified</td>
+                <td>BIT(1)</td>
+                <td>DEFAULT 0</td>
+                <td>Trạng thái xác thực email trường học (0: Chưa, 1: Rồi)</td>
+            </tr>
+            <tr>
+                <td class="col-name">interests_tags</td>
+                <td>JSON</td>
+                <td>NULL</td>
+                <td>Mảng chứa các thẻ sở thích phục vụ ghép đôi</td>
+            </tr>
+            <tr>
+                <td class="col-name">balance</td>
+                <td>DECIMAL(12,2)</td>
+                <td>DEFAULT 0.00</td>
+                <td>Số dư ví tài khoản của người dùng (BTC/Admin)</td>
+            </tr>
+            <tr>
+                <td class="col-name">holding_balance</td>
+                <td>DECIMAL(12,2)</td>
+                <td>DEFAULT 0.00</td>
+                <td>Số dư tạm giữ (doanh thu sự kiện chờ đối soát)</td>
+            </tr>
+            <tr>
+                <td class="col-name">kyc_status</td>
+                <td>VARCHAR(20)</td>
+                <td>NULL</td>
+                <td>Trạng thái định danh câu lạc bộ hoạt động</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm đăng ký tài khoản</td>
+            </tr>
+            <tr>
+                <td class="col-name">updated_at</td>
+                <td>DATETIME</td>
+                <td>NULL</td>
+                <td>Thời điểm cập nhật thông tin tài khoản gần nhất</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 2: events -->
+    <h3>2. Bảng <code>events</code> (Quản lý các chương trình / sự kiện ngoại khóa)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh sự kiện tự tăng</td>
+            </tr>
+            <tr>
+                <td class="col-name">organizer_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Mã tài khoản của Ban Tổ Chức tạo sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">category_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES event_categories(id)</td>
+                <td>Thể loại/Danh mục của sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">title</td>
+                <td>VARCHAR(300)</td>
+                <td>NOT NULL</td>
+                <td>Tiêu đề của chương trình</td>
+            </tr>
+            <tr>
+                <td class="col-name">description</td>
+                <td>TEXT</td>
+                <td>NULL</td>
+                <td>Mô tả chi tiết nội dung sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">location</td>
+                <td>VARCHAR(500)</td>
+                <td>NULL</td>
+                <td>Địa điểm tổ chức sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">image_url</td>
+                <td>VARCHAR(500)</td>
+                <td>NULL</td>
+                <td>Ảnh bìa/Banner truyền thông</td>
+            </tr>
+            <tr>
+                <td class="col-name">status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'DRAFT'</td>
+                <td>Trạng thái duyệt (DRAFT, PENDING, PUBLISHED, CLOSED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">is_featured</td>
+                <td>BIT(1)</td>
+                <td>DEFAULT 0</td>
+                <td>Đánh dấu sự kiện nổi bật hiển thị ở Banner chính</td>
+            </tr>
+            <tr>
+                <td class="col-name">reject_reason</td>
+                <td>VARCHAR(500)</td>
+                <td>NULL</td>
+                <td>Lý do từ chối kiểm duyệt từ phía Nhà trường</td>
+            </tr>
+            <tr>
+                <td class="col-name">views</td>
+                <td>BIGINT</td>
+                <td>DEFAULT 0</td>
+                <td>Số lượt xem trang chi tiết sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">start_time</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời gian bắt đầu diễn ra sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">end_time</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời gian kết thúc sự kiện</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm tạo đề xuất sự kiện</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 3: ticket_types -->
+    <h3>3. Bảng <code>ticket_types</code> (Quản lý các hạng đăng ký / vé sự kiện)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã hạng đăng ký tự sinh</td>
+            </tr>
+            <tr>
+                <td class="col-name">event_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES events(id)</td>
+                <td>Thuộc về sự kiện nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">name</td>
+                <td>VARCHAR(100)</td>
+                <td>NOT NULL</td>
+                <td>Tên hạng vé (Ví dụ: Vé VIP, Vé Thường, Guest)</td>
+            </tr>
+            <tr>
+                <td class="col-name">price</td>
+                <td>DECIMAL(12,2)</td>
+                <td>NOT NULL</td>
+                <td>Giá/Phí tham dự (0.00 nếu miễn phí)</td>
+            </tr>
+            <tr>
+                <td class="col-name">total_quantity</td>
+                <td>INT</td>
+                <td>NOT NULL</td>
+                <td>Số lượng suất đăng ký giới hạn tối đa</td>
+            </tr>
+            <tr>
+                <td class="col-name">available_quantity</td>
+                <td>INT</td>
+                <td>NOT NULL</td>
+                <td>Số lượng suất còn trống có thể đăng ký</td>
+            </tr>
+            <tr>
+                <td class="col-name">event_date</td>
+                <td>DATE</td>
+                <td>NULL</td>
+                <td>Ngày diễn ra (áp dụng cho sự kiện kéo dài nhiều ngày)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 4: seats -->
+    <h3>4. Bảng <code>seats</code> (Quản lý chi tiết ghế ngồi trong hội trường)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh vị trí ghế</td>
+            </tr>
+            <tr>
+                <td class="col-name">ticket_type_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES ticket_types(id)</td>
+                <td>Thuộc phân loại hạng vé nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">name</td>
+                <td>VARCHAR(50)</td>
+                <td>NOT NULL</td>
+                <td>Tên vị trí ghế ngồi (Ví dụ: A01, B12...)</td>
+            </tr>
+            <tr>
+                <td class="col-name">status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'AVAILABLE'</td>
+                <td>Trạng thái ghế (AVAILABLE, LOCKED, BOOKED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm tạo ghế</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 5: user_tickets -->
+    <h3>5. Bảng <code>user_tickets</code> (Quản lý Thẻ tham dự điện tử và Check-in)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh thẻ tham dự tự sinh</td>
+            </tr>
+            <tr>
+                <td class="col-name">order_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES orders(id)</td>
+                <td>Thuộc đơn đặt chỗ nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">ticket_type_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES ticket_types(id)</td>
+                <td>Thuộc loại vé nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">user_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Sinh viên sở hữu thẻ mời</td>
+            </tr>
+            <tr>
+                <td class="col-name">seat_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES seats(id), NULL</td>
+                <td>Vị trí ghế ngồi được gán (nếu có)</td>
+            </tr>
+            <tr>
+                <td class="col-name">qr_token</td>
+                <td>VARCHAR(500)</td>
+                <td>UNIQUE</td>
+                <td>Mã bảo mật mã hóa AES dùng quét QR</td>
+            </tr>
+            <tr>
+                <td class="col-name">checkin_status</td>
+                <td>VARCHAR(10)</td>
+                <td>NOT NULL, DEFAULT 'UNUSED'</td>
+                <td>Trạng thái điểm danh sinh viên (UNUSED, USED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">checkin_time</td>
+                <td>DATETIME</td>
+                <td>NULL</td>
+                <td>Thời điểm sinh viên check-in vào cửa thực tế</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm xuất thẻ tham dự</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 6: orders -->
+    <h3>6. Bảng <code>orders</code> (Quản lý các giao dịch / Đơn đăng ký)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã đơn hàng tự sinh</td>
+            </tr>
+            <tr>
+                <td class="col-name">user_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Tài khoản sinh viên thực hiện đăng ký</td>
+            </tr>
+            <tr>
+                <td class="col-name">total_amount</td>
+                <td>DECIMAL(12,2)</td>
+                <td>NOT NULL</td>
+                <td>Tổng tiền đơn hàng</td>
+            </tr>
+            <tr>
+                <td class="col-name">discount_amount</td>
+                <td>DECIMAL(12,2)</td>
+                <td>DEFAULT 0.00</td>
+                <td>Số tiền được giảm giá</td>
+            </tr>
+            <tr>
+                <td class="col-name">voucher_code</td>
+                <td>VARCHAR(50)</td>
+                <td>NULL</td>
+                <td>Mã giảm giá đã áp dụng</td>
+            </tr>
+            <tr>
+                <td class="col-name">transaction_ref</td>
+                <td>VARCHAR(100)</td>
+                <td>NULL</td>
+                <td>Mã tham chiếu đối soát của PayOS / VNPay</td>
+            </tr>
+            <tr>
+                <td class="col-name">payment_method</td>
+                <td>VARCHAR(20)</td>
+                <td>NULL</td>
+                <td>Phương thức thanh toán (VNPAY, PAYOS, BALANCE)</td>
+            </tr>
+            <tr>
+                <td class="col-name">payment_status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'PENDING'</td>
+                <td>Trạng thái thanh toán (PENDING, PAID, FAILED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">version</td>
+                <td>BIGINT</td>
+                <td>NOT NULL</td>
+                <td>Biến phiên phục vụ khóa lạc quan (Optimistic Lock)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm khởi tạo đơn hàng</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 7: event_buddies -->
+    <h3>7. Bảng <code>event_buddies</code> (Quản lý kết nối Bạn đồng hành)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh ghép đôi tự tăng</td>
+            </tr>
+            <tr>
+                <td class="col-name">event_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES events(id)</td>
+                <td>Đăng ký đi chung tại sự kiện nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">sender_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Sinh viên gửi yêu cầu ghép đôi</td>
+            </tr>
+            <tr>
+                <td class="col-name">receiver_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Sinh viên nhận yêu cầu ghép đôi</td>
+            </tr>
+            <tr>
+                <td class="col-name">status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'PENDING'</td>
+                <td>Trạng thái yêu cầu (PENDING, ACCEPTED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm gửi yêu cầu kết nối</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 8: universities -->
+    <h3>8. Bảng <code>universities</code> (Quản lý danh mục các trường đại học)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã trường tự tăng</td>
+            </tr>
+            <tr>
+                <td class="col-name">name</td>
+                <td>VARCHAR(255)</td>
+                <td>NOT NULL</td>
+                <td>Tên đầy đủ của trường đại học</td>
+            </tr>
+            <tr>
+                <td class="col-name">domain</td>
+                <td>VARCHAR(100)</td>
+                <td>NOT NULL</td>
+                <td>Đuôi tên miền email trường (phục vụ đối soát sinh viên)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Ngày cập nhật danh mục</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 9: event_reviews -->
+    <h3>9. Bảng <code>event_reviews</code> (Quản lý phản hồi sau sự kiện)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã đánh giá tự sinh</td>
+            </tr>
+            <tr>
+                <td class="col-name">event_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES events(id)</td>
+                <td>Đánh giá cho sự kiện nào</td>
+            </tr>
+            <tr>
+                <td class="col-name">user_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Sinh viên viết đánh giá</td>
+            </tr>
+            <tr>
+                <td class="col-name">rating</td>
+                <td>INT</td>
+                <td>NOT NULL</td>
+                <td>Số điểm đánh giá (Từ 1 đến 5 sao)</td>
+            </tr>
+            <tr>
+                <td class="col-name">comment</td>
+                <td>TEXT</td>
+                <td>NULL</td>
+                <td>Bình luận chi tiết của sinh viên</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Ngày giờ gửi đánh giá</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 10: vouchers -->
+    <h3>10. Bảng <code>vouchers</code> (Quản lý các chương trình ưu đãi)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã voucher tự tăng</td>
+            </tr>
+            <tr>
+                <td class="col-name">code</td>
+                <td>VARCHAR(50)</td>
+                <td>NOT NULL, UNIQUE</td>
+                <td>Ký tự mã giảm giá (Ví dụ: HUTECH20)</td>
+            </tr>
+            <tr>
+                <td class="col-name">discount_amount</td>
+                <td>DECIMAL(12,2)</td>
+                <td>NOT NULL</td>
+                <td>Giá trị giảm trừ cố định</td>
+            </tr>
+            <tr>
+                <td class="col-name">discount_percent</td>
+                <td>VARCHAR(255)</td>
+                <td>NULL</td>
+                <td>Tỷ lệ giảm giá theo phần trăm</td>
+            </tr>
+            <tr>
+                <td class="col-name">max_uses</td>
+                <td>INT</td>
+                <td>NOT NULL</td>
+                <td>Số lượt sử dụng tối đa của mã</td>
+            </tr>
+            <tr>
+                <td class="col-name">current_uses</td>
+                <td>INT</td>
+                <td>NOT NULL, DEFAULT 0</td>
+                <td>Số lượt đã sử dụng thực tế</td>
+            </tr>
+            <tr>
+                <td class="col-name">is_active</td>
+                <td>BIT(1)</td>
+                <td>DEFAULT 1</td>
+                <td>Trạng thái kích hoạt (0: Tắt, 1: Mở)</td>
+            </tr>
+            <tr>
+                <td class="col-name">expiry_date</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Ngày hết hạn của voucher</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 11: ledger_entries -->
+    <h3>11. Bảng <code>ledger_entries</code> (Sổ cái giao dịch của Ban Tổ Chức)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã định danh bản ghi sổ cái tự sinh</td>
+            </tr>
+            <tr>
+                <td class="col-name">agency_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Tài khoản Ban Tổ Chức thụ hưởng</td>
+            </tr>
+            <tr>
+                <td class="col-name">order_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES orders(id)</td>
+                <td>Liên kết tới đơn đăng ký sinh ra giao dịch</td>
+            </tr>
+            <tr>
+                <td class="col-name">amount</td>
+                <td>DECIMAL(12,2)</td>
+                <td>NOT NULL</td>
+                <td>Số tiền biến động (Cộng/Trừ)</td>
+            </tr>
+            <tr>
+                <td class="col-name">entry_type</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL</td>
+                <td>Loại biến động (REVENUE - Thu nhập, PAYOUT - Rút tiền)</td>
+            </tr>
+            <tr>
+                <td class="col-name">status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL</td>
+                <td>Trạng thái giao dịch (SUCCESS, PENDING, FAILED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm ghi nhận giao dịch</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BẢNG 12: organizer_requests -->
+    <h3>12. Bảng <code>organizer_requests</code> (Hồ sơ xét duyệt Ban Tổ Chức mới)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Tên cột</th>
+                <th style="width: 18%;">Kiểu dữ liệu</th>
+                <th style="width: 22%;">Ràng buộc</th>
+                <th style="width: 40%;">Mô tả chi tiết</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">id</td>
+                <td>BIGINT</td>
+                <td>PRIMARY KEY, AUTO_INCREMENT</td>
+                <td>Mã đơn đăng ký</td>
+            </tr>
+            <tr>
+                <td class="col-name">user_id</td>
+                <td>BIGINT</td>
+                <td>FOREIGN KEY REFERENCES users(id)</td>
+                <td>Tài khoản người dùng nộp đơn</td>
+            </tr>
+            <tr>
+                <td class="col-name">organization_name</td>
+                <td>VARCHAR(150)</td>
+                <td>NOT NULL</td>
+                <td>Tên của Câu lạc bộ / Đội / Nhóm</td>
+            </tr>
+            <tr>
+                <td class="col-name">contact_email</td>
+                <td>VARCHAR(150)</td>
+                <td>NOT NULL</td>
+                <td>Email liên hệ chính thức của tổ chức</td>
+            </tr>
+            <tr>
+                <td class="col-name">contact_phone</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL</td>
+                <td>Số điện thoại liên hệ</td>
+            </tr>
+            <tr>
+                <td class="col-name">description</td>
+                <td>TEXT</td>
+                <td>NULL</td>
+                <td>Giới thiệu tóm tắt mục tiêu hoạt động của CLB</td>
+            </tr>
+            <tr>
+                <td class="col-name">document_url</td>
+                <td>VARCHAR(500)</td>
+                <td>NULL</td>
+                <td>Đường dẫn tài liệu xác thực (Quyết định thành lập...)</td>
+            </tr>
+            <tr>
+                <td class="col-name">status</td>
+                <td>VARCHAR(20)</td>
+                <td>NOT NULL, DEFAULT 'PENDING'</td>
+                <td>Trạng thái duyệt (PENDING, APPROVED, REJECTED)</td>
+            </tr>
+            <tr>
+                <td class="col-name">created_at</td>
+                <td>DATETIME</td>
+                <td>NOT NULL</td>
+                <td>Thời điểm nộp đơn</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- PHẦN 3.3.3: CHỈ MỤC VÀ TỐI ƯU HÓA TRUY VẤN -->
+    <h2>3.3.3. Chỉ mục và tối ưu hóa truy vấn</h2>
+    <p>Đối với hệ thống quản lý sự kiện dành cho sinh viên, việc đảm bảo tốc độ phản hồi nhanh dưới lượng truy cập đồng thời lớn là vô cùng quan trọng (đặc biệt là khi mở cổng đăng ký sự kiện lớn hoặc check-in hàng loạt tại cửa hội trường). Hệ thống áp dụng hai phương pháp tối ưu hóa dữ liệu cốt lõi sau:</p>
+
+    <h3>1. Thiết lập các chỉ mục vật lý (Database Indexes)</h3>
+    <p>Chỉ mục được xây dựng trên các cột thường xuyên xuất hiện trong mệnh đề WHERE, JOIN, ORDER BY nhằm giảm thiểu tối đa tài nguyên quét đĩa (Disk I/O):</p>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Tên chỉ mục</th>
+                <th style="width: 25%;">Bảng & Cột áp dụng</th>
+                <th style="width: 15%;">Loại chỉ mục</th>
+                <th style="width: 35%;">Mục đích tối ưu hóa</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-name">idx_users_email</td>
+                <td>users (email)</td>
+                <td>UNIQUE INDEX</td>
+                <td>Tăng tốc truy vấn đối sánh tài khoản sinh viên/BTC khi đăng nhập và kiểm tra bảo mật token JWT.</td>
+            </tr>
+            <tr>
+                <td class="col-name">idx_tickets_qr_token</td>
+                <td>user_tickets (qr_token)</td>
+                <td>UNIQUE INDEX</td>
+                <td>Tăng tốc truy vấn tìm kiếm vé mời khi quét mã QR check-in tại cửa sự kiện, giúp thời gian phản hồi soát vé duy trì dưới 5ms.</td>
+            </tr>
+            <tr>
+                <td class="col-name">idx_seats_type_status</td>
+                <td>seats (ticket_type_id, status)</td>
+                <td>COMPOSITE INDEX</td>
+                <td>Tối ưu hóa tốc độ tải sơ đồ ghế trống hội trường. Hệ thống chỉ cần lọc nhanh các ghế có trạng thái 'AVAILABLE' của hạng vé mà không phải quét toàn bảng.</td>
+            </tr>
+            <tr>
+                <td class="col-name">idx_events_status_time</td>
+                <td>events (status, start_time)</td>
+                <td>COMPOSITE INDEX</td>
+                <td>Tối ưu hóa các câu lệnh hiển thị danh sách sự kiện đang hoạt động (PUBLISHED) và sắp xếp theo trình tự thời gian diễn ra trên trang chủ.</td>
+            </tr>
+            <tr>
+                <td class="col-name">idx_buddies_event_status</td>
+                <td>event_buddies (event_id, status)</td>
+                <td>INDEX</td>
+                <td>Tăng tốc độ truy vấn gợi ý và hiển thị danh sách ghép đôi đi chung sự kiện của sinh viên.</td>
+            </tr>
+            <tr>
+                <td class="col-name">idx_ledger_agency</td>
+                <td>ledger_entries (agency_id)</td>
+                <td>INDEX</td>
+                <td>Tối ưu hóa câu lệnh tính toán doanh thu lũy kế và lịch sử ví tiền của các câu lạc bộ (BTC).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>2. Tối ưu hóa truy vấn ở tầng ứng dụng (JPA/ORM Optimization)</h3>
+    <ul>
+        <li><strong>Giải quyết triệt để lỗi N+1 Query:</strong> Sử dụng cơ chế nạp dữ liệu sớm thông qua mệnh đề <code>JOIN FETCH</code> hoặc annotation <code>@EntityGraph</code> trong Spring Data JPA. Thay vì sinh ra hàng chục câu lệnh SELECT con để tải thông tin Ban tổ chức (User) và Danh mục (Category) của sự kiện, hệ thống gộp tất cả vào một câu SELECT duy nhất bằng lệnh LEFT JOIN FETCH.</li>
+        <li><strong>Cơ chế khóa lạc quan (Optimistic Locking):</strong> Sử dụng cột <code>version</code> trong bảng <code>orders</code> thông qua annotation <code>@Version</code> của JPA. Khi có nhiều luồng tranh chấp đăng ký suất vé cuối cùng, hệ thống tự động kiểm tra số phiên bản của bản ghi; nếu phát hiện xung đột ghi đè, hệ thống sẽ chặn giao dịch sau và yêu cầu thử lại, bảo đảm tính toàn vẹn dữ liệu mà không cần khóa cứng bảng làm chậm hệ thống.</li>
+        <li><strong>Cơ chế phân trang dữ liệu (Database Pagination):</strong> Áp dụng đối tượng <code>Pageable</code> ở mức Repository đối với tất cả API tải danh sách lịch sử đăng ký hoặc danh mục sự kiện lớn. Cơ chế này giới hạn số lượng dòng kết quả truyền về (OFFSET và LIMIT ở mức SQL), tránh tình trạng tràn bộ nhớ Heap của JVM khi dữ liệu phình to theo thời gian.</li>
+    </ul>
+
+</body>
+</html>
+

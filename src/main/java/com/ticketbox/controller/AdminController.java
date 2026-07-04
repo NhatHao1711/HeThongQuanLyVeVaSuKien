@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -51,6 +53,7 @@ public class AdminController {
     private final SeatService seatService;
     private final SeatRepository seatRepository;
     private final EventService eventService;
+    private final JdbcTemplate jdbcTemplate;
 
     // ========== Dashboard Stats ==========
     @GetMapping("/stats")
@@ -283,8 +286,43 @@ public class AdminController {
     }
 
     @DeleteMapping("/users/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long id) {
-        userRepository.deleteById(id);
+        log.info("🗑️ Admin deleting user with id: {}", id);
+        
+        // 1. Delete dependent logs, requests, and social interactions
+        jdbcTemplate.update("DELETE FROM notifications WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM withdrawal_requests WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM payouts WHERE agency_id = ?", id);
+        jdbcTemplate.update("DELETE FROM organizer_requests WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM ledger_entries WHERE agency_id = ?", id);
+        jdbcTemplate.update("DELETE FROM follow_organizers WHERE user_id = ? OR organizer_id = ?", id, id);
+        jdbcTemplate.update("DELETE FROM favorite_events WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM event_reviews WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM event_buddies WHERE sender_id = ? OR receiver_id = ?", id, id);
+        
+        // 2. Delete sub_payments of user's orders, then user tickets, then user's orders
+        jdbcTemplate.update("DELETE FROM sub_payments WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", id);
+        jdbcTemplate.update("DELETE FROM user_tickets WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM orders WHERE user_id = ?", id);
+
+        // 3. Delete event tickets, seats, ticket types, and events created by this user
+        // Delete sub_payments of orders made on events organized by this user
+        jdbcTemplate.update("DELETE FROM sub_payments WHERE order_id IN (SELECT DISTINCT ut.order_id FROM user_tickets ut JOIN ticket_types tt ON ut.ticket_type_id = tt.id JOIN events e ON tt.event_id = e.id WHERE e.organizer_id = ?)", id);
+        // Delete user tickets of events organized by this user
+        jdbcTemplate.update("DELETE FROM user_tickets WHERE ticket_type_id IN (SELECT id FROM ticket_types WHERE event_id IN (SELECT id FROM events WHERE organizer_id = ?))", id);
+        // Delete orphaned orders (orders with no tickets left)
+        jdbcTemplate.update("DELETE FROM orders WHERE id NOT IN (SELECT DISTINCT order_id FROM user_tickets)");
+        // Delete seats of events organized by this user
+        jdbcTemplate.update("DELETE FROM seats WHERE ticket_type_id IN (SELECT id FROM ticket_types WHERE event_id IN (SELECT id FROM events WHERE organizer_id = ?))", id);
+        // Delete ticket types of events organized by this user
+        jdbcTemplate.update("DELETE FROM ticket_types WHERE event_id IN (SELECT id FROM events WHERE organizer_id = ?)", id);
+        // Delete events organized by this user
+        jdbcTemplate.update("DELETE FROM events WHERE organizer_id = ?", id);
+
+        // 4. Finally delete the user
+        jdbcTemplate.update("DELETE FROM users WHERE id = ?", id);
+        
         return ResponseEntity.ok(ApiResponse.success("Đã xóa user", "OK"));
     }
 

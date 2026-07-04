@@ -142,18 +142,29 @@ export default function Home() {
             <div className="hero-banner-viewport">
               <div className="hero-banner-wrapper" style={{ transform: `translateX(-${carouselIndex * 100}%)` }}>
                 {featuredEvents.map((ev, idx) => (
-                  <div key={ev.id} className="hero-banner-slide">
-                    {/* Background Image */}
+                  <div key={ev.id} className="hero-banner-slide" style={{ position: 'relative', overflow: 'hidden' }}>
+                    {/* Blurred Ambient Background Layer */}
+                    <img
+                      src={ev.imageUrl ? `${API_BASE}${ev.imageUrl}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80'}
+                      alt=""
+                      className="hero-banner-slide-bg"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80';
+                      }}
+                    />
+
+                    {/* Sharp Container-Fitted Foreground Layer */}
                     <img
                       src={ev.imageUrl ? `${API_BASE}${ev.imageUrl}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80'}
                       alt={ev.title}
+                      className="hero-banner-slide-fg"
                       onError={(e) => {
                         e.target.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1920&q=80';
                       }}
                     />
 
                     {/* Dark Gradient Overlay */}
-                    <div className="hero-banner-overlay" />
+                    <div className="hero-banner-overlay" style={{ zIndex: 2 }} />
 
                     {/* Info Content */}
                     <div className="hero-banner-info">

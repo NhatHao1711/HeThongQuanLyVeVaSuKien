@@ -1532,12 +1532,25 @@ a { color: inherit; text-decoration: none; }
 .hero-banner-slide img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
   transition: transform 5s ease-out;
 }
 
-.hero-banner-slide:hover img {
-  transform: scale(1.04);
+.hero-banner-slide-bg {
+  object-fit: cover;
+  filter: blur(25px) brightness(0.45);
+  transform: scale(1.15);
+}
+
+.hero-banner-slide-fg {
+  object-fit: contain;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.hero-banner-slide:hover .hero-banner-slide-bg {
+  transform: scale(1.2);
 }
 
 /* Dark gradient overlay from bottom for text readability */
