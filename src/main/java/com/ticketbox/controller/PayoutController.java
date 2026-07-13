@@ -36,4 +36,32 @@ public class PayoutController {
             return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
         }
     }
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAllPayouts() {
+        return ResponseEntity.ok(java.util.Map.of("success", true, "data", payoutService.getAllPayouts()));
+    }
+
+    @PostMapping("/admin/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> approvePayout(@PathVariable Long id) {
+        try {
+            payoutService.approvePayout(id);
+            return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Đã phê duyệt yêu cầu rút tiền"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/admin/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> rejectPayout(@PathVariable Long id) {
+        try {
+            payoutService.rejectPayout(id);
+            return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Đã từ chối yêu cầu rút tiền"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
+        }
+    }
 }

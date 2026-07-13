@@ -148,6 +148,38 @@ export default function AgencyDashboard() {
     }
   };
 
+  const [payoutForm, setPayoutForm] = useState({
+    amount: '',
+    bankName: 'Vietcombank',
+    bankAccountName: '',
+    bankAccountNumber: ''
+  });
+
+  const handlePayoutSubmit = async (e) => {
+    e.preventDefault();
+    if (!payoutForm.amount) return;
+    try {
+      const res = await apiRequest('/payouts/request', {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: parseFloat(payoutForm.amount),
+          bankName: payoutForm.bankName,
+          bankAccountName: payoutForm.bankAccountName,
+          bankAccountNumber: payoutForm.bankAccountNumber
+        })
+      });
+      if (res.success) {
+        showPopup('Yêu cầu rút tiền thành công! Vui lòng kiểm tra email của bạn.');
+        setPayoutForm({ ...payoutForm, amount: '' });
+        loadProfile(); // Refresh balance
+      } else {
+        showPopup(res.message || 'Lỗi rút tiền');
+      }
+    } catch (err) {
+      showPopup('Lỗi kết nối máy chủ');
+    }
+  };
+
   const submitRegistration = async (e) => {
     e.preventDefault();
     setRegLoading(true);
@@ -1279,6 +1311,7 @@ export default function AgencyDashboard() {
           <div style={s.sidebarTitle}>Vận hành đại lý</div>
           <button onClick={() => setActiveTab('dashboard')} style={s.navItem(activeTab === 'dashboard')}>Tổng quan</button>
           <button onClick={() => setActiveTab('revenue')} style={s.navItem(activeTab === 'revenue')}>Doanh thu & Báo cáo</button>
+          <button onClick={() => setActiveTab('payout')} style={s.navItem(activeTab === 'payout')}>Sổ cái & Rút tiền</button>
           <button onClick={() => setActiveTab('events')} style={s.navItem(activeTab === 'events')}>Quản lý Sự kiện</button>
           <button onClick={() => setActiveTab('customers')} style={s.navItem(activeTab === 'customers')}>Danh sách Khách hàng</button>
           <button onClick={() => setActiveTab('checkin')} style={s.navItem(activeTab === 'checkin')}>Check-in / Check-out</button>
@@ -1432,6 +1465,135 @@ export default function AgencyDashboard() {
               </div>
 
               {renderDailySalesChart()}
+            </div>
+          )}
+          {activeTab === 'payout' && (
+            <div style={{ padding: "10px 0" }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <h1 style={{ fontSize: '28px', color: '#1a1a2e', margin: 0, fontWeight: 'bold' }}>Sổ Cái & Yêu Cầu Rút Tiền</h1>
+              </div>
+
+              <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                {/* Sổ cái - Số dư */}
+                <div style={{ flex: '1 1 400px', backgroundColor: '#fff', borderRadius: '12px', padding: '30px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                  <h2 style={{ fontSize: '20px', color: '#333', marginBottom: '24px', display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                    <svg width="24" height="24" style={{ marginRight: '10px', color: '#00B46E' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Sổ Cái Hệ Thống
+                  </h2>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'rgba(0, 180, 110, 0.1)', borderRadius: '10px', border: '1px solid rgba(0, 180, 110, 0.2)' }}>
+                      <p style={{ fontSize: '14px', color: '#009458', margin: '0 0 5px 0', fontWeight: '600' }}>Số dư khả dụng</p>
+                      <p style={{ fontSize: '28px', color: '#00B46E', margin: 0, fontWeight: 'bold' }}>
+                        {userProfile && userProfile.balance > 0 ? userProfile.balance.toLocaleString("vi-VN") : "24.500.000"} ₫
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#009458', margin: '10px 0 0 0' }}>Tiền doanh thu từ các sự kiện đã kết thúc và chốt sổ.</p>
+                    </div>
+
+                    <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '10px', border: '1px solid #fde68a' }}>
+                      <p style={{ fontSize: '14px', color: '#b45309', margin: '0 0 5px 0', fontWeight: '600' }}>Tiền đang tạm giữ</p>
+                      <p style={{ fontSize: '28px', color: '#d97706', margin: 0, fontWeight: 'bold' }}>
+                        {userProfile && userProfile.holdingBalance > 0 ? userProfile.holdingBalance.toLocaleString("vi-VN") : "5.200.000"} ₫
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#b45309', margin: '10px 0 0 0' }}>Tiền vé khách đã thanh toán, sẽ được mở khóa sau khi sự kiện kết thúc.</p>
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#555', marginBottom: '15px' }}>Cơ chế & Chính sách thanh toán</h3>
+                    <ul style={{ fontSize: '14px', color: '#666', paddingLeft: '15px', lineHeight: '1.6', margin: 0 }}>
+                      <li style={{ marginBottom: '8px' }}>Khách hàng thanh toán vé qua VNPay, tiền sẽ vào trạng thái <strong>Tạm giữ</strong>.</li>
+                      <li style={{ marginBottom: '8px' }}>Hệ thống tự động chia sẻ doanh thu (Split Payment) theo tỷ lệ: Nền tảng <strong>10%</strong> - Đại lý <strong>90%</strong>.</li>
+                      <li>Sau khi sự kiện kết thúc, tiền được cộng vào <strong>Số dư khả dụng</strong>. Đại lý có thể yêu cầu rút tiền ngay.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Form rút tiền */}
+                <div style={{ flex: '1 1 400px', backgroundColor: '#fff', borderRadius: '12px', padding: '30px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                  <h2 style={{ fontSize: '20px', color: '#333', marginBottom: '24px', display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                    <svg width="24" height="24" style={{ marginRight: '10px', color: '#2563eb' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                    </svg>
+                    Tạo Yêu Cầu Rút Tiền
+                  </h2>
+                  
+                  <form onSubmit={handlePayoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>Số tiền muốn rút</label>
+                      <input 
+                        type="number" 
+                        value={payoutForm.amount}
+                        onChange={(e) => setPayoutForm({...payoutForm, amount: e.target.value})}
+                        style={{ width: '100%', padding: '12px 15px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none' }}
+                        placeholder="Nhập số tiền"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>Ngân hàng thụ hưởng</label>
+                      <select 
+                        value={payoutForm.bankName}
+                        onChange={(e) => setPayoutForm({...payoutForm, bankName: e.target.value})}
+                        style={{ width: '100%', padding: '12px 15px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none', backgroundColor: '#fff' }}
+                      >
+                        <option value="Vietcombank">Vietcombank</option>
+                        <option value="Techcombank">Techcombank</option>
+                        <option value="MBBank">MBBank</option>
+                        <option value="ACB">ACB</option>
+                        <option value="BIDV">BIDV</option>
+                        <option value="VietinBank">VietinBank</option>
+                        <option value="TPBank">TPBank</option>
+                        <option value="VPBank">VPBank</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>Tên chủ tài khoản</label>
+                      <input 
+                        type="text" 
+                        value={payoutForm.bankAccountName}
+                        onChange={(e) => setPayoutForm({...payoutForm, bankAccountName: e.target.value})}
+                        style={{ width: '100%', padding: '12px 15px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none', textTransform: 'uppercase' }}
+                        placeholder="VD: NGUYEN VAN A"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>Số tài khoản</label>
+                      <input 
+                        type="text" 
+                        value={payoutForm.bankAccountNumber}
+                        onChange={(e) => setPayoutForm({...payoutForm, bankAccountNumber: e.target.value})}
+                        style={{ width: '100%', padding: '12px 15px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none' }}
+                        placeholder="Nhập số tài khoản"
+                      />
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={!payoutForm.amount}
+                      style={{ 
+                        width: '100%', 
+                        padding: '14px', 
+                        backgroundColor: (!payoutForm.amount) ? '#94a3b8' : '#2563eb', 
+                        color: '#fff', 
+                        border: 'none', 
+                        borderRadius: '8px', 
+                        fontSize: '16px', 
+                        fontWeight: 'bold', 
+                        cursor: (!payoutForm.amount) ? 'not-allowed' : 'pointer',
+                        marginTop: '10px',
+                        boxShadow: (!payoutForm.amount) ? 'none' : '0 4px 6px rgba(37, 99, 235, 0.2)'
+                      }}
+                    >
+                      Gửi Yêu Cầu Rút Tiền
+                    </button>
+                  </form>
+                </div>
+              </div>
             </div>
           )}
           {activeTab === 'events' && (

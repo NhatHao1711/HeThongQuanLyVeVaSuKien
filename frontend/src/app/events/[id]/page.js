@@ -1684,7 +1684,7 @@ export default function EventDetailPage({ params }) {
                       await handleSplitPaymentBooking();
                     }}
                   >
-                    🤝 Thanh toán chia nhóm (Split Payment)
+                    🤝 Thanh toán chia nhóm
                   </button>
                 )}
 

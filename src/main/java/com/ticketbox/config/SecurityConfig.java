@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/api/split-payment/*/pay",
                                 "/test-pay.html",
                                 "/api/vouchers/active",
+                                "/api/mock/**",
                                 "/uploads/**",
                                 "/api/config/**"
                         ).permitAll()

@@ -483,4 +483,86 @@ public class EmailService {
             log.error("❌ Failed to send payment exception email to {}: {}", toEmail, e.getMessage());
         }
     }
+
+    @Async
+    public void sendPayoutRequestEmail(String toEmail, String agencyName, BigDecimal amount) {
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank()) return;
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🎫 TRIVENT - Yêu cầu rút tiền thành công");
+
+            NumberFormat vndFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            String htmlContent = """
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #00B46E;">Xin chào %s,</h2>
+                    <p>Hệ thống TRIVENT đã nhận được yêu cầu rút tiền của bạn với số tiền: <strong>%s</strong>.</p>
+                    <p>Yêu cầu của bạn đang được Kế toán kiểm tra. Tiền sẽ được chuyển vào tài khoản ngân hàng của bạn trong vòng 24h.</p>
+                    <p>Cảm ơn bạn đã đồng hành cùng TRIVENT.</p>
+                </div>
+            """.formatted(agencyName, vndFormat.format(amount));
+            
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("📧 Payout request email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send payout request email", e);
+        }
+    }
+    @Async
+    public void sendAdminPayoutNotificationEmail(String agencyName, BigDecimal amount) {
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank()) return;
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo("truonghuynhathao@gmail.com");
+            helper.setSubject("🚨 TRIVENT ADMIN - Có Yêu Cầu Rút Tiền Mới");
+
+            NumberFormat vndFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            String htmlContent = """
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #ef4444;">Thông Báo Dành Cho Admin</h2>
+                    <p>Đại lý <strong>%s</strong> vừa gửi một yêu cầu rút tiền mới trên hệ thống.</p>
+                    <p>Số tiền yêu cầu: <strong style="color: #00B46E; font-size: 1.2em;">%s</strong></p>
+                    <p>Vui lòng đăng nhập vào trang Quản trị Admin để kiểm tra và phê duyệt yêu cầu này.</p>
+                </div>
+            """.formatted(agencyName, vndFormat.format(amount));
+            
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("📧 Admin payout notification email sent to truonghuynhathao@gmail.com");
+        } catch (Exception e) {
+            log.error("Failed to send admin payout notification email", e);
+        }
+    }
+
+    @Async
+    public void sendPayoutApprovalEmail(String toEmail, String agencyName, BigDecimal amount) {
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank()) return;
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🎫 TRIVENT - Yêu cầu rút tiền đã được duyệt");
+
+            NumberFormat vndFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            String htmlContent = """
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #00B46E;">Xin chào %s,</h2>
+                    <p>Yêu cầu rút tiền <strong>%s</strong> của bạn đã được Admin phê duyệt thành công.</p>
+                    <p>Kế toán đã hoàn tất chuyển khoản, vui lòng kiểm tra tài khoản ngân hàng của bạn nhé!</p>
+                </div>
+            """.formatted(agencyName, vndFormat.format(amount));
+            
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("📧 Payout approval email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send payout approval email", e);
+        }
+    }
 }

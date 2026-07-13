@@ -107,7 +107,7 @@ export default function Navbar() {
 
   return (
     <>
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }} suppressHydrationWarning>
         <nav className="navbar" style={{ height: '64px', position: 'static', padding: 0 }}>
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', width: '100%' }}>
           {/* Trái: Logo TRIVENT dạng ảnh đã lọc nền trắng và chuyển sang màu trắng */}
