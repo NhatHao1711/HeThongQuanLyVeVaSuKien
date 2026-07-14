@@ -26,12 +26,27 @@ export default function BuddiesPage() {
 
   const loadEvents = async () => {
     try {
-      const res = await apiRequest('/events');
+      const res = await apiRequest('/tickets');
       if (res.success) {
-        setEvents(res.data || []);
-        if (res.data && res.data.length > 0) {
-          setSelectedEvent(res.data[0]);
-          await loadBuddyData(res.data[0].id);
+        const tickets = res.data || [];
+        
+        // Extract unique events from user tickets
+        const uniqueEventsMap = {};
+        tickets.forEach(ticket => {
+          if (ticket.eventId && ticket.eventTitle) {
+            uniqueEventsMap[ticket.eventId] = {
+              id: ticket.eventId,
+              title: ticket.eventTitle
+            };
+          }
+        });
+        
+        const userEvents = Object.values(uniqueEventsMap);
+        setEvents(userEvents);
+        
+        if (userEvents.length > 0) {
+          setSelectedEvent(userEvents[0]);
+          await loadBuddyData(userEvents[0].id);
         }
       }
     } catch (err) {

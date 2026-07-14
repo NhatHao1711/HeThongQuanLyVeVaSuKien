@@ -34,9 +34,9 @@ public class ReviewController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReviews(@PathVariable Long eventId) {
-        List<EventReview> reviews = reviewRepository.findByEventIdOrderByCreatedAtDesc(eventId);
-        Double avgRating = reviewRepository.findAverageRatingByEventId(eventId);
-        long totalCount = reviewRepository.countByEventId(eventId);
+        List<EventReview> reviews = reviewRepository.findByEventIdAndHiddenFalseOrderByCreatedAtDesc(eventId);
+        Double avgRating = reviewRepository.findAverageRatingByEventIdAndHiddenFalse(eventId);
+        long totalCount = reviewRepository.countByEventIdAndHiddenFalse(eventId);
 
         List<Map<String, Object>> reviewList = reviews.stream().map(r -> {
             Map<String, Object> map = new HashMap<>();
@@ -55,6 +55,7 @@ public class ReviewController {
 
         return ResponseEntity.ok(ApiResponse.success("OK", result));
     }
+
 
     /**
      * POST /api/events/{eventId}/reviews — Auth: gửi đánh giá (mỗi user chỉ 1 lần)

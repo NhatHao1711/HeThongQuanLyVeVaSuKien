@@ -52,6 +52,12 @@ export default function AdminDashboard() {
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Review Management State
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewFilterEvent, setReviewFilterEvent] = useState('all');
+  const [reviewFilterRating, setReviewFilterRating] = useState('all');
+
   // Search & Filter state
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
@@ -1030,6 +1036,44 @@ export default function AdminDashboard() {
     });
   };
 
+  const loadManageReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await apiRequest('/reviews/manage');
+      if (res && res.data) {
+        setReviews(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      showMsg("error", err.message || "Lỗi tải danh sách đánh giá");
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const toggleReviewHide = async (reviewId) => {
+    try {
+      const res = await apiRequest(`/reviews/${reviewId}/toggle-hide`, {
+        method: 'PUT'
+      });
+      if (res.success) {
+        showMsg("success", res.message || "Thao tác thành công");
+        loadManageReviews();
+      } else {
+        showMsg("error", res.message || "Có lỗi xảy ra");
+      }
+    } catch (err) {
+      console.error(err);
+      showMsg("error", "Lỗi kết nối máy chủ");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      loadManageReviews();
+    }
+  }, [activeTab]);
+
   const systemTabs = [
     { id: "dashboard", label: "Tổng quan" },
     { id: "revenue", label: "Doanh thu & Báo cáo" },
@@ -1038,7 +1082,8 @@ export default function AdminDashboard() {
     { id: "checkin", label: "Check-in / Check-out" },
     { id: "orders", label: "Đơn hàng" },
     { id: "vouchers", label: "Mã giảm giá" },
-      { id: "paymentExceptions", label: "Ngoại lệ thanh toán" },
+    { id: "paymentExceptions", label: "Ngoại lệ thanh toán" },
+    { id: "reviews", label: "Quản lý Đánh giá" },
   ];
   const agencyTabs = [
     { id: "agencies", label: "Phê duyệt đại lý" },
@@ -4856,6 +4901,143 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
+            </>
+          )}
+
+          {activeTab === "reviews" && (
+            <>
+              <div className={styles.header}>
+                <div className={styles.headerTitleGroup}>
+                  <h1 className={styles.title}>Quản lý Đánh giá & Phản hồi</h1>
+                  <p className={styles.description}>
+                    Tổng số nhận xét trên hệ thống: {reviews.length}
+                  </p>
+                </div>
+                <button
+                  onClick={() => loadManageReviews()}
+                  className={`${styles.btn} ${styles.btnOutline} ${styles.btnSm}`}
+                >
+                  Làm mới bảng
+                </button>
+              </div>
+
+              {/* Filters Toolbar */}
+              <div className={styles.toolbar} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', background: '#fff', padding: '1.25rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid var(--admin-border)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>Bộ lọc số sao:</label>
+                  <select 
+                    value={reviewFilterRating} 
+                    onChange={(e) => setReviewFilterRating(e.target.value)}
+                    style={{ padding: '8px 12px', border: '1px solid var(--admin-border)', borderRadius: '8px', fontSize: '0.85rem', background: '#fff', outline: 'none' }}
+                  >
+                    <option value="all">Tất cả đánh giá sao</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5 sao)</option>
+                    <option value="4">⭐⭐⭐⭐ (4 sao)</option>
+                    <option value="3">⭐⭐⭐ (3 sao)</option>
+                    <option value="2">⭐⭐ (2 sao)</option>
+                    <option value="1">⭐ (1 sao)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '280px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>Tìm kiếm nội dung nhận xét:</label>
+                  <input
+                    className={styles.searchInput}
+                    placeholder="Tìm theo tên học sinh, tiêu đề sự kiện hoặc nội dung..."
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                    style={{ margin: 0, width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div style={{ textAlign: "center", padding: "3rem" }}>
+                  <div
+                    className="spinner"
+                    style={{ width: 32, height: 32, margin: "0 auto" }}
+                  ></div>
+                </div>
+              ) : (() => {
+                const query = eventSearch.toLowerCase();
+                const displayReviews = reviews.filter(r => {
+                  const matchRating = reviewFilterRating === 'all' || r.rating.toString() === reviewFilterRating;
+                  const matchQuery = !query || 
+                    r.studentName?.toLowerCase().includes(query) ||
+                    r.studentEmail?.toLowerCase().includes(query) ||
+                    r.eventTitle?.toLowerCase().includes(query) ||
+                    r.comment?.toLowerCase().includes(query);
+                  return matchRating && matchQuery;
+                });
+
+                return (
+                  <div className={styles.card}>
+                    <div className={styles.tableResponsive}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th className={styles.th}>ID</th>
+                            <th className={styles.th}>Sinh viên</th>
+                            <th className={styles.th}>Sự kiện</th>
+                            <th className={styles.th} style={{ textAlign: "center" }}>Số sao</th>
+                            <th className={styles.th}>Nội dung bình luận</th>
+                            <th className={styles.th}>Thời gian gửi</th>
+                            <th className={styles.th} style={{ textAlign: "center" }}>Trạng thái</th>
+                            <th className={styles.th} style={{ textAlign: "right" }}>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayReviews.length === 0 ? (
+                            <tr>
+                              <td colSpan="8" className={styles.td} style={{ textAlign: "center", color: "var(--admin-text-sub)", padding: '2rem' }}>
+                                Không tìm thấy phản hồi đánh giá nào
+                              </td>
+                            </tr>
+                          ) : (
+                            displayReviews.map((r) => (
+                              <tr key={r.id} className={styles.tableRow} style={{ background: r.hidden ? '#fee2e2' : 'transparent' }}>
+                                <td className={styles.td}>#{r.id}</td>
+                                <td className={styles.td}>
+                                  <div style={{ fontWeight: 700 }}>{r.studentName}</div>
+                                  <div style={{ fontSize: "0.75rem", color: "var(--admin-text-sub)" }}>{r.studentEmail}</div>
+                                </td>
+                                <td className={styles.td} style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.eventTitle}>
+                                  {r.eventTitle}
+                                </td>
+                                <td className={styles.td} style={{ textAlign: "center", whiteSpace: 'nowrap' }}>
+                                  <span style={{ color: "#f59e0b", fontWeight: 700 }}>
+                                    {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                                  </span>
+                                </td>
+                                <td className={styles.td} style={{ maxWidth: '280px', wordBreak: 'break-word', color: r.hidden ? '#991b1b' : 'inherit' }}>
+                                  {r.comment || <em style={{ color: "var(--admin-text-sub)" }}>Không viết nhận xét</em>}
+                                </td>
+                                <td className={styles.td} style={{ color: "var(--admin-text-sub)", whiteSpace: 'nowrap' }}>
+                                  {new Date(r.createdAt).toLocaleDateString("vi-VN")} {new Date(r.createdAt).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td className={styles.td} style={{ textAlign: "center" }}>
+                                  <span className={`${styles.badge} ${r.hidden ? styles.badgeDanger : styles.badgeSuccess}`}>
+                                    {r.hidden ? "Đã Ẩn" : "Hiển thị"}
+                                  </span>
+                                </td>
+                                <td className={styles.td} style={{ textAlign: "right" }}>
+                                  <button
+                                    onClick={() => toggleReviewHide(r.id)}
+                                    className={`${styles.btn} ${r.hidden ? styles.btnPrimary : styles.btnDanger} ${styles.btnSm}`}
+                                    style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}
+                                  >
+                                    {r.hidden ? "Hiển thị" : "Ẩn nhận xét"}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </main>

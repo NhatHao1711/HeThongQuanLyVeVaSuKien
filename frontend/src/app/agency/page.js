@@ -84,6 +84,13 @@ export default function AgencyDashboard() {
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [warningAction, setWarningAction] = useState(null);
 
+  // Review Management State
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewFilterEvent, setReviewFilterEvent] = useState('all');
+  const [reviewFilterRating, setReviewFilterRating] = useState('all');
+
+
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'error') => {
     setToast({ message, type });
@@ -180,6 +187,43 @@ export default function AgencyDashboard() {
     }
   };
 
+  const loadManageReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await apiRequest('/reviews/manage');
+      if (res && res.data) {
+        setReviews(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Lỗi tải danh sách đánh giá', 'error');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const toggleReviewHide = async (reviewId) => {
+    try {
+      const res = await apiRequest(`/reviews/${reviewId}/toggle-hide`, {
+        method: 'PUT'
+      });
+      if (res.success) {
+        showToast(res.message || 'Thao tác thành công', 'success');
+        loadManageReviews();
+      } else {
+        showToast(res.message || 'Có lỗi xảy ra', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      loadManageReviews();
+    }
+  }, [activeTab]);
   const submitRegistration = async (e) => {
     e.preventDefault();
     setRegLoading(true);
@@ -1315,6 +1359,7 @@ export default function AgencyDashboard() {
           <button onClick={() => setActiveTab('events')} style={s.navItem(activeTab === 'events')}>Quản lý Sự kiện</button>
           <button onClick={() => setActiveTab('customers')} style={s.navItem(activeTab === 'customers')}>Danh sách Khách hàng</button>
           <button onClick={() => setActiveTab('checkin')} style={s.navItem(activeTab === 'checkin')}>Check-in / Check-out</button>
+          <button onClick={() => setActiveTab('reviews')} style={s.navItem(activeTab === 'reviews')}>Quản lý Đánh giá</button>
           <Link href="/admin/checkin" style={{ display: 'block', padding: '10px 1.2rem', fontSize: '0.88rem', fontWeight: 600, color: '#fff', background: '#00B46E', borderRadius: 8, margin: '1rem', textDecoration: 'none', textAlign: 'center' }}>
             Quét QR Check-in
           </Link>
@@ -2022,6 +2067,141 @@ export default function AgencyDashboard() {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Quản lý Đánh giá & Phản hồi</h2>
+              
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>Lọc theo sự kiện:</label>
+                  <select 
+                    value={reviewFilterEvent} 
+                    onChange={(e) => setReviewFilterEvent(e.target.value)}
+                    style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
+                  >
+                    <option value="all">Tất cả sự kiện</option>
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>Lọc theo đánh giá sao:</label>
+                  <select 
+                    value={reviewFilterRating} 
+                    onChange={(e) => setReviewFilterRating(e.target.value)}
+                    style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
+                  >
+                    <option value="all">Tất cả số sao</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5 sao)</option>
+                    <option value="4">⭐⭐⭐⭐ (4 sao)</option>
+                    <option value="3">⭐⭐⭐ (3 sao)</option>
+                    <option value="2">⭐⭐ (2 sao)</option>
+                    <option value="1">⭐ (1 sao)</option>
+                  </select>
+                </div>
+
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Tổng số đánh giá</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{reviews.length}</div>
+                  </div>
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(0,180,110,0.3)', borderTopColor: '#00B46E', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <p style={{ color: '#64748b', marginTop: '0.5rem', fontSize: '0.9rem' }}>Đang tải đánh giá...</p>
+                </div>
+              ) : (() => {
+                const displayReviews = reviews.filter(r => {
+                  const matchEvent = reviewFilterEvent === 'all' || r.eventId.toString() === reviewFilterEvent;
+                  const matchRating = reviewFilterRating === 'all' || r.rating.toString() === reviewFilterRating;
+                  return matchEvent && matchRating;
+                });
+
+                if (displayReviews.length === 0) {
+                  return (
+                    <div style={{ ...s.card, textAlign: 'center', padding: '3rem 2rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: '#334155' }}>Không tìm thấy đánh giá nào</h3>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Chưa có đánh giá nào phù hợp với bộ lọc hiện tại.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ ...s.card, padding: '1rem', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', background: '#f8fafc' }}>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Sinh viên</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Sự kiện</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700, textAlign: 'center' }}>Đánh giá</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Nội dung nhận xét</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700 }}>Ngày tạo</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700, textAlign: 'center' }}>Trạng thái</th>
+                          <th style={{ padding: '12px 10px', color: '#4a5568', fontWeight: 700, textAlign: 'center' }}>Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayReviews.map((r) => (
+                          <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9', background: r.hidden ? '#fff1f2' : 'transparent' }}>
+                            <td style={{ padding: '12px 10px' }}>
+                              <div style={{ fontWeight: 600, color: '#1e293b' }}>{r.studentName}</div>
+                              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{r.studentEmail}</div>
+                            </td>
+                            <td style={{ padding: '12px 10px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.eventTitle}>
+                              {r.eventTitle}
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <span style={{ color: '#f59e0b', fontWeight: 700 }}>
+                                {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 10px', maxWidth: '300px', wordBreak: 'break-word', color: r.hidden ? '#94a3b8' : '#334155' }}>
+                              {r.comment || <em style={{ color: '#94a3b8' }}>Không có nhận xét</em>}
+                            </td>
+                            <td style={{ padding: '12px 10px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                              {new Date(r.createdAt).toLocaleDateString('vi-VN')} {new Date(r.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <span style={s.badge(
+                                r.hidden ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                                r.hidden ? '#ef4444' : '#10b981'
+                              )}>
+                                {r.hidden ? 'Bị Ẩn' : 'Hiển thị'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <button
+                                onClick={() => toggleReviewHide(r.id)}
+                                style={{
+                                  background: r.hidden ? '#10b981' : '#ef4444',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '5px 10px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                {r.hidden ? 'Hiển thị lại' : 'Ẩn bình luận'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           )}
           {/* Warning Modal */}

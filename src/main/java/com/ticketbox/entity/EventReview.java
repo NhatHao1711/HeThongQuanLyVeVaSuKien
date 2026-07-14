@@ -29,6 +29,9 @@ public class EventReview {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @Column(name = "hidden", columnDefinition = "BIT DEFAULT 0")
+    private Boolean hidden = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
