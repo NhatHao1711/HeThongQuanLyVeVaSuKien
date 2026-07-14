@@ -17,7 +17,7 @@ public interface UserTicketRepository extends JpaRepository<UserTicket, Long> {
     List<UserTicket> findByUserIdOrderByCreatedAtDesc(Long userId);
     boolean existsBySeatIdAndOrderPaymentStatus(Long seatId, com.ticketbox.enums.PaymentStatus paymentStatus);
 
-    @org.springframework.data.jpa.repository.Query("SELECT ut FROM UserTicket ut WHERE ut.ticketType.event.organizer.id = :organizerId AND ut.order.paymentStatus = com.ticketbox.enums.PaymentStatus.PAID ORDER BY ut.createdAt DESC")
+    @org.springframework.data.jpa.repository.Query("SELECT ut FROM UserTicket ut WHERE ut.ticketType.event.organizer.id = :organizerId AND (ut.order.paymentStatus = com.ticketbox.enums.PaymentStatus.PAID OR (ut.subPayment IS NOT NULL AND ut.subPayment.status = com.ticketbox.enums.PaymentStatus.PAID)) ORDER BY ut.createdAt DESC")
     List<UserTicket> findPaidTicketsByOrganizerId(@org.springframework.data.repository.query.Param("organizerId") Long organizerId);
 
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(ut) > 0 FROM UserTicket ut WHERE ut.user.id = :userId AND ut.ticketType.event.id = :eventId AND ut.checkinStatus = :checkinStatus")

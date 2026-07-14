@@ -288,14 +288,59 @@ public class PaymentService {
             log.info("✅ SubPayment {} đã được thanh toán thành công.", subPayment.getId());
 
             Order order = subPayment.getOrder();
+            
+            // Phân bổ doanh thu ngay cho SubPayment này
+            com.ticketbox.entity.Event event = order.getEvent();
+            if (event != null && event.getOrganizer() != null) {
+                com.ticketbox.entity.User organizer = event.getOrganizer();
+                java.math.BigDecimal amount = subPayment.getAmount();
+                if (amount != null && amount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    java.math.BigDecimal organizerShare = amount.multiply(organizer.getCommissionRate() != null ? java.math.BigDecimal.ONE.subtract(organizer.getCommissionRate()) : new java.math.BigDecimal("0.80"));
+                    java.math.BigDecimal currentBalance = organizer.getHoldingBalance() != null ? organizer.getHoldingBalance() : java.math.BigDecimal.ZERO;
+                    organizer.setHoldingBalance(currentBalance.add(organizerShare));
+                    userRepository.save(organizer);
+                    
+                    com.ticketbox.entity.LedgerEntry ledgerEntry = com.ticketbox.entity.LedgerEntry.builder()
+                            .order(order)
+                            .agency(organizer)
+                            .entryType("CREDIT_SUBPAYMENT_SALE")
+                            .amount(organizerShare)
+                            .status("HOLDING")
+                            .build();
+                    ledgerEntryRepository.save(ledgerEntry);
+                    log.info("💰 Đã cộng {} VND (từ SubPayment) vào tài khoản TẠM GIỮ đại lý: {}", organizerShare, organizer.getEmail());
+                }
+            }
+
+            // Đổi trạng thái Ghế thành BOOKED ngay lập tức
+            for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+                if (ticket.getSubPayment() != null && ticket.getSubPayment().getId().equals(subPayment.getId())) {
+                    com.ticketbox.entity.Seat seat = ticket.getSeat();
+                    if (seat != null) {
+                        seat.setStatus(com.ticketbox.enums.SeatStatus.BOOKED);
+                        seatRepository.save(seat);
+                    }
+                }
+            }
+
             boolean allPaid = order.getSubPayments().stream().allMatch(sp -> sp.getStatus() == PaymentStatus.PAID);
             if (!allPaid) {
                 log.info("⏳ Đơn hàng {} vẫn còn SubPayment chưa thanh toán.", order.getId());
                 return;
             }
-            log.info("🎉 Tất cả SubPayment của đơn hàng {} đã thanh toán! Tiến hành xử lý Order...", order.getId());
-            orders = java.util.List.of(order);
-            amountPaid = order.getTotalAmount().intValue(); // Fake expected amount for the validation below
+            log.info("🎉 Tất cả SubPayment của đơn hàng {} đã thanh toán! Cập nhật trạng thái Order...", order.getId());
+            order.setPaymentStatus(PaymentStatus.PAID);
+            order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+            orderRepository.save(order);
+            
+            // Gửi message đến RabbitMQ để hoàn tất vé
+            PaymentCompletedMessage message = PaymentCompletedMessage.builder()
+                    .orderId(order.getId())
+                    .userId(order.getUser().getId())
+                    .transactionRef(order.getTransactionRef())
+                    .build();
+            rabbitTemplate.convertAndSend(ticketExchange, paymentCompletedRoutingKey, message);
+            return; // Đã xử lý xong Order này, kết thúc
         } else {
             // 2. Tìm kiếm đơn hàng
             orders = orderRepository.findByTransactionRef(String.valueOf(orderCode));

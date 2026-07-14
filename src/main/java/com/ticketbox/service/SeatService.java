@@ -106,22 +106,15 @@ public class SeatService {
             }
         }
         
-        // Hàng khó bán giảm 20% và làm tròn đến 10.000đ
-        BigDecimal discountPerHardSell = basePrice.multiply(BigDecimal.valueOf(0.2));
-        long rawHardSellPrice = Math.round(basePrice.subtract(discountPerHardSell).doubleValue() / 10000.0) * 10000;
+        // Cố định Tiết kiệm giảm 20% và làm tròn đến 10.000đ
+        long rawHardSellPrice = Math.round(basePrice.multiply(BigDecimal.valueOf(0.8)).doubleValue() / 10000.0) * 10000;
         BigDecimal hardSellPrice = BigDecimal.valueOf(rawHardSellPrice);
         
-        // Tính tổng tiền hụt dựa trên giá thực tế sau khi làm tròn
-        BigDecimal actualDiscountPerHardSell = basePrice.subtract(hardSellPrice);
-        BigDecimal totalDiscount = actualDiscountPerHardSell.multiply(BigDecimal.valueOf(hardSellSeats.size()));
-        
-        // Chia đều cho ghế VIP và làm tròn LÊN đến 10.000đ để đảm bảo không bao giờ hụt thu
-        BigDecimal premiumPerVip = vipSeats.isEmpty() ? BigDecimal.ZERO : 
-                totalDiscount.divide(BigDecimal.valueOf(vipSeats.size()), 2, java.math.RoundingMode.HALF_UP);
-        long rawVipPrice = (long) Math.ceil(basePrice.add(premiumPerVip).doubleValue() / 10000.0) * 10000;
+        // Cố định VIP tăng 20% và làm tròn LÊN đến 10.000đ
+        long rawVipPrice = (long) Math.ceil(basePrice.multiply(BigDecimal.valueOf(1.2)).doubleValue() / 10000.0) * 10000;
         BigDecimal vipPrice = BigDecimal.valueOf(rawVipPrice);
         
-        // Giá thường làm tròn đến 10.000đ (thường thì basePrice đã chẵn, nhưng cứ làm tròn cho chắc)
+        // Giá thường làm tròn đến 10.000đ
         long rawNormalPrice = Math.round(basePrice.doubleValue() / 10000.0) * 10000;
         BigDecimal normalPrice = BigDecimal.valueOf(rawNormalPrice);
         

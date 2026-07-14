@@ -53,30 +53,71 @@ public class OrganizerDashboardService {
         long unusedTickets = Math.max(0, ticketsSold - checkedInTickets);
         double attendanceRate = ticketsSold > 0 ? checkedInTickets * 100.0 / ticketsSold : 0.0;
 
-        BigDecimal totalRevenue = paidTickets.stream()
-                .map(t -> t.getTicketType() != null && t.getTicketType().getPrice() != null ? t.getTicketType().getPrice() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        for (Order o : paidOrders) {
+            if (o.getTotalAmount() != null) {
+                totalRevenue = totalRevenue.add(o.getTotalAmount());
+            }
+        }
+        
+        List<com.ticketbox.entity.SubPayment> partialPaidSubPayments = paidTickets.stream()
+                .filter(t -> t.getSubPayment() != null && t.getSubPayment().getStatus() == com.ticketbox.enums.PaymentStatus.PAID)
+                .map(UserTicket::getSubPayment)
+                .distinct()
+                .filter(sp -> sp.getOrder().getPaymentStatus() != com.ticketbox.enums.PaymentStatus.PAID)
+                .collect(Collectors.toList());
+
+        for (com.ticketbox.entity.SubPayment sp : partialPaidSubPayments) {
+            if (sp.getAmount() != null) {
+                totalRevenue = totalRevenue.add(sp.getAmount());
+            }
+        }
 
         long pendingEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PENDING).count();
         long publishedEvents = events.stream().filter(e -> e.getStatus() == EventStatus.PUBLISHED).count();
         long closedEvents = events.stream().filter(e -> e.getStatus() == EventStatus.CLOSED).count();
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        Map<String, List<Order>> ordersByDate = paidOrders.stream()
-                .collect(Collectors.groupingBy(o -> o.getCreatedAt().format(formatter), LinkedHashMap::new, Collectors.toList()));
+        
+        Map<String, List<Object>> salesItemsByDate = new LinkedHashMap<>();
+        for (Order o : paidOrders) {
+            String dateStr = o.getCreatedAt().format(formatter);
+            salesItemsByDate.computeIfAbsent(dateStr, k -> new ArrayList<>()).add(o);
+        }
+        for (com.ticketbox.entity.SubPayment sp : partialPaidSubPayments) {
+            String dateStr = sp.getCreatedAt().format(formatter);
+            salesItemsByDate.computeIfAbsent(dateStr, k -> new ArrayList<>()).add(sp);
+        }
 
         List<SalesDailyResponse> salesByDate = new ArrayList<>();
-        ordersByDate.forEach((dateStr, orders) -> {
-            long dayTicketsSold = orders.stream().mapToLong(o -> o.getUserTickets().size()).sum();
-            BigDecimal dayRevenue = orders.stream()
-                    .map(Order::getTotalAmount)
-                    .filter(Objects::nonNull)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        salesItemsByDate.forEach((dateStr, items) -> {
+            long dayTicketsSold = 0;
+            BigDecimal dayRevenue = BigDecimal.ZERO;
+            long ordersCount = 0;
+
+            for (Object item : items) {
+                if (item instanceof Order) {
+                    Order o = (Order) item;
+                    dayTicketsSold += o.getUserTickets().size();
+                    if (o.getTotalAmount() != null) {
+                        dayRevenue = dayRevenue.add(o.getTotalAmount());
+                    }
+                    ordersCount++;
+                } else if (item instanceof com.ticketbox.entity.SubPayment) {
+                    com.ticketbox.entity.SubPayment sp = (com.ticketbox.entity.SubPayment) item;
+                    dayTicketsSold += paidTickets.stream().filter(t -> t.getSubPayment() != null && t.getSubPayment().getId().equals(sp.getId())).count();
+                    if (sp.getAmount() != null) {
+                        dayRevenue = dayRevenue.add(sp.getAmount());
+                    }
+                    ordersCount++;
+                }
+            }
+
             salesByDate.add(SalesDailyResponse.builder()
                     .date(dateStr)
                     .ticketsSold(dayTicketsSold)
                     .revenue(dayRevenue)
-                    .ordersCount((long) orders.size())
+                    .ordersCount(ordersCount)
                     .build());
         });
         salesByDate.sort(Comparator.comparing(s -> s.getDate()));

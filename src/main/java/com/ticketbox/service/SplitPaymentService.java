@@ -34,6 +34,8 @@ public class SplitPaymentService {
     private final SubPaymentRepository subPaymentRepository;
     private final PaymentService paymentService;
     private final com.ticketbox.repository.UserTicketRepository userTicketRepository;
+    private final com.ticketbox.repository.SeatRepository seatRepository;
+    private final SeatService seatService;
 
     @Value("${frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -73,10 +75,29 @@ public class SplitPaymentService {
         order.setSplitPayment(true);
         orderRepository.save(order);
 
+        com.ticketbox.entity.TicketType ticketType = order.getUserTickets().get(0).getTicketType();
+        List<com.ticketbox.entity.Seat> allSeats = seatRepository.findByTicketTypeId(ticketType.getId());
+        Map<Long, BigDecimal> seatPrices = seatService.calculateZeroSumPrices(allSeats, ticketType.getPrice());
+
+        BigDecimal discountPerTicket = BigDecimal.ZERO;
+        if (order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            discountPerTicket = order.getDiscountAmount().divide(BigDecimal.valueOf(ticketCount), RoundingMode.HALF_UP);
+        }
+
         for (com.ticketbox.entity.UserTicket ticket : order.getUserTickets()) {
+            BigDecimal seatPrice = ticket.getTicketType().getPrice();
+            if (ticket.getSeat() != null) {
+                seatPrice = seatPrices.getOrDefault(ticket.getSeat().getId(), ticket.getTicketType().getPrice());
+            }
+            
+            BigDecimal finalAmount = seatPrice.subtract(discountPerTicket);
+            if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                finalAmount = BigDecimal.ZERO;
+            }
+
             SubPayment subPayment = SubPayment.builder()
                     .order(order)
-                    .amount(ticket.getTicketType().getPrice())
+                    .amount(finalAmount)
                     .paymentLinkCode(UUID.randomUUID().toString())
                     .status(PaymentStatus.PENDING)
                     .build();
@@ -91,7 +112,7 @@ public class SplitPaymentService {
         return getDashboardInfo(orderId, userId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SplitPaymentDashboardResponse getDashboardInfo(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
@@ -104,6 +125,40 @@ public class SplitPaymentService {
         String eventName = event != null ? event.getTitle() : "Sự kiện";
 
         List<SubPayment> subPayments = subPaymentRepository.findByOrderId(orderId);
+        
+        // Cập nhật trạng thái PayOS thủ công nếu đang PENDING (vì webhook không hoạt động ở localhost)
+        for (SubPayment sp : subPayments) {
+            if (sp.getStatus() == PaymentStatus.PENDING && sp.getTransactionRef() != null) {
+                try {
+                    org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                    org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                    headers.set("x-client-id", clientId);
+                    headers.set("x-api-key", apiKey);
+                    org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+                    org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
+                            "https://api-merchant.payos.vn/v2/payment-requests/" + sp.getTransactionRef(),
+                            org.springframework.http.HttpMethod.GET,
+                            entity,
+                            Map.class
+                    );
+                    Map resBody = apiRes.getBody();
+                    if (resBody != null && "00".equals(resBody.get("code"))) {
+                        Map<String, Object> payosData = (Map<String, Object>) resBody.get("data");
+                        if ("PAID".equals(payosData.get("status"))) {
+                            paymentService.processWebhookLogic(Long.parseLong(sp.getTransactionRef()), sp.getAmount().intValue());
+                            sp.setStatus(PaymentStatus.PAID);
+                            subPaymentRepository.save(sp);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Lỗi kiểm tra trạng thái PayOS cho subPayment " + sp.getId(), e);
+                }
+            }
+        }
+        
+        // Tải lại subPayments sau khi có thể đã cập nhật
+        subPayments = subPaymentRepository.findByOrderId(orderId);
+        
         int paidLinks = (int) subPayments.stream().filter(s -> s.getStatus() == PaymentStatus.PAID).count();
 
         List<SplitPaymentDashboardResponse.SubPaymentLinkInfo> linkInfos = subPayments.stream()
@@ -116,7 +171,25 @@ public class SplitPaymentService {
                             .orElse(null);
                     if (ticket != null) {
                         ticketTypeName = ticket.getTicketType() != null ? ticket.getTicketType().getName() : "Vé";
-                        seatName = ticket.getSeat() != null ? ticket.getSeat().getName() : "";
+                        if (ticket.getSeat() != null) {
+                            seatName = ticket.getSeat().getName();
+                            
+                            // Appending VIP / Normal / Economy based on price comparison
+                            com.ticketbox.entity.TicketType ticketTypeObj = ticket.getTicketType();
+                            if (ticketTypeObj != null) {
+                                List<com.ticketbox.entity.Seat> allSeats = seatRepository.findByTicketTypeId(ticketTypeObj.getId());
+                                java.util.Map<Long, java.math.BigDecimal> typePrices = seatService.calculateZeroSumPrices(allSeats, ticketTypeObj.getPrice());
+                                java.math.BigDecimal seatPrice = typePrices.getOrDefault(ticket.getSeat().getId(), ticketTypeObj.getPrice());
+                                
+                                if (seatPrice.compareTo(ticketTypeObj.getPrice()) > 0) {
+                                    ticketTypeName += " (VIP)";
+                                } else if (seatPrice.compareTo(ticketTypeObj.getPrice()) < 0) {
+                                    ticketTypeName += " (Tiết kiệm)";
+                                } else {
+                                    ticketTypeName += " (Thường)";
+                                }
+                            }
+                        }
                     }
                     return SplitPaymentDashboardResponse.SubPaymentLinkInfo.builder()
                         .paymentLinkCode(s.getPaymentLinkCode())
@@ -138,10 +211,37 @@ public class SplitPaymentService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SubPaymentDetailResponse getSubPaymentDetail(String paymentLinkCode) {
         SubPayment subPayment = subPaymentRepository.findByPaymentLinkCode(paymentLinkCode)
                 .orElseThrow(() -> new ResourceNotFoundException("SubPayment", "code", paymentLinkCode));
+
+        if (subPayment.getStatus() == PaymentStatus.PENDING && subPayment.getTransactionRef() != null) {
+            try {
+                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.set("x-client-id", clientId);
+                headers.set("x-api-key", apiKey);
+                org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+                org.springframework.http.ResponseEntity<Map> apiRes = restTemplate.exchange(
+                        "https://api-merchant.payos.vn/v2/payment-requests/" + subPayment.getTransactionRef(),
+                        org.springframework.http.HttpMethod.GET,
+                        entity,
+                        Map.class
+                );
+                Map resBody = apiRes.getBody();
+                if (resBody != null && "00".equals(resBody.get("code"))) {
+                    Map<String, Object> payosData = (Map<String, Object>) resBody.get("data");
+                    if ("PAID".equals(payosData.get("status"))) {
+                        paymentService.processWebhookLogic(Long.parseLong(subPayment.getTransactionRef()), subPayment.getAmount().intValue());
+                        subPayment.setStatus(PaymentStatus.PAID);
+                        subPayment = subPaymentRepository.save(subPayment);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Lỗi kiểm tra trạng thái PayOS cho subPayment " + subPayment.getId(), e);
+            }
+        }
 
         Order order = subPayment.getOrder();
         Event event = order.getEvent();
@@ -149,8 +249,9 @@ public class SplitPaymentService {
 
         String ticketTypeName = "Vé";
         String seatName = "";
+        final Long currentSubPaymentId = subPayment.getId();
         com.ticketbox.entity.UserTicket ticket = order.getUserTickets().stream()
-                .filter(t -> t.getSubPayment() != null && t.getSubPayment().getId().equals(subPayment.getId()))
+                .filter(t -> t.getSubPayment() != null && t.getSubPayment().getId().equals(currentSubPaymentId))
                 .findFirst()
                 .orElse(null);
         if (ticket != null) {

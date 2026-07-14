@@ -113,6 +113,9 @@ public class TicketBookingService {
                 // 2.5 Seat Lock Verification
                 List<Seat> bookingSeats = new ArrayList<>();
                 if (seatIds != null && !seatIds.isEmpty()) {
+                    if (quantity != seatIds.size()) {
+                        throw new BadRequestException("Số lượng vé phải bằng số lượng ghế đã chọn.");
+                    }
                     for (Long seatId : seatIds) {
                         Seat seat = seatRepository.findById(seatId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Seat", "id", seatId));

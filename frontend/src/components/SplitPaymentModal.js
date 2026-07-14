@@ -50,14 +50,26 @@ export default function SplitPaymentModal({ orderId, onClose }) {
     if (activeLinkCode && data?.links) {
       const link = data.links.find(l => l.paymentLinkCode === activeLinkCode);
       if (link && link.status === 'PAID') {
-        setSuccessMessage('🎉 Thanh toán thành công! Vé đã được kích hoạt.');
-        setMyPayOSUrl('');
-        setActiveLinkCode('');
-        
-        setTimeout(() => setSuccessMessage(''), 5000);
+        setSuccessMessage('🎉 Một phần vé đã được thanh toán thành công!');
+        // Do NOT close the iframe here. Wait for PAYOS_SUCCESS message from the iframe.
+        // It will close the iframe after the user has seen the success screen.
       }
     }
   }, [data, activeLinkCode]);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'PAYOS_SUCCESS') {
+        setSuccessMessage('🎉 Thanh toán thành công! Vé đã được kích hoạt.');
+        setMyPayOSUrl('');
+        setActiveLinkCode('');
+        fetchData();
+        setTimeout(() => setSuccessMessage(''), 5000);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const refreshQr = (myLink) => {
     setMyPayOSLoading(true);

@@ -84,8 +84,7 @@ public class PayoutService {
         }
 
         if (user.getBalance().compareTo(dto.getAmount()) < 0) {
-            // Auto top-up for testing
-            user.setBalance(user.getBalance().add(new BigDecimal("50000000")));
+            throw new RuntimeException("Số dư khả dụng không đủ để thực hiện yêu cầu rút tiền này.");
         }
 
         // Deduct from balance immediately to prevent double spending

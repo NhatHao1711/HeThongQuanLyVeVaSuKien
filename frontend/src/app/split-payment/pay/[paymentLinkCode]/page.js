@@ -29,7 +29,11 @@ export default function SplitPaymentCheckout({ params }) {
         if (result.success && isMounted) {
           setData(result.data);
           if (paymentStatus === 'success' || result.data.status === 'PAID') {
-             // Đã thanh toán thành công
+             if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+               setTimeout(() => {
+                 window.parent.postMessage({ type: 'PAYOS_SUCCESS', linkCode: paymentLinkCode }, '*');
+               }, 3000); // Wait 3 seconds so user can see the success screen
+             }
           }
         } else if (isMounted) {
           setError(result.message || 'Không tìm thấy liên kết thanh toán');
