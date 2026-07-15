@@ -1108,7 +1108,7 @@ export default function EventDetailPage({ params }) {
               <p style={{ fontSize: '0.88rem', color: '#4a5568', marginBottom: '1rem', lineHeight: 1.6 }}>
                 {t('events.booking_desc')}
               </p>
-              {ticketTypes.length > 0 && (
+              {filteredTicketTypes.length > 0 && (
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#6b7280', marginBottom: '0.3rem' }}>
                     <span>{t('events.booking_price_from')}</span>
@@ -1116,10 +1116,10 @@ export default function EventDetailPage({ params }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
-                      {formatPrice(Math.min(...ticketTypes.map(t => t.price)) * 0.8)}
+                      {formatPrice(Math.min(...filteredTicketTypes.map(t => t.price)) * 0.8)}
                     </span>
                     <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00B46E' }}>
-                      {formatPrice(Math.max(...ticketTypes.map(t => t.price)) * 1.16)}
+                      {formatPrice(Math.max(...filteredTicketTypes.map(t => t.price)) * 1.2)}
                     </span>
                   </div>
                 </div>
