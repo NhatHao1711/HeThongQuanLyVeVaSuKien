@@ -22,6 +22,19 @@ const formatDateTimeLocalSafe = (dateVal) => {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const formatScanDateTime = (value) => {
+  const d = parseDateSafe(value);
+  if (!d || isNaN(d)) return 'Chưa có';
+  return d.toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
 const getDatesBetween = (startStr, endStr) => {
   const dates = [];
   if (!startStr || !endStr) return dates;
@@ -60,6 +73,60 @@ export default function AgencyDashboard() {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [expandedTicketGroups, setExpandedTicketGroups] = useState({});
+
+  // Check-in Logs State
+  const [logs, setLogs] = useState([]);
+  const [logsPage, setLogsPage] = useState(0);
+  const [logsTotalPages, setLogsTotalPages] = useState(0);
+  const [logsFilterEvent, setLogsFilterEvent] = useState('');
+  const [logsFilterAction, setLogsFilterAction] = useState('ALL');
+  const [logsSearch, setLogsSearch] = useState('');
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  const loadLogs = async (page = 0) => {
+    setLogsLoading(true);
+    try {
+      let url = `/checkin/organizer/logs?page=${page}&size=10`;
+      if (logsFilterEvent) url += `&eventId=${logsFilterEvent}`;
+      if (logsFilterAction && logsFilterAction !== 'ALL') url += `&action=${logsFilterAction}`;
+      if (logsSearch) url += `&search=${encodeURIComponent(logsSearch)}`;
+
+      const res = await apiRequest(url);
+      if (res.success && res.data) {
+        setLogs(res.data.content || []);
+        setLogsPage(res.data.number || 0);
+        setLogsTotalPages(res.data.totalPages || 0);
+      }
+    } catch (err) {
+      console.error('Error loading checkin logs:', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const handleExportLogsCsv = () => {
+    let url = `${API_BASE}/checkin/organizer/logs/export?`;
+    if (logsFilterEvent) url += `eventId=${logsFilterEvent}&`;
+    if (logsFilterAction && logsFilterAction !== 'ALL') url += `action=${logsFilterAction}&`;
+    
+    const token = localStorage.getItem('token');
+    fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(res => res.blob())
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nhat_ky_ra_vao_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    })
+    .catch(err => console.error(err));
+  };
   
 
   // Event Creation
@@ -104,6 +171,12 @@ export default function AgencyDashboard() {
     }
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'checkin') {
+      loadLogs(0);
+    }
+  }, [activeTab, logsFilterEvent, logsFilterAction]);
 
   const loadProfile = async () => {
     try {
@@ -1827,14 +1900,13 @@ export default function AgencyDashboard() {
 
               {(() => {
                 const checkTimeSummary = getCheckTimeSummary();
-                const timeline = checkTimeSummary.timeline.slice(0, 8);
                 return (
                   <div style={{ ...s.card, padding: '1.5rem', margin: '0 0 1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                       <div>
                         <div style={s.panelLabel}>Xác thực realtime</div>
                         <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.15rem', fontWeight: 850 }}>Khung giờ quét check-in / check-out</h3>
-                        <p style={{ margin: '0.45rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>Mỗi lần quét thành công sẽ ghi lại đúng thời điểm vào/ra của từng vé.</p>
+                        <p style={{ margin: '0.45rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>Theo dõi lịch sử vào ra chi tiết của từng sự kiện bạn quản lý.</p>
                       </div>
                       <span style={{ ...s.badge('#ecfdf5', '#047857'), padding: '8px 12px' }}>
                         Đang trong sự kiện: {checkTimeSummary.currentlyInside}
@@ -1858,40 +1930,127 @@ export default function AgencyDashboard() {
                       </div>
                     </div>
 
-                    {timeline.length === 0 ? (
+                    {/* Bộ lọc nhật ký ra vào */}
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', background: '#f8fafc', padding: '1rem', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <label style={{ ...s.label, marginBottom: 4 }}>Tìm kiếm khách hàng</label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input 
+                            style={{ ...s.input, marginBottom: 0, padding: '8px 12px' }} 
+                            placeholder="Tên, Email hoặc Mã vé..." 
+                            value={logsSearch}
+                            onChange={e => setLogsSearch(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && loadLogs(0)}
+                          />
+                          <button 
+                            onClick={() => loadLogs(0)}
+                            style={{ ...s.btn, width: 'auto', background: '#0f172a', padding: '8px 16px' }}
+                          >
+                            Tìm
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div style={{ minWidth: 160 }}>
+                        <label style={{ ...s.label, marginBottom: 4 }}>Sự kiện</label>
+                        <select 
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', outline: 'none', background: '#fff' }}
+                          value={logsFilterEvent}
+                          onChange={e => setLogsFilterEvent(e.target.value)}
+                        >
+                          <option value="">Tất cả sự kiện</option>
+                          {events.map(ev => (
+                            <option key={ev.id} value={ev.id}>{ev.title}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ minWidth: 140 }}>
+                        <label style={{ ...s.label, marginBottom: 4 }}>Hành động</label>
+                        <select 
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', outline: 'none', background: '#fff' }}
+                          value={logsFilterAction}
+                          onChange={e => setLogsFilterAction(e.target.value)}
+                        >
+                          <option value="ALL">Tất cả</option>
+                          <option value="CHECK_IN">Check-in</option>
+                          <option value="CHECK_OUT">Check-out</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', alignSelf: 'flex-end', height: 38 }}>
+                        <button 
+                          onClick={handleExportLogsCsv}
+                          style={{ ...s.btn, width: 'auto', background: '#10b981', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          📥 Xuất CSV
+                        </button>
+                      </div>
+                    </div>
+
+                    {logsLoading ? (
+                      <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Đang tải nhật ký...</div>
+                    ) : logs.length === 0 ? (
                       <div style={{ padding: '1rem', border: '1px dashed #cbd5e1', borderRadius: 12, color: '#64748b', fontWeight: 750, textAlign: 'center' }}>
-                        Chưa có nhật ký quét. Khi quét QR thành công, giờ check-in/check-out sẽ hiện tại đây.
+                        Chưa có nhật ký quét khớp với điều kiện lọc.
                       </div>
                     ) : (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Thời gian quét</th>
-                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Trạng thái</th>
-                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Khách hàng</th>
-                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Sự kiện</th>
-                              <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Loại vé</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {timeline.map((item, idx) => (
-                              <tr key={`${item.type}-${idx}-${item.sortTime}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '12px 10px', fontWeight: 850, color: '#0f172a', whiteSpace: 'nowrap' }}>{formatScanDateTime(item.time)}</td>
-                                <td style={{ padding: '12px 10px' }}>
-                                  <span style={s.badge(item.type === 'CHECK_IN' ? '#dcfce7' : '#dbeafe', item.type === 'CHECK_IN' ? '#047857' : '#2563eb')}>{item.label}</span>
-                                </td>
-                                <td style={{ padding: '12px 10px' }}>
-                                  <div style={{ fontWeight: 800 }}>{item.customerName}</div>
-                                  <div style={{ color: '#64748b', fontSize: '0.78rem' }}>{item.customerEmail}</div>
-                                </td>
-                                <td style={{ padding: '12px 10px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.eventTitle}</td>
-                                <td style={{ padding: '12px 10px', fontWeight: 750 }}>{item.ticketTypeName}</td>
+                      <>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Thời gian quét</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Trạng thái</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Mã vé</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Khách hàng</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Sự kiện</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Loại vé</th>
+                                <th style={{ textAlign: 'left', padding: '11px 10px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Người quét</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {logs.map((item) => (
+                                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '12px 10px', fontWeight: 850, color: '#0f172a', whiteSpace: 'nowrap' }}>{formatScanDateTime(item.recordedAt)}</td>
+                                  <td style={{ padding: '12px 10px' }}>
+                                    <span style={s.badge(item.action === 'CHECK_IN' ? '#dcfce7' : '#dbeafe', item.action === 'CHECK_IN' ? '#047857' : '#2563eb')}>{item.action === 'CHECK_IN' ? 'Check-in' : 'Check-out'}</span>
+                                  </td>
+                                  <td style={{ padding: '12px 10px', fontWeight: 750 }}>#{item.ticketId}</td>
+                                  <td style={{ padding: '12px 10px' }}>
+                                    <div style={{ fontWeight: 800 }}>{item.attendeeName}</div>
+                                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>{item.attendeeEmail}</div>
+                                  </td>
+                                  <td style={{ padding: '12px 10px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.eventTitle}</td>
+                                  <td style={{ padding: '12px 10px', fontWeight: 750 }}>{item.ticketTypeName}</td>
+                                  <td style={{ padding: '12px 10px', color: '#64748b' }}>{item.scannerName}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Phân trang */}
+                        {logsTotalPages > 1 && (
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '1.5rem' }}>
+                            <button 
+                              onClick={() => loadLogs(logsPage - 1)}
+                              disabled={logsPage === 0}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: logsPage === 0 ? 'default' : 'pointer', opacity: logsPage === 0 ? 0.5 : 1 }}
+                            >
+                              Trước
+                            </button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Trang {logsPage + 1} / {logsTotalPages}</span>
+                            <button 
+                              onClick={() => loadLogs(logsPage + 1)}
+                              disabled={logsPage === logsTotalPages - 1}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: logsPage === logsTotalPages - 1 ? 'default' : 'pointer', opacity: logsPage === logsTotalPages - 1 ? 0.5 : 1 }}
+                            >
+                              Sau
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -1934,7 +2093,7 @@ export default function AgencyDashboard() {
                         return (
                           <div key={ev.id} style={{ marginBottom: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: 7, fontSize: '0.86rem', fontWeight: 800 }}>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
+                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
                               <strong>{rate}%</strong>
                             </div>
                             <div style={{ height: 9, borderRadius: 99, background: '#e2e8f0', overflow: 'hidden' }}>

@@ -212,6 +212,54 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Thống kê doanh thu", result));
     }
 
+    // ========== Check-in Operations Stats ==========
+    @GetMapping("/stats/operations")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOperationsStats() {
+        Map<String, Object> result = new HashMap<>();
+
+        List<com.ticketbox.entity.Event> activeEvents = eventRepository.findAll().stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> eventStats = activeEvents.stream().map(event -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("title", event.getTitle());
+            
+            long sold = userTicketRepository.findAll().stream()
+                    .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
+                    .filter(ut -> ut.getTicketType() != null && ut.getTicketType().getEvent().getId().equals(event.getId()))
+                    .count();
+            
+            long checked = userTicketRepository.findAll().stream()
+                    .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
+                    .filter(ut -> ut.getTicketType() != null && ut.getTicketType().getEvent().getId().equals(event.getId()))
+                    .filter(ut -> ut.getCheckinStatus() == com.ticketbox.enums.CheckinStatus.USED)
+                    .count();
+            
+            map.put("ticketsSold", sold);
+            map.put("checkedIn", checked);
+            map.put("attendanceRate", sold > 0 ? (checked * 100.0 / sold) : 0.0);
+            return map;
+        }).collect(Collectors.toList());
+
+        long totalSold = userTicketRepository.findAll().stream()
+                .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
+                .filter(ut -> ut.getTicketType() != null && ut.getTicketType().getEvent().getStatus() != EventStatus.CANCELLED)
+                .count();
+
+        long totalCheckedIn = userTicketRepository.findAll().stream()
+                .filter(ut -> ut.getOrder().getPaymentStatus() == PaymentStatus.PAID)
+                .filter(ut -> ut.getTicketType() != null && ut.getTicketType().getEvent().getStatus() != EventStatus.CANCELLED)
+                .filter(ut -> ut.getCheckinStatus() == com.ticketbox.enums.CheckinStatus.USED)
+                .count();
+
+        result.put("totalCheckedIn", totalCheckedIn);
+        result.put("attendanceRate", totalSold > 0 ? (totalCheckedIn * 100.0 / totalSold) : 0.0);
+        result.put("eventStats", eventStats);
+
+        return ResponseEntity.ok(ApiResponse.success("Thống kê vận hành check-in", result));
+    }
+
     // ========== User Management ==========
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllUsers() {

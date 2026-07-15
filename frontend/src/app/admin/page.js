@@ -16,6 +16,19 @@ const parseDateSafe = (dateVal) => {
   return new Date(dateVal);
 };
 
+const formatDateTime = (value) => {
+  const d = parseDateSafe(value);
+  if (!d || isNaN(d)) return "Chưa có";
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+};
+
 const getDatesBetween = (startStr, endStr) => {
   const dates = [];
   if (!startStr || !endStr) return dates;
@@ -38,6 +51,61 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
   const [operationsStats, setOperationsStats] = useState(null);
+
+  // Admin Check-in Logs State
+  const [adminLogs, setAdminLogs] = useState([]);
+  const [adminLogsPage, setAdminLogsPage] = useState(0);
+  const [adminLogsTotalPages, setAdminLogsTotalPages] = useState(0);
+  const [adminLogsFilterEvent, setAdminLogsFilterEvent] = useState("");
+  const [adminLogsFilterAction, setAdminLogsFilterAction] = useState("ALL");
+  const [adminLogsSearch, setAdminLogsSearch] = useState("");
+  const [adminLogsLoading, setAdminLogsLoading] = useState(false);
+
+  const loadAdminLogs = async (page = 0) => {
+    setAdminLogsLoading(true);
+    try {
+      let url = `/checkin/admin/logs?page=${page}&size=10`;
+      if (adminLogsFilterEvent) url += `&eventId=${adminLogsFilterEvent}`;
+      if (adminLogsFilterAction && adminLogsFilterAction !== "ALL") url += `&action=${adminLogsFilterAction}`;
+      if (adminLogsSearch) url += `&search=${encodeURIComponent(adminLogsSearch)}`;
+
+      const res = await apiRequest(url);
+      if (res.success && res.data) {
+        setAdminLogs(res.data.content || []);
+        setAdminLogsPage(res.data.number || 0);
+        setAdminLogsTotalPages(res.data.totalPages || 0);
+      }
+    } catch (err) {
+      console.error("Error loading admin logs:", err);
+    } finally {
+      setAdminLogsLoading(false);
+    }
+  };
+
+  const handleExportAdminLogsCsv = () => {
+    let url = `${API_BASE}/checkin/admin/logs/export?`;
+    if (adminLogsFilterEvent) url += `eventId=${adminLogsFilterEvent}&`;
+    if (adminLogsFilterAction && adminLogsFilterAction !== "ALL") url += `action=${adminLogsFilterAction}&`;
+
+    const token = localStorage.getItem("token");
+    fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `nhat_ky_ra_vao_admin_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      })
+      .catch(err => console.error(err));
+  };
+
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -210,6 +278,12 @@ export default function AdminDashboard() {
       loadAgencies();
     }
   }, [agencyTab]);
+
+  useEffect(() => {
+    if (activeTab === "checkin") {
+      loadAdminLogs(0);
+    }
+  }, [activeTab, adminLogsFilterEvent, adminLogsFilterAction]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -3451,42 +3525,37 @@ export default function AdminDashboard() {
                 <div className={`${styles.statCard} ${styles.statCardGreen}`}>
                   <div className={styles.statLabel}>Tổng vé đã check-in</div>
                   <div className={styles.statValue}>
-                    285
+                    {operationsStats?.totalCheckedIn || 0}
                   </div>
                 </div>
                 <div className={`${styles.statCard} ${styles.statCardBlue}`}>
                   <div className={styles.statLabel}>Vé đã bán</div>
                   <div className={styles.statValue}>
-                    350
+                    {stats?.totalTicketsSold || 0}
                   </div>
                 </div>
                 <div className={`${styles.statCard} ${styles.statCardYellow}`}>
                   <div className={styles.statLabel}>Tỷ lệ tham dự</div>
                   <div className={styles.statValue}>
-                    81%
+                    {Math.round(operationsStats?.attendanceRate || 0)}%
                   </div>
                 </div>
                 <div className={`${styles.statCard} ${styles.statCardRed}`}>
                   <div className={styles.statLabel}>Chưa check-in</div>
                   <div className={styles.statValue}>
-                    65
+                    {Math.max((stats?.totalTicketsSold || 0) - (operationsStats?.totalCheckedIn || 0), 0)}
                   </div>
                 </div>
               </div>
 
               {(() => {
-                const sold = 350;
-                const checked = 285;
+                const sold = stats?.totalTicketsSold || 0;
+                const checked = operationsStats?.totalCheckedIn || 0;
                 const pending = Math.max(sold - checked, 0);
                 const total = Math.max(sold, checked, 1);
                 const checkedPct = Math.round((checked / total) * 100);
                 const pendingPct = Math.max(100 - checkedPct, 0);
-                const topEvents = [
-                  { title: "Đêm Nhạc Hội Sinh Viên 2024", attendanceRate: 85.5 },
-                  { title: "Hội thảo: Tương lai AI", attendanceRate: 92.0 },
-                  { title: "Triển lãm Công Nghệ Mới", attendanceRate: 78.3 },
-                  { title: "Talkshow: Khởi nghiệp", attendanceRate: 60.5 }
-                ];
+                const topEvents = (operationsStats?.eventStats || []).slice(0, 5);
                 return (
                   <div className={styles.checkinChartGrid}>
                     <div className={styles.chartPanel}>
@@ -3739,6 +3808,152 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
+
+              {/* NHẬT KÝ RA VÀO REALTIME */}
+              <div className={styles.card} style={{ marginTop: "2rem" }}>
+                <div className={styles.cardHeader}>
+                  <h3 className={styles.cardTitle}>Nhật ký ra vào (Lịch sử quét QR)</h3>
+                </div>
+                <div className={styles.cardBody}>
+                  {/* Bộ lọc nhật ký */}
+                  <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center", background: "#f8fafc", padding: "1.25rem", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 650, color: "#4a5568", marginBottom: 6 }}>Tìm kiếm khách hàng</label>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input 
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: "0.88rem", outline: "none" }}
+                          placeholder="Tên, Email hoặc Mã vé..." 
+                          value={adminLogsSearch}
+                          onChange={e => setAdminLogsSearch(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && loadAdminLogs(0)}
+                        />
+                        <button 
+                          onClick={() => loadAdminLogs(0)}
+                          className={`${styles.btn} ${styles.btnPrimary}`}
+                          style={{ width: "auto", padding: "8px 16px" }}
+                        >
+                          Tìm
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div style={{ minWidth: 180 }}>
+                      <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 650, color: "#4a5568", marginBottom: 6 }}>Sự kiện</label>
+                      <select 
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: "0.88rem", outline: "none", background: "#fff" }}
+                        value={adminLogsFilterEvent}
+                        onChange={e => setAdminLogsFilterEvent(e.target.value)}
+                      >
+                        <option value="">Tất cả sự kiện</option>
+                        {events.map(ev => (
+                          <option key={ev.id} value={ev.id}>{ev.title}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ minWidth: 140 }}>
+                      <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 650, color: "#4a5568", marginBottom: 6 }}>Hành động</label>
+                      <select 
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: "0.88rem", outline: "none", background: "#fff" }}
+                        value={adminLogsFilterAction}
+                        onChange={e => setAdminLogsFilterAction(e.target.value)}
+                      >
+                        <option value="ALL">Tất cả</option>
+                        <option value="CHECK_IN">Check-in</option>
+                        <option value="CHECK_OUT">Check-out</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: "flex", alignSelf: "flex-end", height: 38 }}>
+                      <button 
+                        onClick={handleExportAdminLogsCsv}
+                        className={`${styles.btn} ${styles.btnSuccess}`}
+                        style={{ width: "auto", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, background: "#10b981", color: "#fff", border: "none" }}
+                      >
+                        📥 Xuất CSV
+                      </button>
+                    </div>
+                  </div>
+
+                  {adminLogsLoading ? (
+                    <div style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>Đang tải nhật ký...</div>
+                  ) : adminLogs.length === 0 ? (
+                    <div style={{ padding: "2rem", border: "1px dashed #cbd5e1", borderRadius: 12, color: "#64748b", fontWeight: 700, textAlign: "center" }}>
+                      Chưa có nhật ký quét khớp với điều kiện lọc.
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.tableResponsive}>
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th className={styles.th}>Thời gian quét</th>
+                              <th className={styles.th}>Hành động</th>
+                              <th className={styles.th}>Mã vé</th>
+                              <th className={styles.th}>Khách hàng</th>
+                              <th className={styles.th}>Sự kiện</th>
+                              <th className={styles.th}>Loại vé</th>
+                              <th className={styles.th}>Người quét</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminLogs.map((item) => (
+                              <tr key={item.id} className={styles.tableRow}>
+                                <td className={styles.td} style={{ whiteSpace: "nowrap", fontWeight: 700 }}>
+                                  {formatDateTime(item.recordedAt)}
+                                </td>
+                                <td className={styles.td}>
+                                  <span style={{ 
+                                    padding: "4px 10px", 
+                                    borderRadius: 20, 
+                                    fontSize: "0.75rem", 
+                                    fontWeight: 700, 
+                                    background: item.action === "CHECK_IN" ? "#dcfce7" : "#dbeafe",
+                                    color: item.action === "CHECK_IN" ? "#047857" : "#2563eb"
+                                  }}>
+                                    {item.action === "CHECK_IN" ? "Check-in" : "Check-out"}
+                                  </span>
+                                </td>
+                                <td className={styles.td} style={{ fontWeight: 750 }}>#{item.ticketId}</td>
+                                <td className={styles.td}>
+                                  <div style={{ fontWeight: 800 }}>{item.attendeeName}</div>
+                                  <div style={{ color: "#64748b", fontSize: "0.78rem" }}>{item.attendeeEmail}</div>
+                                </td>
+                                <td className={styles.td} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.eventTitle}
+                                </td>
+                                <td className={styles.td} style={{ fontWeight: 750 }}>{item.ticketTypeName}</td>
+                                <td className={styles.td} style={{ color: "#64748b" }}>{item.scannerName}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Phân trang */}
+                      {adminLogsTotalPages > 1 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", marginTop: "1.5rem" }}>
+                          <button 
+                            onClick={() => loadAdminLogs(adminLogsPage - 1)}
+                            disabled={adminLogsPage === 0}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: adminLogsPage === 0 ? "default" : "pointer", opacity: adminLogsPage === 0 ? 0.5 : 1 }}
+                          >
+                            Trước
+                          </button>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Trang {adminLogsPage + 1} / {adminLogsTotalPages}</span>
+                          <button 
+                            onClick={() => loadAdminLogs(adminLogsPage + 1)}
+                            disabled={adminLogsPage === adminLogsTotalPages - 1}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: adminLogsPage === adminLogsTotalPages - 1 ? "default" : "pointer", opacity: adminLogsPage === adminLogsTotalPages - 1 ? 0.5 : 1 }}
+                          >
+                            Sau
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </>
           )}
 

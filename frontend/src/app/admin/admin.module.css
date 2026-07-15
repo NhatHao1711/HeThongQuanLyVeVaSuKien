@@ -401,6 +401,7 @@
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.24);
+  min-width: 0;
 }
 
 .donutWrap {
@@ -473,9 +474,11 @@
 }
 
 .barMeta span {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .barTrack {
@@ -1123,3 +1126,8 @@
   color: var(--admin-text-main);
 }
 
+@media (max-width: 1024px) {
+  .checkinChartGrid {
+    grid-template-columns: 1fr;
+  }
+}

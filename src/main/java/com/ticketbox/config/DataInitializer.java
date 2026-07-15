@@ -13,17 +13,6 @@ import javax.sql.DataSource;
 
 /**
  * Tự động kiểm tra và nạp dữ liệu mẫu khi database trống.
- * 
- * Cơ chế hoạt động:
- * - Mỗi khi Spring Boot khởi động, component này sẽ chạy
- * - Kiểm tra bảng event_categories có dữ liệu không
- * - Nếu TRỐNG → tự động chạy db/data.sql để nạp dữ liệu mẫu
- * - Nếu ĐÃ CÓ dữ liệu → bỏ qua, không làm gì
- * 
- * Lợi ích:
- * - Không bao giờ mất dữ liệu khi restart
- * - Nếu DB bị xóa, dữ liệu tự động được khôi phục
- * - Không cần chạy SQL thủ công
  */
 @Component
 @Order(1)
@@ -33,12 +22,19 @@ public class DataInitializer implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
+    private final com.ticketbox.service.CheckinService checkinService;
 
     @Override
     public void run(String... args) {
         try {
-            // Lưu ý: KHÔNG tự động duyệt yêu cầu đại lý - Admin phải duyệt thủ công
+            // Đồng bộ dữ liệu checkin cũ sang bảng logs
+            try {
+                checkinService.syncExistingCheckinsToLogs();
+            } catch (Exception ex) {
+                log.warn("⚠️ Không thể đồng bộ lịch sử check-in sang bảng log mới: {}", ex.getMessage());
+            }
 
+            // Lưu ý: KHÔNG tự động duyệt yêu cầu đại lý - Admin phải duyệt thủ công
 
             // Dọn dẹp các seat_id của vé thuộc đơn hàng FAILED để tránh lỗi Unique Constraint
             try {
@@ -150,30 +146,16 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void upsertPayoutTestAccount() {
-        String passwordHash = "$2a$10$H7FFH1zGTYe7VXa88dxfsugfdcdZv6yBUq0oVgI2WzLgDWWqtGb/O";
-        String bankJson = "{\"bankName\":\"Vietcombank\",\"bankAccountNumber\":\"0123456789\",\"bankAccountName\":\"TRIVENT TEST AGENCY\"}";
-
-        jdbcTemplate.update(
-                "INSERT INTO users (university_id, full_name, email, password_hash, interests_tags, " +
-                        "is_verified, role, balance, holding_balance, bank_account, kyc_status, commission_rate, " +
-                        "agency_status, created_at, updated_at) " +
-                        "VALUES (1, 'Test Agency Payout', 'agency.payout@test.com', ?, " +
-                        "'[\"business\",\"events\"]', true, 'ROLE_ORGANIZER', 500000, 0, ?, 'APPROVED', 0.20, " +
-                        "'APPROVED', NOW(), NOW()) " +
-                        "ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), password_hash = VALUES(password_hash), " +
-                        "is_verified = true, role = 'ROLE_ORGANIZER', balance = 500000, holding_balance = 0, " +
-                        "bank_account = VALUES(bank_account), kyc_status = 'APPROVED', commission_rate = 0.20, " +
-                        "agency_status = 'APPROVED', updated_at = NOW()",
-                passwordHash, bankJson);
-
-        jdbcTemplate.update(
-                "INSERT INTO organizer_requests (user_id, organization_name, contact_phone, contact_email, " +
-                        "description, status, created_at, updated_at) " +
-                        "SELECT u.id, 'TRIVENT Test Agency', '0900000000', u.email, " +
-                        "'Tai khoan test tinh nang rut tien', 'APPROVED', NOW(), NOW() " +
-                        "FROM users u WHERE u.email = 'agency.payout@test.com' " +
-                        "AND NOT EXISTS (SELECT 1 FROM organizer_requests r WHERE r.user_id = u.id AND r.status = 'APPROVED')");
-
-        log.info("Tai khoan test rut tien: agency.payout@test.com / admin123 (balance 500000 VND)");
+        try {
+            // Check if test agency user exists, if yes, update balance to 50,000,000 to test payout
+            Integer exists = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE email = 'a.nguyen@student.hcmut.edu.vn'", Integer.class);
+            if (exists != null && exists > 0) {
+                jdbcTemplate.execute("UPDATE users SET balance = 50000000.00, holding_balance = 0.00 WHERE email = 'a.nguyen@student.hcmut.edu.vn'");
+                log.info("✅ Setup test agency balance to 50,000,000 VNĐ successfully.");
+            }
+        } catch (Exception ex) {
+            log.warn("⚠️ Could not setup test agency balance: {}", ex.getMessage());
+        }
     }
 }
