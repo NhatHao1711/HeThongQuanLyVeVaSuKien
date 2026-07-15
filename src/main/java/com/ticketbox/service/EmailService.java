@@ -62,7 +62,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🎫 TRIVENT - Xác nhận đặt vé: " + eventTitle);
 
@@ -193,7 +193,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🔔 TRIVENT - Nhắc nhở: " + eventTitle + " sắp diễn ra!");
 
@@ -240,7 +240,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🔑 TRIVENT - Đặt lại mật khẩu");
 
@@ -284,6 +284,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🔥 SỰ KIỆN HOT TỪ TRIVENT: " + event.getTitle());
             
@@ -324,7 +325,7 @@ public class EmailService {
             helper.setText(htmlContent, true);
             mailSender.send(message);
             log.info("📧 Marketing email sent to {}", toEmail);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("❌ Failed to send marketing email to {}: {}", toEmail, e.getMessage());
         }
     }
@@ -345,7 +346,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🎉 TRIVENT - Chúc mừng bạn đã trở thành Đại lý!");
 
@@ -425,7 +426,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🎫 TRIVENT - Quan trọng: Sự cố thanh toán đơn hàng #" + transactionRef);
 
@@ -490,7 +491,7 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🎫 TRIVENT - Yêu cầu rút tiền thành công");
 
@@ -517,7 +518,7 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo("truonghuynhathao@gmail.com");
             helper.setSubject("🚨 TRIVENT ADMIN - Có Yêu Cầu Rút Tiền Mới");
 
@@ -545,7 +546,7 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, "TRIVENT");
             helper.setTo(toEmail);
             helper.setSubject("🎫 TRIVENT - Yêu cầu rút tiền đã được duyệt");
 

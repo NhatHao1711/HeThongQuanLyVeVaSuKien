@@ -50,8 +50,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: truonghuynhathao@gmail.com
-    password: sakr mrrc whhl wkhk
+    username: trivent.ticket@gmail.com
+    password: fpnr bsxm pbwe idjp
     properties:
       mail:
         smtp:
