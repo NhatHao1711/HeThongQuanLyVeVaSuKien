@@ -129,24 +129,25 @@ public class AdvancedSeatFinderService {
                     }
                     
                     if (!leavesOrphanLeft && !leavesOrphanRight) {
-                        double totalPrice = 0;
+                        double score = 0;
                         for (int i = left; i <= right; i++) {
                             Seat s = rowSeats.get(i);
                             java.math.BigDecimal price = seatPrices != null ? seatPrices.get(s.getId()) : null;
-                            totalPrice += price != null ? price.doubleValue() : 100000.0;
+                            // Ưu tiên ghế VIP: trừ giá trị đi để điểm càng nhỏ (càng được ưu tiên)
+                            score -= price != null ? price.doubleValue() : 100000.0;
                         }
                         
                         // Ưu tiên ghế mồ côi nếu khách mua 1 vé
                         if (quantity == 1 && !isLeftAvailable && !isRightAvailable) {
-                            totalPrice -= 9999999.0;
+                            score -= 9999999.0;
                         }
                         
-                        if (overallBestBlock == null || totalPrice < overallBestBlock.totalPrice) {
+                        if (overallBestBlock == null || score < overallBestBlock.totalPrice) {
                             List<Seat> block = new ArrayList<>();
                             for (int i = left; i <= right; i++) {
                                 block.add(rowSeats.get(i));
                             }
-                            overallBestBlock = new BestBlock(block, totalPrice);
+                            overallBestBlock = new BestBlock(block, score);
                         }
                     }
                 }
@@ -377,15 +378,15 @@ public class AdvancedSeatFinderService {
         // Khoảng cách thực tế: Khoảng cách giữa các hàng thường gấp đôi khoảng cách giữa 2 ghế sát nhau
         double distanceScore = Math.pow(maxRowDiff * 2, 2) + Math.pow(maxColDiff, 2);
         
-        // Ưu tiên bán các ghế khó bán (giá rẻ) trước: Cộng thêm điểm dựa trên giá
+        // Ưu tiên bán các ghế VIP (giá cao) trước: Trừ điểm dựa trên giá
         double priceScore = 0;
         if (seatPrices != null) {
             for (Seat s : seats) {
                 java.math.BigDecimal p = seatPrices.get(s.getId());
                 if (p != null) {
-                    // Chia cho 10.000 để chuẩn hóa điểm số (Vd: 200.000đ -> 20 điểm)
-                    // Giá càng đắt thì điểm càng cao -> Càng bị né (vì thuật toán tìm điểm thấp nhất)
-                    priceScore += p.doubleValue() / 10000.0;
+                    // Chia cho 10.000 để chuẩn hóa điểm số
+                    // Giá càng đắt thì điểm CÀNG NHỎ -> Càng được ưu tiên (vì thuật toán tìm điểm thấp nhất)
+                    priceScore -= p.doubleValue() / 10000.0;
                 }
             }
         }
