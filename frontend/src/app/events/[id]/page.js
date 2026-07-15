@@ -764,16 +764,7 @@ export default function EventDetailPage({ params }) {
           <Link href="/events" className={styles.backBtn} style={{ zIndex: 10 }}>
             ← {t('common.back')}
           </Link>
-          <button onClick={toggleFavorite} style={{
-            position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.95)',
-            border: 'none', borderRadius: '20px', padding: '8px 16px',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s',
-            fontWeight: 700, fontSize: '0.82rem', color: isFavorited ? '#e91e63' : '#334155',
-            zIndex: 10
-          }}>
-            {isFavorited ? 'Đã thích' : 'Yêu thích'}
-          </button>
+
         </div>
 
         <div className={styles.content}>
@@ -829,31 +820,7 @@ export default function EventDetailPage({ params }) {
             <div className={styles.stats}>
               <div className={styles.statItem} style={{ display: 'flex', flexDirection: 'column', borderTop: '4px solid #8b5cf6', alignItems: 'center' }}>
                 <span className={styles.statLabel}>{t('events.detail_organizer')}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', justifyContent: 'center' }}>
-                  <span className={styles.statValue} style={{ margin: 0 }}>{event.organizerName || 'N/A'}</span>
-                  {event.organizerId && (
-                    <button 
-                      onClick={handleFollowToggle} 
-                      disabled={followLoading}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        border: isFollowing ? '1px solid #d1d5db' : 'none',
-                        background: isFollowing ? '#f3f4f6' : '#8b5cf6',
-                        color: isFollowing ? '#374151' : '#fff',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      {followLoading ? '...' : isFollowing ? '✓ Đang theo' : '＋ Theo dõi'}
-                    </button>
-                  )}
-                </div>
+                <span className={styles.statValue}>{event.organizerName || 'N/A'}</span>
               </div>
               <div className={styles.statItem} style={{ borderTop: '4px solid #3b82f6' }}>
                 <span className={styles.statLabel}>{t('events.detail_category')}</span>

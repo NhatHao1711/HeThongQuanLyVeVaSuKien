@@ -100,7 +100,7 @@ logging:
 # ===================== APP CONFIG =====================
 app:
   payment:
-    timeout-minutes: 3
+    timeout-minutes: 10
   frontend:
     url: http://localhost:3000
   backend:

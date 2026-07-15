@@ -43,9 +43,10 @@ public class AdvancedSeatFinderService {
 
         List<Map.Entry<String, List<Seat>>> rowEntries = new ArrayList<>(rowMap.entrySet());
         
+        List<String> keys = new ArrayList<>(rowMap.keySet());
+        int totalRows = keys.size();
+        
         if (quantity == 1) {
-            int totalRows = rowEntries.size();
-            List<String> keys = new ArrayList<>(rowMap.keySet());
             rowEntries.sort((e1, e2) -> {
                 int r1 = keys.indexOf(e1.getKey());
                 int r2 = keys.indexOf(e2.getKey());
@@ -136,9 +137,22 @@ public class AdvancedSeatFinderService {
                             totalPrice += price != null ? price.doubleValue() : 100000.0;
                         }
                         
-                        // Ưu tiên ghế mồ côi nếu khách mua 1 vé
+                        // Ưu tiên ghế mồ côi theo thứ tự: Thường -> Tiết kiệm -> VIP
                         if (quantity == 1 && !isLeftAvailable && !isRightAvailable) {
-                            totalPrice -= 9999999.0;
+                            String rName = entry.getKey();
+                            int rIdx = keys.indexOf(rName);
+                            
+                            int p = 1; // Thường
+                            if (rIdx < 3) p = 3; // VIP
+                            else if (totalRows >= 5 && rIdx >= totalRows - 2) p = 2; // Tiết kiệm
+                            
+                            if (p == 1) {
+                                totalPrice -= 30000000.0;
+                            } else if (p == 2) {
+                                totalPrice -= 20000000.0;
+                            } else {
+                                totalPrice -= 10000000.0;
+                            }
                         }
                         
                         if (overallBestBlock == null || totalPrice < overallBestBlock.totalPrice) {
