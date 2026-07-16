@@ -138,6 +138,20 @@ export default function SplitPaymentCheckout({ params }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '1rem' }}>
       {payOSUrl ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '450px' }}>
+          <div style={{ background: '#fff', width: '100%', padding: '1.2rem', borderRadius: '16px', marginBottom: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.2rem', textTransform: 'uppercase' }}>Chi tiết vé</div>
+              <div style={{ color: '#0f172a', fontWeight: 700, fontSize: '1.05rem' }}>
+                {data?.ticketTypeName} {data?.seatName ? `- Ghế ${data.seatName}` : ''}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.2rem', textTransform: 'uppercase' }}>Số tiền</div>
+              <div style={{ color: '#6366f1', fontWeight: 800, fontSize: '1.15rem' }}>
+                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data?.amount || 0)}
+              </div>
+            </div>
+          </div>
           <div style={{ color: '#ef4444', fontWeight: 700, marginBottom: '1rem', background: '#fee2e2', padding: '6px 16px', borderRadius: '50px', fontSize: '0.95rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
             Mã QR sẽ làm mới sau: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
           </div>

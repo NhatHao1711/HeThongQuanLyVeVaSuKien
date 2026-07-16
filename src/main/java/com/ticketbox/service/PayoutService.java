@@ -83,17 +83,21 @@ public class PayoutService {
             user.setBalance(BigDecimal.ZERO);
         }
 
-        if (user.getBalance().compareTo(dto.getAmount()) < 0) {
-            throw new RuntimeException("Số dư khả dụng không đủ để thực hiện yêu cầu rút tiền này.");
+        BigDecimal pendingPayouts = payoutRepository.findByAgencyId(user.getId()).stream()
+                .filter(p -> "PENDING".equals(p.getStatus()))
+                .map(Payout::getNetAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal availableBalance = user.getBalance().subtract(pendingPayouts);
+
+        if (availableBalance.compareTo(dto.getAmount()) < 0) {
+            throw new RuntimeException("Số dư khả dụng không đủ để thực hiện yêu cầu rút tiền này (đã trừ các khoản đang chờ duyệt).");
         }
 
-        // Deduct from balance immediately to prevent double spending
-        user.setBalance(user.getBalance().subtract(dto.getAmount()));
-        
         // Save bank details to user if they provided it
         if (dto.getBankName() != null && !dto.getBankName().isEmpty()) {
-            String bankJson = String.format("{\"bankName\":\"%s\", \"bankAccountNumber\":\"%s\", \"bankAccountName\":\"%s\"}", 
-                    dto.getBankName(), dto.getBankAccountNumber(), dto.getBankAccountName());
+            String bankJson = String.format("{\"bankName\":\"%s\", \"bankAccountName\":\"%s\", \"bankAccountNumber\":\"%s\"}", 
+                    dto.getBankName(), dto.getBankAccountName(), dto.getBankAccountNumber());
             user.setBankAccount(bankJson);
         }
         userRepository.save(user);
@@ -106,15 +110,6 @@ public class PayoutService {
                 .status("PENDING")
                 .build();
         payoutRepository.save(payout);
-
-        // Create Debit Ledger Entry
-        LedgerEntry ledgerEntry = LedgerEntry.builder()
-                .agency(user)
-                .entryType("DEBIT_PAYOUT")
-                .amount(dto.getAmount().negate()) // negative amount
-                .status("SETTLED")
-                .build();
-        ledgerEntryRepository.save(ledgerEntry);
 
         log.info("Đã tạo yêu cầu rút tiền cho user {}, số tiền: {}", userEmail, dto.getAmount());
         
@@ -176,6 +171,21 @@ public class PayoutService {
         payout.setStatus("COMPLETED");
         payout.setExecutedAt(LocalDateTime.now());
         payoutRepository.save(payout);
+
+        // Trừ tiền khi admin duyệt
+        User agency = payout.getAgency();
+        agency.setBalance(agency.getBalance().subtract(payout.getNetAmount()));
+        userRepository.save(agency);
+
+        // Lưu lịch sử biến động số dư
+        LedgerEntry ledgerEntry = LedgerEntry.builder()
+                .agency(agency)
+                .entryType("DEBIT_PAYOUT")
+                .amount(payout.getNetAmount().negate()) // negative amount
+                .status("SETTLED")
+                .build();
+        ledgerEntryRepository.save(ledgerEntry);
+
         log.info("Đã phê duyệt rút tiền ID {}", id);
         
         // Gửi email thông báo đã chuyển khoản thành công
@@ -192,20 +202,6 @@ public class PayoutService {
         payout.setExecutedAt(LocalDateTime.now());
         payoutRepository.save(payout);
 
-        // Hoàn tiền lại cho đại lý
-        User agency = payout.getAgency();
-        agency.setBalance(agency.getBalance().add(payout.getNetAmount()));
-        userRepository.save(agency);
-        
-        // Cập nhật LedgerEntry? Thêm 1 dòng REVERSAL
-        LedgerEntry reversal = LedgerEntry.builder()
-                .agency(agency)
-                .entryType("CREDIT_PAYOUT_FAILED")
-                .amount(payout.getNetAmount())
-                .status("SETTLED")
-                .build();
-        ledgerEntryRepository.save(reversal);
-
-        log.info("Đã từ chối rút tiền ID {}, hoàn lại {} cho user {}", id, payout.getNetAmount(), agency.getEmail());
+        log.info("Đã từ chối rút tiền ID {} cho user {}", id, payout.getAgency().getEmail());
     }
 }

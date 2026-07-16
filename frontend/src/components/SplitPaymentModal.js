@@ -51,8 +51,9 @@ export default function SplitPaymentModal({ orderId, onClose }) {
       const link = data.links.find(l => l.paymentLinkCode === activeLinkCode);
       if (link && link.status === 'PAID') {
         setSuccessMessage('🎉 Một phần vé đã được thanh toán thành công!');
-        // Do NOT close the iframe here. Wait for PAYOS_SUCCESS message from the iframe.
-        // It will close the iframe after the user has seen the success screen.
+        setMyPayOSUrl('');
+        setActiveLinkCode('');
+        setTimeout(() => setSuccessMessage(''), 5000);
       }
     }
   }, [data, activeLinkCode]);
